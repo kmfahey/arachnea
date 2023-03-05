@@ -79,6 +79,9 @@ class Handle(object):
     def convert_to_deleted_user(self):
         """
         Instances a Deleted_User object from the state of this Handle object.
+
+        :return: A Deleted_User object with the same values for its handle_id,
+                 username and host state variables.
         """
         return Deleted_User(handle_id=self.handle_id, username=self.username, host=self.host)
 
@@ -88,7 +91,10 @@ class Handle(object):
         the MySQL arachnea.handles table, set the handle_id from the table,
         inserting the data if necessary.
 
-        :param data_store: The Data_Store object to use to access the arachnea.handles table.
+        :param data_store: The Data_Store object to use to access the
+                           arachnea.handles table.
+        :return:           True if the handle_id value was newly set; False if
+                           the handle_id instance variable was already set.
         """
         # If the handle_id is already set, do nothing & return failure.
         if self.handle_id:
@@ -116,7 +122,7 @@ class Handle(object):
 
 class Data_Store(object):
     """
-    Represents a connection to the MySQL database
+    Intermediates a connection to the MySQL database.
     """
     __slots__ = 'db_connection', 'db_cursor', 'logger'
 
@@ -126,35 +132,76 @@ class Data_Store(object):
     db = 'arachnea'
 
     def __init__(self, logger):
+        """
+        Instances the Data_Store object.
+
+        :param logger: A logging.Logger object to log events to.
+        """
         self.logger = logger
-        self.logger.info(f"opening connection to database")
+        self.logger.info("opening connection to database")
         self.db_connection = MySQLdb.Connect(host=self.host, user=self.user, password=self.password, db=self.db)
         self.db_connection.autocommit(True)
         self.db_cursor = self.db_connection.cursor()
 
     def users_in_relations_not_in_profiles(self):
-        self.logger.info(f"selecting handles from relations left join profiles")
-        relations_left_join_profiles_sql = "SELECT DISTINCT relation_handle_id, relation_username, relation_instance FROM "\
-                                           "relations LEFT JOIN profiles ON relations.relation_handle_id = "\
-                                           "profiles.profile_handle_id WHERE profiles.profile_handle_id IS NULL "\
-                                           "ORDER BY RAND();"
+        """
+        Executes a LEFT JOIN statement on the database, discerning records
+        that are in the relations table but not in the profiles table. Such a
+        record represents a user who has been found in someone's following or
+        followers list but hasn't had their profile loaded yet.
+
+        :return: A generator that yields 3-tuples of (handle_id, username,
+                 instance) rows.
+        """
+        self.logger.info("selecting handles from relations left join profiles")
+        relations_left_join_profiles_sql = """SELECT DISTINCT relation_handle_id, relation_username, relation_instance FROM
+                                              relations LEFT JOIN profiles ON relations.relation_handle_id =
+                                              profiles.profile_handle_id WHERE profiles.profile_handle_id IS NULL
+                                              ORDER BY RAND();"""
         return self._execute_sql_generator(relations_left_join_profiles_sql)
 
     def users_in_profiles_not_in_relations(self):
-        self.logger.info(f"selecting handles from profiles left join relations")
-        profiles_left_join_relations_sql = "SELECT profiles.profile_handle_id, username, instance FROM profiles "\
-                                           "LEFT JOIN relations ON profiles.profile_handle_id = relations.profile_handle_id "\
-                                           "WHERE relations.profile_handle_id IS NULL ORDER BY RAND();"
+        """
+        Executes a LEFT JOIN statement on the database, discerning records that
+        are in the profiles table but not in the relations table. Such a record
+        represents a user whose profile has been loaded but who doesn't appear
+        in anyone's following or followers lists.
+
+        :return: A generator that yields 3-tuples of (handle_id, username,
+                 instance) rows.
+        """
+        self.logger.info("selecting handles from profiles left join relations")
+        profiles_left_join_relations_sql = """SELECT profiles.profile_handle_id, username, instance FROM profiles
+                                              LEFT JOIN relations ON profiles.profile_handle_id = relations.profile_handle_id
+                                              WHERE relations.profile_handle_id IS NULL ORDER BY RAND();"""
         return self._execute_sql_generator(profiles_left_join_relations_sql)
 
     def users_in_handles_not_in_profiles(self):
-        self.logger.info(f"selecting handles from handles left join profiles")
-        handles_left_join_profiles_sql = "SELECT handles.handle_id, handles.username, handles.instance FROM handles LEFT "\
-                                         "JOIN profiles ON handles.handle_id = profiles.profile_handle_id WHERE "\
-                                         "profiles.profile_handle_id IS NULL ORDER BY RAND();"
+        """
+        Executes a LEFT JOIN statement on the database, discerning records that
+        are in the handles table but not in the profiles table. Such a record
+        represents a handle that was saved from one of a number of sources, but
+        whose profile hasn't been loaded yet.
+
+        :return: A generator that yields 3-tuples of (handle_id, username,
+                 instance) rows.
+        """
+        self.logger.info("selecting handles from handles left join profiles")
+        handles_left_join_profiles_sql = """SELECT handles.handle_id, handles.username, handles.instance FROM handles LEFT
+                                            JOIN profiles ON handles.handle_id = profiles.profile_handle_id WHERE
+                                            profiles.profile_handle_id IS NULL ORDER BY RAND();"""
         return self._execute_sql_generator(handles_left_join_profiles_sql)
 
     def _execute_sql_generator(self, select_sql):
+        """
+        A private method used by other methods on this class to execute an
+        SQL statement and then return a generator which retrieves & yields
+        rows from the database one at a time. Useful to avoid pulling a large
+        tuple-of-tuples and storing it in memory when a query returns a large
+        number of rows.
+
+        :return: A generator that yields one row at a time from the query executed.
+        """
         self.db_cursor.execute(select_sql)
         row = self.db_cursor.fetchone()
         while row is not None:
@@ -162,10 +209,24 @@ class Data_Store(object):
             row = self.db_cursor.fetchone()
 
     def execute(self, sql):
+        """
+        Executes a query on the database and returns all the matching rows.
+
+        :return: If a SELECT statement was executed, returns a tuple-of-tuples
+                 where each inner tuple is one matching row from the query that
+                 was executed. The length of the inner tuples and the data
+                 contained depends on the columns selected. Otherwise, returns
+                 a zero-length tuple.
+        """
         self.db_cursor.execute(sql)
         return self.db_cursor.fetchall()
 
     def close(self):
+        """
+        Closes the database cursor and the database connection.
+
+        :return: None
+        """
         self.db_cursor.close()
         self.db_connection.close()
 
