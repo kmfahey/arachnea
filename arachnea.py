@@ -2,9 +2,7 @@
 
 import bs4
 import datetime
-import functools
 import logging
-import math
 import optparse
 import re
 import selenium
@@ -29,51 +27,76 @@ Scroll_Pause_Time = 1.0
 
 
 class Internal_Exception(Exception):
-    pass
-
-
-class Rate_Limit_Exception(Exception):
-    pass
-
-
-class Malfunctioning_Instance_Exception(Exception):
-    pass
-
-
-class Deleted_User_Exception(Exception):
-    pass
-
-
-class Unparseable_Instance_Exception(Exception):
-    pass
-
-
-class Suspended_Instance_Exception(Exception):
+    """
+    Thrown in the case of a coding error or other internal issue.
+    """
     pass
 
 
 class Handle(object):
+    """
+    Represents a mastodon handle.
+    """
     __slots__ = 'handle_id', 'username', 'host'
 
-    handle = property(lambda self: f"@{self.username}@{self.host}")
+    @property
+    def handle(self):
+        """
+        Returns the handle in @username@host form.
+        """
+        return f"@{self.username}@{self.host}"
 
-    profile_url = property(lambda self: f"https://{self.host}/@{self.username}")
+    @property
+    def profile_url(self):
+        """
+        Returns the handle in https://host/@username form.
+        """
+        return f"https://{self.host}/@{self.username}"
 
     def __init__(self, handle_id=None, username='', host=''):
+        """
+        Instances the Handle object.
+
+        :param handle_id: The primary key of the row in the MySQL
+                          arachnea.handles table that furnished the data this
+                          Handle object is instanced from, if any.
+        :param username:  The part of the handle that represents the indicated
+                          user's username.
+        :param host:      The part of the handle that represents the indicated
+                          user's instance.
+        """
         assert isinstance(handle_id, int) or handle_id is None
         self.handle_id = handle_id
         self.username = username
         self.host = host
 
     def convert_to_deleted_user(self):
+        """
+        Instances a Deleted_User object from the state of this Handle object.
+        """
         return Deleted_User(handle_id=self.handle_id, username=self.username, host=self.host)
 
     def fetch_or_set_handle_id(self, data_store):
+        """
+        If the Handle object was instanced from another source than a row in
+        the MySQL arachnea.handles table, set the handle_id from the table,
+        inserting the data if necessary.
+
+        :param data_store: The Data_Store object to use to access the arachnea.handles table.
+        """
+        # If the handle_id is already set, do nothing & return failure.
         if self.handle_id:
             return False
-        fetch_handle_id_sql = f"SELECT handle_id FROM handles WHERE username = '{self.username}' AND instance = '{self.host}';"
+
+        # Fetch the extant handle_id value from the table if it so happens this
+        # username/host part is already in the handles table.
+        fetch_handle_id_sql = (f"""SELECT handle_id FROM handles WHERE username = '{self.username}'
+                                                                 AND instance = '{self.host}';""")
         data_store.db_cursor.execute(fetch_handle_id_sql)
         rows = data_store.db_cursor.fetchall()
+
+        # If it wasn't present, insert the username/host pair into the table,
+        # and repeats the fetch query.
         if not len(rows):
             insert_handle_sql = f"INSERT INTO handles (username, instance) VALUES ('{self.username}', '{self.host}');"
             data_store.db_cursor.execute(insert_handle_sql)
@@ -489,7 +512,7 @@ class Page(object):
     def webdriver_fetch(self):
         try:
             options = selenium.webdriver.firefox.options.Options()
-            options.headless = True
+            options.add_argument('-headless')
             self.logger.info(f"webdriver instantiating headless Firefox program")
             browser = selenium.webdriver.Firefox(options=options)
             self.logger.info(f"webdriver loading url {self.url}")
