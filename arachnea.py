@@ -10,6 +10,7 @@ import socket
 import sys
 import threading
 import time
+import decouple
 
 import html2text
 import MySQLdb
@@ -20,10 +21,15 @@ import selenium.webdriver
 import selenium.webdriver.common.by
 import selenium.webdriver.firefox.options
 
+
+# One of two places that a timeout of 5 seconds is set. The other place is at
+# the top of the Page.requests_fetch() method where the actual requests.get()
+# call is made.
 socket.setdefaulttimeout(5)
 
-
-Scroll_Pause_Time = 1.0
+# Used to set how long selenium.webdriver waits between directing the puppet
+# firefox instance to scroll the page.
+SCROLL_PAUSE_TIME = 1.0
 
 
 class Internal_Exception(Exception):
@@ -109,11 +115,14 @@ class Handle(object):
 
 
 class Data_Store(object):
+    """
+    Represents a connection to the MySQL database
+    """
     __slots__ = 'db_connection', 'db_cursor', 'logger'
 
     host = 'localhost'
-    user = 'kmfahey'
-    password = '3.1415926535'
+    user = decouple.config('DB_USER')
+    password = decouple.config('DB_PASSWORD')
     db = 'arachnea'
 
     def __init__(self, logger):
@@ -365,7 +374,7 @@ class Page_Factory(object):
             elif result.user_deleted:
                 deleted_user = handle.convert_to_deleted_user()
                 deleted_user.logger = self.logger
-                self.deleted_users_dict[handle.username, handle.host] = deleted_user 
+                self.deleted_users_dict[handle.username, handle.host] = deleted_user
                 deleted_user.save_deleted_user(self.data_store)
                 self.logger.info(f"failed to load {url}: user deleted")
             elif result.webdriver_error:
@@ -528,7 +537,7 @@ class Page(object):
                 self.logger.info(f"webdriver loaded initial page height {last_height}")
                 while True:
                     browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                    time.sleep(Scroll_Pause_Time)
+                    time.sleep(SCROLL_PAUSE_TIME)
                     new_height = browser.execute_script("return document.body.scrollHeight")
                     if new_height == last_height:
                         self.logger.info(f"webdriver scrolled down to page height {last_height} and finished scrolling")
@@ -586,12 +595,12 @@ class Page(object):
     def parse_relations_page(self, browser=None):
         self.logger.info(f"parsing {self.relation_type} at {self.url}")
         if self.is_dynamic:
-            try: 
+            try:
                 html_tag = browser.find_element(selenium.webdriver.common.by.By.XPATH, '/html')
                 html_tag.send_keys(selenium.webdriver.common.keys.Keys.HOME)
-                time.sleep(Scroll_Pause_Time)
+                time.sleep(SCROLL_PAUSE_TIME)
                 html_tag.send_keys(selenium.webdriver.common.keys.Keys.END)
-                time.sleep(Scroll_Pause_Time)
+                time.sleep(SCROLL_PAUSE_TIME)
                 html_tag.send_keys(selenium.webdriver.common.keys.Keys.ARROW_UP)
                 article_tag_text_by_data_id = dict.fromkeys((tag.get_attribute('data-id')
                     for tag in browser.find_elements(selenium.webdriver.common.by.By.XPATH, "//article")), "")
@@ -724,7 +733,7 @@ class Page(object):
                                  f"relation_instance) VALUES ({profile_handle.handle_id}, '{self.username}', "\
                                  f"'{self.host}', {relation_handle.handle_id}, '{relation}', {self.page_number}, "\
                                  f"'{relation_handle.username}', '{relation_handle.host}')"
-                    try: 
+                    try:
                         data_store.execute(insert_sql)
                     except MySQLdb._exceptions.IntegrityError:
                         self.logger.info(f"got an SQL IntegrityError when inserting {relation_handle.handle} %s "\
@@ -853,7 +862,7 @@ parser.add_option("-C", "--handles-from-args", action="store_true", default=Fals
 parser.add_option("-H", "--handles-join-profiles", action="store_true", default=False, dest="handles_join_profiles",
                   help="when fetching profiles, load unfetched handles from the `handles` table left join the "
                        "`profiles` table")
-parser.add_option("-p", "--fetch-profiles-only", action="store_true", default=False, dest="fetch_profiles_only", 
+parser.add_option("-p", "--fetch-profiles-only", action="store_true", default=False, dest="fetch_profiles_only",
                   help="fetch profiles only, disregard following & followers pages")
 parser.add_option("-q", "--fetch-relations-only", action="store_true", default=False, dest="fetch_relations_only",
                   help="fetch following & followers pages only, disregard profiles")
@@ -902,7 +911,7 @@ elif not options.handles_from_args and args:
 elif options.use_threads and options.dry_run:
     print("-t and -x were both specified, these modes conflict")
     exit(1)
-    
+
 
 main_logger = logging.getLogger(name="main")
 main_logger.setLevel(logging.INFO)
