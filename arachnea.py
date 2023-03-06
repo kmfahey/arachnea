@@ -63,14 +63,18 @@ class Handle(object):
         """
         Instances the Handle object.
 
-        :param handle_id: The primary key of the row in the MySQL
-                          arachnea.handles table that furnished the data this
-                          Handle object is instanced from, if any.
-        :param username:  The part of the handle that represents the indicated
-                          user's username.
-        :param host:      The part of the handle that represents the indicated
-                          user's instance.
+        :param handle_id: The primary key of the row in the MySQL handles table that
+                          furnished the data this Handle object is instanced from, if
+                          any.
+        :type handle_id:  int, optional
+        :param username:  The part of the handle that represents the indicated user's
+                          username.
+        :type username:   str
+        :param host:      The part of the handle that represents the indicated user's
+                          instance.
+        :type host:       str
         """
+        # FIXME should do input checking on args
         assert isinstance(handle_id, int) or handle_id is None
         self.handle_id = handle_id
         self.username = username
@@ -80,21 +84,23 @@ class Handle(object):
         """
         Instances a Deleted_User object from the state of this Handle object.
 
-        :return: A Deleted_User object with the same values for its handle_id,
-                 username and host state variables.
+        :return: A Deleted_User object with the same values for its handle_id, username
+                 and host state variables.
+        :rtype:  Deleted_User
         """
         return Deleted_User(handle_id=self.handle_id, username=self.username, host=self.host)
 
     def fetch_or_set_handle_id(self, data_store):
         """
-        If the Handle object was instanced from another source than a row in
-        the MySQL arachnea.handles table, set the handle_id from the table,
-        inserting the data if necessary.
+        If the Handle object was instanced from another source than a row in the
+        MySQL handles table, set the handle_id from the table, inserting the data if
+        necessary.
 
-        :param data_store: The Data_Store object to use to access the
-                           arachnea.handles table.
-        :return:           True if the handle_id value was newly set; False if
-                           the handle_id instance variable was already set.
+        :param data_store: The Data_Store object to use to access the handles table.
+        :type data_store:  Data_Store
+        :return:           True if the handle_id value was newly set; False if the
+                           handle_id instance variable was already set.
+        :rtype:            bool
         """
         # If the handle_id is already set, do nothing & return failure.
         if self.handle_id:
@@ -135,7 +141,8 @@ class Data_Store(object):
         """
         Instances the Data_Store object.
 
-        :param logger: A logging.Logger object to log events to.
+        :param logger: A Logger object to log events to.
+        :type logger:  logging.Logger
         """
         self.logger = logger
         self.logger.info("opening connection to database")
@@ -145,13 +152,13 @@ class Data_Store(object):
 
     def users_in_relations_not_in_profiles(self):
         """
-        Executes a LEFT JOIN statement on the database, discerning records
-        that are in the relations table but not in the profiles table. Such a
-        record represents a user who has been found in someone's following or
-        followers list but hasn't had their profile loaded yet.
+        Executes a LEFT JOIN statement on the database, discerning records that are in
+        the relations table but not in the profiles table. Such a record represents a
+        user who has been found in someone's following or followers list but hasn't had
+        their profile loaded yet.
 
-        :return: A generator that yields 3-tuples of (handle_id, username,
-                 instance) rows.
+        :return: A generator that yields tuples of (handle_id, username, instance)
+                 values.
         """
         self.logger.info("selecting handles from relations left join profiles")
         relations_left_join_profiles_sql = """SELECT DISTINCT relation_handle_id, relation_username, relation_instance FROM
@@ -162,13 +169,13 @@ class Data_Store(object):
 
     def users_in_profiles_not_in_relations(self):
         """
-        Executes a LEFT JOIN statement on the database, discerning records that
-        are in the profiles table but not in the relations table. Such a record
-        represents a user whose profile has been loaded but who doesn't appear
-        in anyone's following or followers lists.
+        Executes a LEFT JOIN statement on the database, discerning records that are in
+        the profiles table but not in the relations table. Such a record represents a
+        user whose profile has been loaded but who doesn't appear in anyone's following
+        or followers lists.
 
-        :return: A generator that yields 3-tuples of (handle_id, username,
-                 instance) rows.
+        :return: A generator that yields 3-tuples of (handle_id, username, instance)
+                 values.
         """
         self.logger.info("selecting handles from profiles left join relations")
         profiles_left_join_relations_sql = """SELECT profiles.profile_handle_id, username, instance FROM profiles
@@ -178,13 +185,13 @@ class Data_Store(object):
 
     def users_in_handles_not_in_profiles(self):
         """
-        Executes a LEFT JOIN statement on the database, discerning records that
-        are in the handles table but not in the profiles table. Such a record
-        represents a handle that was saved from one of a number of sources, but
-        whose profile hasn't been loaded yet.
+        Executes a LEFT JOIN statement on the database, discerning records that are in
+        the handles table but not in the profiles table. Such a record represents a
+        handle that was saved from one of a number of sources, but whose profile hasn't
+        been loaded yet.
 
-        :return: A generator that yields 3-tuples of (handle_id, username,
-                 instance) rows.
+        :return: A generator that yields 3-tuples of (handle_id, username, instance)
+                 values.
         """
         self.logger.info("selecting handles from handles left join profiles")
         handles_left_join_profiles_sql = """SELECT handles.handle_id, handles.username, handles.instance FROM handles LEFT
@@ -194,11 +201,10 @@ class Data_Store(object):
 
     def _execute_sql_generator(self, select_sql):
         """
-        A private method used by other methods on this class to execute an
-        SQL statement and then return a generator which retrieves & yields
-        rows from the database one at a time. Useful to avoid pulling a large
-        tuple-of-tuples and storing it in memory when a query returns a large
-        number of rows.
+        A private method used by other methods on this class to execute an SQL statement
+        and then return a generator which retrieves & yields rows from the database one
+        at a time. Useful to avoid pulling a large tuple-of-tuples and storing it in
+        memory when a query returns a large number of rows.
 
         :return: A generator that yields one row at a time from the query executed.
         """
@@ -212,11 +218,10 @@ class Data_Store(object):
         """
         Executes a query on the database and returns all the matching rows.
 
-        :return: If a SELECT statement was executed, returns a tuple-of-tuples
-                 where each inner tuple is one matching row from the query that
-                 was executed. The length of the inner tuples and the data
-                 contained depends on the columns selected. Otherwise, returns
-                 a zero-length tuple.
+        :return: If a SELECT statement was executed, returns a tuple-of-tuples where
+                 each inner tuple is one matching row from the query that was executed.
+                 The length of the inner tuples and the data contained depends on the
+                 columns selected. Otherwise, returns a zero-length tuple.
         """
         self.db_cursor.execute(sql)
         return self.db_cursor.fetchall()
@@ -235,6 +240,9 @@ class Data_Store(object):
 
 
 class Instance(object):
+    """
+    Represents a mastodon instance.
+    """
     __slots__ = 'host', 'logger', 'rate_limit_expires', 'attempts', 'malfunctioning', 'suspended', 'unparseable'
 
     rate_limit_expires_isoformat = property(lambda self: datetime.datetime.fromtimestamp(self.rate_limit_expires).time().isoformat())
@@ -245,26 +253,81 @@ class Instance(object):
                               else 'ingoodstanding')
 
     def __init__(self, host, logger, malfunctioning=False, suspended=False, unparseable=False, rate_limited=False, x_ratelimit_limit=None, attempts=0):
+        """
+        Instances a Instance object.
+
+        :param host:              The hostname of the instance (str).
+        :type host:               str
+        :param logger:            The logger object to log events to.
+        :type logger:             logging.Logger
+        :param malfunctioning:    Whether the instance is malfunctioning; ie.  returning
+                                  a 500-class error when contacted.
+        :type malfunctioning:     bool, optional
+        :param suspended:         Whether the instance is malfunctioning; ie. has been
+                                  excluded from contact due to bad behavior of its
+                                  admins, mods or users.
+        :type suspended:          bool, optional
+        :param unparseable:       Whether the instance is unparseable; ie. if the HTML
+                                  documents returned by the instance can't be parsed by
+                                  any means at the program's disposal.
+        :type unparseable:        bool, optional
+        :param rate_limited:      Whether the program has been rate-limited from
+                                  requests with the instance.
+        :type rate_limited:       bool, optional
+        :param x_ratelimit_limit: The number of seconds remaining on the rate limit with
+                                  the instance.
+        :type x_ratelimit_limit:  int or float, optional
+        :param attempts:          The number of unsuccessful attempts the program has
+                                  made to contact this instance.
+        :type attempts:           int, optional
+        """
+        # FIXME should do input checking on args
         self.host = host
         self.logger = logger
         self.attempts = attempts
         self.malfunctioning = malfunctioning
         self.suspended = suspended
         self.unparseable = unparseable
+        # The rate_limit_expires instance var is the time in epoch seconds when
+        # the ratelimit will expire.
         if rate_limited:
             self.set_rate_limit(x_ratelimit_limit)
         else:
             self.rate_limit_expires = 0.0
 
     def set_rate_limit(self, x_ratelimit_limit=None):
+        """
+        Sets the rate_limit_expires instance variable to the x_ratelimit_limit argument,
+        if supplied, otherwise to 300.0.
+
+        :param x_ratelimit_limit: int or float, optional
+        :return:                  None
+        :rtype:                   types.NoneType
+        """
+        # If the x_ratelimit_limit argument (which is taken from the
+        # X-Ratelimit-Lime header on the HTTP response that had status 429)
+        # is supplied, it's used to set the time in epoch seconds when the
+        # ratelimit expires.
         if x_ratelimit_limit:
             self.rate_limit_expires = time.time() + float(x_ratelimit_limit)
+        # Otherwise the default ratelimit period of 300 seconds is used.
         else:
             self.rate_limit_expires = time.time() + 300.0
         self.logger.info(f"set rate limit on instance '{self.host}': rate limit expires at {self.rate_limit_expires_isoformat}")
 
     @classmethod
     def fetch_all_instances(self, data_store, logger):
+        """
+        Loads all lines from the bad_instances table, converts them to Instance objects,
+        and returns a dict mapping hostnames to Instance objects.
+
+        :param data_store: The Data_Store object to use to connect to the database.
+        :type data_store:  Data_Store
+        :param logger:     The logger object to use to log events to.
+        :type logger:      logging.Logger
+        :return:           A dict mapping hostnames (strs) to Instance objects.
+        :rtype:            dict
+        """
         instances_dict = dict()
         for row in data_store.execute("SELECT instance, issue FROM bad_instances;"):
             host, issue = row
@@ -276,32 +339,72 @@ class Instance(object):
 
     @classmethod
     def save_instances(self, instances_dict, data_store, logger):
+        """
+        Accepts a dict mapping hostnames to Instance objects, and commits every novel
+        one to the database. (Class method.)
+
+        :param instances_dict: A dict mapping hostnames (strs) to Instance objects.
+        :type instances_dict:  dict
+        :param data_store:     The Data_Store object to use to connect to the database.
+        :type data_store:      Data_Store
+        :param logger:         The logger object to use to log events to.
+        :type logger:          logging.Logger
+        :return:               None
+        :rtype:                types.NoneType
+        """
+        # FIXME should detect changed instance state between database and memory
         existing_instances_dict = self.fetch_all_instances(data_store, logger)
         instances_to_insert = dict()
+        # instances_to_insert dict is built by (effectively) subtracting
+        # existing_instances_dict from instances_dict.
         for host, instance in instances_dict.items():
             if host in existing_instances_dict:
                 continue
             instances_to_insert[host] = instances_dict[host]
         if not instances_to_insert:
             return False
+        # Building the VALUES (row), (row), (row), etc. portion of the statement.
         values_stmts = tuple(f"('{instance.host}','{instance.issue}')" for instance in instances_to_insert.values())
         insert_sql = "INSERT INTO bad_instances (instance, issue) VALUES %s;" % ', '.join(values_stmts)
         logger.info(f"saving {len(instances_to_insert)} bad instances to bad_instances table")
         data_store.execute(insert_sql)
 
     def still_rate_limited(self):
+        """
+        Returns true if the rate limit on this host hasn't expired yet, false if it has.
+
+        :return: True or False
+        :rtype:  bool
+        """
         return time.time() < self.rate_limit_expires
 
     def save_instance(self, data_store):
+        """
+        Saves this instance to the database.
+
+        :param data_store:     The Data_Store object to use to connect to the database.
+        :type data_store:      Data_Store
+        :return:               False if the instance's malfunctioning, suspended, and
+                               unparseable instance vars are all False, or if there was
+                               already a row in the bad_instances table with a value for
+                               the instance column matching the host instance var, True
+                               otherwise.
+        :rtype:                bool
+        """
+        # FIXME should detect changed instance state between database and memory
+        # The bad_instances table only holds data on instances with one of these
+        # states. An instance that is in good standing can't be saved to it.
         if not self.malfunctioning and not self.suspended and not self.unparseable:
             return False
         else:
             status = 'malfunctioning' if self.malfunctioning else 'suspended' if self.suspended else 'unparseable'
+        # Checking if the instance is already present in the bad_instances table.
         result = data_store.execute(f"SELECT instance, issue FROM bad_instances WHERE instance = '{self.host}';")
-        if not result:
-            self.logger.info(f"saving bad instance {self.host} to bad_instances table")
-            data_store.execute(f"INSERT INTO bad_instances (instance, issue) VALUES ('{self.host}', '{status}');")
-            return True
+        if result:
+            return False
+        self.logger.info(f"saving bad instance {self.host} to bad_instances table")
+        data_store.execute(f"INSERT INTO bad_instances (instance, issue) VALUES ('{self.host}', '{status}');")
+        return True
 
 
 class Failed_Request(object):
