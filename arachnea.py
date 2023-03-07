@@ -514,10 +514,24 @@ class Failed_Request(object):
 
 
 class Deleted_User(Handle):
+    """
+    Represents a user who has been deleted from their instance. Inherits from Handle.
+    """
     __slots__ = 'logger',
 
     @classmethod
     def fetch_all_deleted_users(self, data_store):
+        # FIXME if the Handle and Deleted_User classes are made hashable then
+        # the dict can be replaced with set.
+        """
+        Retrieves all records from the deleted_users table and returns them in a dict.
+
+        :param data_store: The Data_Store object to use to contact the database.
+        :type data_store:  Data_Store
+        :return:           A dict mapping 2-tuples of (username, host) to Deleted_User
+                           objects.
+        :rtype:            dict
+        """
         deleted_users_dict = dict()
         for row in data_store.execute("SELECT handle_id, username, instance FROM deleted_users;"):
             handle_id, username, host = row
@@ -525,7 +539,20 @@ class Deleted_User(Handle):
         return deleted_users_dict
 
     def save_deleted_user(self, data_store):
-        insert_sql = f"INSERT INTO deleted_users (handle_id, username, instance) VALUES ({self.handle_id}, '{self.username}', '{self.host}');"
+        # FIXME this code should check for the presence of the record in the
+        # database rather than relying on an IntegrityError
+        # FIXME should return True if successful, False if the record is already
+        # present
+        """
+        Saves this deleted user to the deleted_users table.
+
+        :param data_store: The Data_Store object to use to contact the database.
+        :type data_store:  Data_Store
+        :return:           None
+        :rtype:            types.NoneType
+        """
+        insert_sql = f"""INSERT INTO deleted_users (handle_id, username, instance) VALUES
+                         ({self.handle_id}, '{self.username}', '{self.host}');"""
         try:
             data_store.execute(insert_sql)
         except MySQLdb._exceptions.IntegrityError:
@@ -570,7 +597,7 @@ class Page_Factory(object):
             elif instance.still_rate_limited():
                 self.logger.info(f"instance {host} still rate limited, expires at {instance.rate_limit_expires_isoformat}, didn't load {url}")
                 return None, Failed_Request(host, ratelimited=True)
-        if (handle.host, handle.username) in self.deleted_users_dict:
+        if (handle.username, handle.host) in self.deleted_users_dict:
             # FIXME: this step can be skipped if a JOIN against deleted_users is added to the handles loading step
             self.logger.info(f"user {handle.handle} known to be deleted; didn't load {url}")
             return None, Failed_Request(handle.host, user_deleted=True)
