@@ -536,9 +536,9 @@ class Deleted_User(Handle):
 
 class Page_Factory(object):
     __slots__ = ('instances_dict', 'data_store', 'logger', 'deleted_users_dict', 'save_profiles', 'save_relations',
-                 'dont_discard_bc_wifi')
+                 'dont_discard_bc_wifi', 'conn_err_wifi_sleep_period')
 
-    def __init__(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False):
+    def __init__(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False, conn_err_wifi_sleep_period=0.0):
         self.data_store = data_store
         self.logger = logger
         self.instances_dict = instances_dict
@@ -546,6 +546,7 @@ class Page_Factory(object):
         self.save_profiles = save_profiles
         self.save_relations = save_relations
         self.dont_discard_bc_wifi = dont_discard_bc_wifi
+        self.conn_err_wifi_sleep_period = conn_err_wifi_sleep_period
 
     def instantiate_and_fetch_page(self, handle, url):
         host = handle.host
@@ -626,8 +627,11 @@ class Page_Factory(object):
             else:
                 self.logger.info(f"loaded {url}: unanticipated error {repr(result)}")
             if self.save_profiles and page.is_profile:
+                # FIXME relations page fetching should also get this treatment
                 if self.dont_discard_bc_wifi and result.connection_error:
                     self.logger.info(f"handle {handle.handle}: fetching returned connection error but the wifi might've gone out, saving for later")
+                    if self.conn_err_wifi_sleep_period:
+                        time.sleep(self.conn_err_wifi_sleep_period)
                     return page, True
                 elif result.connection_error:
                     self.logger.info(f"handle {handle.handle}: fetching returned error, saving null bio to database")
@@ -791,19 +795,20 @@ class Page(object):
         # FIXME should draw its post age threshold from a global constant
         self.logger.info(f"parsing profile at {self.url}")
         time_tags = self.document.find_all('time', {'class': 'time-ago'})
-        if len(time_tags) == 0:
-            self.profile_no_public_posts = True
-            return Failed_Request(self.host, no_public_posts=True)
-        else:
-            time_tags = [time_tag['datetime'] for time_tag in time_tags]
-            if '+' in time_tags[0]:
-                time_tags = [time_split[0]+'Z' for time_split in (time_tag.split('+') for time_tag in time_tags)]
-            toot_datetimes = sorted(map(lambda time_tag: datetime.datetime.strptime(time_tag, '%Y-%m-%dT%H:%M:%SZ'), time_tags))
-            seven_days_ago_datetime = datetime.datetime.today() - datetime.timedelta(days=7)
-            most_recent_toot_datetime = toot_datetimes[0]
-            self.profile_posts_too_old = most_recent_toot_datetime < seven_days_ago_datetime
-            if self.profile_posts_too_old:
-                return Failed_Request(self.host, posts_too_old=True)
+        # FIXME correct time tag parsing to reflect the latest format in use
+#        if len(time_tags) == 0:
+#            self.profile_no_public_posts = True
+#            return Failed_Request(self.host, no_public_posts=True)
+#        else:
+#            time_tags = [time_tag['datetime'] for time_tag in time_tags]
+#            if '+' in time_tags[0]:
+#                time_tags = [time_split[0]+'Z' for time_split in (time_tag.split('+') for time_tag in time_tags)]
+#            toot_datetimes = sorted(map(lambda time_tag: datetime.datetime.strptime(time_tag, '%Y-%m-%dT%H:%M:%SZ'), time_tags))
+#            seven_days_ago_datetime = datetime.datetime.today() - datetime.timedelta(days=7)
+#            most_recent_toot_datetime = toot_datetimes[0]
+#            self.profile_posts_too_old = most_recent_toot_datetime < seven_days_ago_datetime
+#            if self.profile_posts_too_old:
+#                return Failed_Request(self.host, posts_too_old=True)
         forwarding_tag = self.document.find('div', {'class': self.moved_handle_re})
         if forwarding_tag:
             forwarding_match = self.forwarding_handle_re.match(html2text.html2text(forwarding_tag.prettify()))
@@ -821,7 +826,7 @@ class Page(object):
             return Failed_Request(self.host, unparseable=True)
         if self.is_dynamic:
             unwanted_masto_link_divs = profile_div_tag.find_all('div', {'class': 'account__header__extra__links'})
-            if len(unwanted_masto_link_div):
+            if len(unwanted_masto_link_divs):
                 unwanted_masto_link_divs[0].replaceWith('')
         self.profile_bio_text = html2text.html2text(str(profile_div_tag))
         return len(self.profile_bio_text)
@@ -983,9 +988,10 @@ class Page(object):
 
 class Handle_Processor(object):
     __slots__ = ('data_store', 'logger', 'instances_dict', 'save_from_wifi', 'last_time_point', 'current_time_point',
-                 'prev_time_point', 'save_profiles', 'save_relations', 'page_factory', 'logger', 'dont_discard_bc_wifi')
+                 'prev_time_point', 'save_profiles', 'save_relations', 'page_factory', 'logger', 'dont_discard_bc_wifi',
+                 'conn_err_wifi_sleep_period')
 
-    def __init__(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False):
+    def __init__(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False, conn_err_wifi_sleep_period=0.0):
         self.data_store = data_store
         self.logger = logger
         self.instances_dict = instances_dict
@@ -993,8 +999,10 @@ class Handle_Processor(object):
         self.save_relations = save_relations
         self.prev_time_point = current_time_point = time.time()
         self.dont_discard_bc_wifi = dont_discard_bc_wifi
+        self.conn_err_wifi_sleep_period = conn_err_wifi_sleep_period
         self.page_factory = Page_Factory(data_store, self.logger, instances_dict, save_profiles=save_profiles,
-                                         save_relations=save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
+                                         save_relations=save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi,
+                                         conn_err_wifi_sleep_period=self.conn_err_wifi_sleep_period)
 
     def process_handle_iterable(self, iterable_length, handle_iterable):
         handles_remaining_count = iterable_length
@@ -1110,6 +1118,9 @@ parser.add_option("-t", "--use-threads", action="store", default=0, type="int", 
 parser.add_option("-w", "--dont-discard-bc-wifi", action="store_true", default=False, dest="dont_discard_bc_wifi",
                   help="when loading a page leads to a connection error, assume it's the wifi and don't store a null "
                        "bio")
+parser.add_option("-W", "--conn-err-wifi-sleep-period", action="store", default=0.0, type="float",
+                  dest="conn_err_wifi_sleep_period", help="when loading a page leads to a connection error, and the "
+                  "-w flag was specified, sleep the specified number of seconds before resuming the web spidering")
 parser.add_option("-x", "--dry-run", action="store_true", default=False, dest="dry_run", help="don't fetch anything, "
                   "just load data structures from the database and then exit")
 
@@ -1144,6 +1155,9 @@ elif not options.handles_from_args and args:
     exit(1)
 elif options.use_threads and options.dry_run:
     print("-t and -x were both specified, these modes conflict")
+    exit(1)
+elif options.conn_err_wifi_sleep_period and not options.dont_discard_bc_wifi:
+    print("-W specified but -w was not; can't use the sleep period from -W if not in -w mode")
     exit(1)
 
 
@@ -1205,7 +1219,8 @@ if options.handles_from_args:
     instances_dict = Instance.fetch_all_instances(read_data_store, main_logger)
     handle_processor = Handle_Processor(Data_Store(main_logger), main_logger, instances_dict,
                                         save_profiles=save_profiles, save_relations=save_relations,
-                                        dont_discard_bc_wifi=options.dont_discard_bc_wifi)
+                                        dont_discard_bc_wifi=options.dont_discard_bc_wifi,
+                                        conn_err_wifi_sleep_period=options.conn_err_wifi_sleep_period)
     handle_objs_from_args = list()
     for handle_str in args:
         match = handle_re.match(handle_str)
@@ -1237,7 +1252,8 @@ elif options.use_threads:
     for index in range(0, options.use_threads):
         handle_processors.append(Handle_Processor(read_data_stores[index], loggers[index], instances_dict,
                                                   save_profiles=save_profiles, save_relations=save_relations,
-                                                  dont_discard_bc_wifi=options.dont_discard_bc_wifi))
+                                                  dont_discard_bc_wifi=options.dont_discard_bc_wifi,
+                                                  conn_err_wifi_sleep_period=options.conn_err_wifi_sleep_period))
     rowcount = determine_rowcount(read_data_stores[0], main_logger)
     if options.dry_run:
         exit(0)
@@ -1270,7 +1286,8 @@ else:
     instances_dict = Instance.fetch_all_instances(read_data_store, main_logger)
     handle_processor = Handle_Processor(Data_Store(main_logger), main_logger, instances_dict,
                                         save_profiles=save_profiles, save_relations=save_relations,
-                                        dont_discard_bc_wifi=options.dont_discard_bc_wifi)
+                                        dont_discard_bc_wifi=options.dont_discard_bc_wifi,
+                                        conn_err_wifi_sleep_period=options.conn_err_wifi_sleep_period)
     rowcount = determine_rowcount(read_data_store, main_logger)
     if options.dry_run:
         exit(0)
