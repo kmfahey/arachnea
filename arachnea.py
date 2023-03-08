@@ -1008,34 +1008,73 @@ class Page(object):
         # FIXME implement a Successful_Request object to normalize the return
         # values of this and subordinate methods.
         try:
+            # Instancing the headless puppet firefox instance.
             options = selenium.webdriver.firefox.options.Options()
             options.add_argument('-headless')
             self.logger.info(f"webdriver instantiating headless Firefox program")
             browser = selenium.webdriver.Firefox(options=options)
             self.logger.info(f"webdriver loading url {self.url}")
+
             browser.get(self.url)
+
             if self.is_profile and self.save_profiles:
+                # If this is a profile page, then it doesn't need to be
+                # scrolled, and no further interaction with the page is
+                # necessary after capturing the initial JS rendering.
                 html = browser.page_source
                 self.document = bs4.BeautifulSoup(markup=html, features='lxml')
                 page_height = browser.execute_script("return document.body.scrollHeight")
                 self.logger.info(f"webdriver loaded page of height {page_height}")
+
+                # Contrast with parse_relations_page(), which *does* need to
+                # interact with the page further.
                 return self.parse_profile_page()
             elif (self.is_following or self.is_followers) and self.save_relations:
+                # The page needs to be scrolled to the bottom, moving the pane
+                # down by its height step by step, to ensure the entire page
+                # is loaded (may be other lazy-loaded elements) and so that
+                # parse_relations_page() starts from the bottom.
                 last_height = browser.execute_script("return document.body.scrollHeight")
                 self.logger.info(f"webdriver loaded initial page height {last_height}")
                 while True:
+
+                    # The most effective way to scroll the amount needed is to
+                    # use JS to scroll the page by the body's scrollheight.
+                    #
+                    # Thanks to lazy loading, the body elements's scrollheight
+                    # is either as tall as how much of the page has already been
+                    # displayed, or somewhat longer but not guaranteed to be the
+                    # full height the body element can be.
+                    #
+                    # The while loop scrolls to scrollHeight until it stops
+                    # changing, which is how the program knows it's reached the
+                    # true bottom of the page.
                     browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+                    # The program pauses to give the lazy-loading javascript
+                    # on the page time to execute and complete loading their
+                    # elements and updating the page.
                     time.sleep(SCROLL_PAUSE_TIME)
+
+                    # Checking if the scrollHeight has bottomed out; if so,
+                    # scrolling is done and the loop exits.
                     new_height = browser.execute_script("return document.body.scrollHeight")
                     if new_height == last_height:
                         self.logger.info(f"webdriver scrolled down to page height {last_height} and finished scrolling")
                         break
                     last_height = new_height
                     self.logger.info(f"webdriver scrolled down to page height {last_height}")
+
+                # Time to parse the page. More scrolling and detection of
+                # elements will be involved so parse_relations_page() takes the
+                # browser object.
                 return self.parse_relations_page(browser)
             else:
                 return False
         except (selenium.common.exceptions.NoSuchElementException, selenium.common.exceptions.WebDriverException):
+            # selenium.webdriver failed fsr. There's no diagnosing this sort of
+            # thing, so a Failed_Request is returned.
+            self.logger.info(f"webdriver experienced an internal error, failing")
             return Failed_Request(self.host, webdriver_error=True)
         finally:
             self.logger.info(f"closing out webdriver Firefox instance")
@@ -1043,6 +1082,16 @@ class Page(object):
             del browser
 
     def parse_profile_page(self):
+        """
+        Parses the loaded page in the self.document attribute, treating it as a
+        profile page. Rules it out if it's not a usable page, otherwise extracts
+        the profile bio and save it.
+
+        :return: If the page is ruled out for some reason or the parsing failed, returns
+                 a Failed_Request object. Otherwise returns the length of the bio in
+                 acharacters fter the HTML has been converted to markdown.
+        :rtype:  Failed_Request or int
+        """
         # FIXME should draw its post age threshold from a global constant
         self.logger.info(f"parsing profile at {self.url}")
         time_tags = self.document.find_all('time', {'class': 'time-ago'})
@@ -1060,67 +1109,139 @@ class Page(object):
 #            self.profile_posts_too_old = most_recent_toot_datetime < seven_days_ago_datetime
 #            if self.profile_posts_too_old:
 #                return Failed_Request(self.host, posts_too_old=True)
+
+        # Detects if this is a forwarding page.
         forwarding_tag = self.document.find('div', {'class': self.moved_handle_class_re})
         if forwarding_tag:
             forwarding_match = self.forwarding_handle_re.match(html2text.html2text(forwarding_tag.prettify()))
+            # Tries to detect and save the forwarding handle but it doesn't
+            # always parse.
             if forwarding_match is not None:
                 handle_at, handle_rest = forwarding_match.groups()
                 forwarding_handle = handle_at + handle_rest
+                # FIXME forwarding handles should be loaded into the data store.
                 return Failed_Request(self.host, forwarding_address=forwarding_handle)
             else:
                 return Failed_Request(self.host, forwarding_address=True)
+
+        # Trying 2 known classes used to demarcate the bio by different versions
+        # of Mastodon.
         profile_div_tag = self.document.find('div', {'class': 'public-account-bio'})
         if profile_div_tag is None:
             profile_div_tag = self.document.find('div', {'class': 'account__header__content'})
+
+        # If the profile div couldn't be found, return a Failed_Request.
         if profile_div_tag is None:
             self.unparseable = True
             return Failed_Request(self.host, unparseable=True)
+
+        # If this is a dynamic page, clear out some known clutter from the
+        # profile bio div.
         if self.is_dynamic:
             unwanted_masto_link_divs = profile_div_tag.find_all('div', {'class': 'account__header__extra__links'})
             if len(unwanted_masto_link_divs):
                 unwanted_masto_link_divs[0].replaceWith('')
+
+        # Convert the bio to markdown and save it. The program doesn't need its
+        # HTML. Return the length of the bio.
         self.profile_bio_text = html2text.html2text(str(profile_div_tag))
         return len(self.profile_bio_text)
 
     def parse_relations_page(self, browser=None):
+        """
+        Parses the loaded page in the self.document attribute, treating it as a
+        relations (ie. following or followers) page. Rules it out if it's not a usable
+        page, otherwise extracts the following or followers profile links and saves
+        them. Expects a webdriver browser instance as an argument if self.is_dynamic is
+        True.
+
+        :param browser: The webdriver browser object of the headless puppet
+                        Firefox instance that has loaded the relations page fully and is
+                        ready to be scrolled across scaping data.
+        :type browser:  selenium.webdriver.firefox.webdriver.WebDriver, optional
+        :return:        If the parsing process failed for any reason, a Failed_Request
+                        object; otherwise the number of following or followers profile
+                        links collected.
+        :rtype:         Failed_Request or int
+        """
         self.logger.info(f"parsing {self.relation_type} at {self.url}")
+
+        # This is a dynamic page, so the program parses the dynamic form of the
+        # following/followers page, which takes quite a lot of work.
         if self.is_dynamic:
             try:
                 html_tag = browser.find_element(selenium.webdriver.common.by.By.XPATH, '/html')
+
+                # Scrolls to HOME and then END, just to sort out any remaining
+                # javascript that can be prompted to execute by doing this.
                 html_tag.send_keys(selenium.webdriver.common.keys.Keys.HOME)
                 time.sleep(SCROLL_PAUSE_TIME)
                 html_tag.send_keys(selenium.webdriver.common.keys.Keys.END)
                 time.sleep(SCROLL_PAUSE_TIME)
+
                 html_tag.send_keys(selenium.webdriver.common.keys.Keys.ARROW_UP)
-                article_tag_text_by_data_id = dict.fromkeys((tag.get_attribute('data-id')
-                    for tag in browser.find_elements(selenium.webdriver.common.by.By.XPATH, "//article")), "")
+                # Initially priming the article_tag_text_by_data_id dict with
+                # all the article tag data-id attributes that can currently be
+                # seen.
+                data_ids = [tag.get_attribute('data-id') for tag in browser.find_elements(
+                                                                                selenium.webdriver.common.by.By.XPATH,
+                                                                                "//article")]
+                article_tag_text_by_data_id = dict.fromkeys(data_ids)
                 total_article_tags_count = loaded_article_tag_count = len(article_tag_text_by_data_id)
+
+                # Beginning the process of scrolling around the document.
                 self.logger.info(f"using selenium.webdriver to page over dynamic {self.relation_type} page forcing "\
                             f"<article> tags to load; found {len(article_tag_text_by_data_id)} <article> tags")
                 pass_counter = 1
+                # FIXME why doesn't this loop just scroll by sending <pgup>?
+                #
+                # So long as there's any article data-ids in the
+                # article_tag_text_by_data_id dict, keep scrolling around the
+                # document trying to find them all.
                 while any(not bool(text) for text in article_tag_text_by_data_id.values()):
+                    # Pull all the article tags the browser can currently see.
                     article_tags = browser.find_elements(selenium.webdriver.common.by.By.XPATH, "//article")
+
                     for article_tag in article_tags:
                         article_tag_text = article_tag.text
                         data_id = article_tag.get_attribute('data-id')
+                        # If the article tag is novel, add its data_id and text
+                        # to article_tag_text_by_data_id.
                         if data_id not in article_tag_text_by_data_id:
                             article_tag_text_by_data_id[data_id] = article_tag.text if article_tag_text else ''
+                        # If the program knows that data-id and has text for it already, continue.
                         elif article_tag_text_by_data_id[data_id]:
                             continue
+                        # If the program has that data-id but didn't have the
+                        # text for it, save the text.
                         elif article_tag_text:
                             article_tag_text_by_data_id[data_id] = article_tag.text
+
+                    # This loop scrolls the page into a region where there's
+                    # article tags the program knows about but doesn't have text
+                    # for yet.
                     for article_tag in article_tags:
                         data_id = article_tag.get_attribute('data-id')
                         if article_tag_text_by_data_id.get(data_id, False):
                             continue
                         browser.execute_script("arguments[0].scrollIntoView();", article_tag)
                         break
+
+                    # Discerning how many tags the program found text for in
+                    # this pass, for logging purposes.
+                    # FIXME this shouldn't ever report a negative value
                     loaded_article_tag_count = len(tuple(filter(lambda tag_text: not tag_text, article_tag_text_by_data_id.values())))
                     empty_article_tags_count_diff = total_article_tags_count - loaded_article_tag_count
                     self.logger.info(f"pass #{pass_counter}: {empty_article_tags_count_diff} <article> tags text found")
                     pass_counter += 1
+
             except (selenium.common.exceptions.NoSuchElementException, selenium.common.exceptions.WebDriverException):
+                # selenium.webdriver failed fsr. There's no diagnosing this sort of
+                # thing, so a Failed_Request is returned.
                 return Failed_Request(self.host, webdriver_error=True)
+
+            # Converting the dict of article tags' texts to a list of
+            # following/followers handles.
             for handle_str in article_tag_text_by_data_id.values():
                 if "\n" in handle_str:
                     handle_str = handle_str.split("\n")[1]
@@ -1133,20 +1254,38 @@ class Page(object):
                     continue
                 handle = Handle(username=username, host=host)
                 self.relations_list.append(handle)
+
+        # This is a static page, so the program does the static parsing, which
+        # is straightforward.
         else:
+            # Sweeps the document for <a> tags whose href attribute matches the
+            # profile url regex.
             found_relations_a_tags = self.document.find_all('a', {'href': self.profile_url_re})
             relations_hrefs = [tag.attrs['href'] for tag in found_relations_a_tags]
             for relation_href in relations_hrefs:
+                # Uses a separate, capturing regex to grab instance and username
+                # from each url if possible. Any nonmatching href values are
+                # discarded.
                 handle_match = self.handle_url_href_re.match(relation_href)
                 if not handle_match:
                     continue
                 relation_instance, relation_username = handle_match.groups()
+                # Don't add the instance and username of the owner of this page.
                 if relation_username == self.username and relation_instance == self.host:
                     continue
                 self.relations_list.append(Handle(username=relation_username, host=relation_instance))
+
         return len(self.relations_list)
 
     def generate_initial_relation_page_urls(self):
+        """
+        If this is a profile page, generates what its following/followers pages links
+        should be based on whether it's dynamic or static.
+
+        :return: A 2-element list of urls if this is a profile page, or an empty list
+                 otherwise.
+        :rtype:  list
+        """
         if not self.is_profile:
             return []
         elif self.is_dynamic:
@@ -1157,7 +1296,16 @@ class Page(object):
                     f"https://{self.host}/users/{self.username}/followers"]
 
     def generate_all_relation_page_urls(self):
-        if not (self.is_following or self.is_followers):
+        """
+        If this is a static relations page, generate the full list of relations urls
+        that should be valid to the server.
+
+        :return: If this is a static relations page and the page displays a link to the
+                 last relations page, returns a list of all urls between page=1 and that
+                 page, otherwise returns an empty list.
+        :rtype:  list
+        """
+        if not (self.is_following or self.is_followers) or not self.is_dynamic:
             return []
         a_tags = self.document.find_all('a', {'href': self.static_pagination_re})
         if not len(a_tags):
