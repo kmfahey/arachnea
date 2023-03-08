@@ -152,27 +152,29 @@ class Data_Store(object):
 
     def users_in_relations_not_in_profiles(self):
         """
-        Executes a LEFT JOIN statement on the database, discerning records that are in
-        the relations table but not in the profiles table. Such a record represents a
-        user who has been found in someone's following or followers list but hasn't had
-        their profile loaded yet.
+        Executes a statement of the form SELECT ... FROM relations LEFT JOIN profiles
+        ... WHERE .... IS NULL on the database, selecting records from the relations
+        table that don't have a corresponding row in the profiles table. Such a record
+        represents a user who has been found in someone's following or followers list
+        but hasn't had their profile loaded yet.
 
         :return: A generator that yields tuples of (handle_id, username, instance)
                  values.
         """
         self.logger.info("selecting handles from relations left join profiles")
-        relations_left_join_profiles_sql = """SELECT DISTINCT relation_handle_id, relation_username, relation_instance FROM
-                                              relations LEFT JOIN profiles ON relations.relation_handle_id =
-                                              profiles.profile_handle_id WHERE profiles.profile_handle_id IS NULL
+        relations_left_join_profiles_sql = """SELECT DISTINCT relation_handle_id, relation_username, relation_instance
+                                              FROM relations LEFT JOIN profiles ON relations.relation_handle_id
+                                              = profiles.profile_handle_id WHERE profiles.profile_handle_id IS NULL
                                               ORDER BY RAND();"""
         return self._execute_sql_generator(relations_left_join_profiles_sql)
 
     def users_in_profiles_not_in_relations(self):
         """
-        Executes a LEFT JOIN statement on the database, discerning records that are in
-        the profiles table but not in the relations table. Such a record represents a
-        user whose profile has been loaded but who doesn't appear in anyone's following
-        or followers lists.
+        Executes a statement of the form SELECT ... FROM profiles LEFT JOIN relations
+        ... WHERE .... IS NULL on the database, selecting records from the profiles
+        table that don't have a corresponding row in the relations table. Such a record
+        represents a user whose profile has been loaded but who doesn't appear in any of
+        the followers or following lists that have been downloaded so far.
 
         :return: A generator that yields 3-tuples of (handle_id, username, instance)
                  values.
@@ -185,29 +187,36 @@ class Data_Store(object):
 
     def users_in_handles_not_in_profiles(self):
         """
-        Executes a LEFT JOIN statement on the database, discerning records that are in
-        the handles table but not in the profiles table. Such a record represents a
-        handle that was saved from one of a number of sources, but whose profile hasn't
-        been loaded yet.
+        Executes a statement of the form SELECT ... FROM handles LEFT JOIN profiles
+        ... WHERE .... IS NULL on the database, selecting records from the handles
+        table that don't have a corresponding row in the profiles table. Such a record
+        represents a handle that was saved from one of a number of sources, but whose
+        profile hasn't been loaded yet.
 
         :return: A generator that yields 3-tuples of (handle_id, username, instance)
                  values.
         """
         self.logger.info("selecting handles from handles left join profiles")
-        handles_left_join_profiles_sql = """SELECT handles.handle_id, handles.username, handles.instance FROM handles LEFT
-                                            JOIN profiles ON handles.handle_id = profiles.profile_handle_id WHERE
-                                            profiles.profile_handle_id IS NULL ORDER BY RAND();"""
+        handles_left_join_profiles_sql = """SELECT handles.handle_id, handles.username, handles.instance FROM handles
+                                            LEFT JOIN profiles ON handles.handle_id = profiles.profile_handle_id
+                                            WHERE profiles.profile_handle_id IS NULL ORDER BY RAND();"""
         return self._execute_sql_generator(handles_left_join_profiles_sql)
 
     def _execute_sql_generator(self, select_sql):
         """
         A private method used by other methods on this class to execute an SQL statement
-        and then return a generator which retrieves & yields rows from the database one
-        at a time. Useful to avoid pulling a large tuple-of-tuples and storing it in
+        and then return a generator which retrieves & yields rows from the database
+        one at a time. Used to avoid pulling a large tuple-of-tuples and storing it in
         memory when a query returns a large number of rows.
 
-        :return: A generator that yields one row at a time from the query executed.
+        :param select_sql: A SELECT SQL statement to execute.
+        :type select_sql:  str
+        :return:           A generator that yields one row at a time from the query
+                           executed.
+        :rtype:            types.GeneratorType
         """
+        # FIXME should raise an error if the statement argument isn't a SELECT
+        # statement.
         self.db_cursor.execute(select_sql)
         row = self.db_cursor.fetchone()
         while row is not None:
@@ -410,7 +419,7 @@ class Instance(object):
 class Failed_Request(object):
     """
     Represents the outcome of a failed HTTP request. Encapsulates details on
-    exactly how the request failed and for what reason. Used by Page_Factory's
+    exactly how the request failed and for what reason. Used by Page_Fetcher's
     various methods as a failure signal value.
     """
     __slots__ = ('host', 'status_code', 'ratelimited', 'user_deleted', 'malfunctioning', 'unparseable', 'suspended',
@@ -561,11 +570,52 @@ class Deleted_User(Handle):
             self.logger.info(f"inserted {self.handle} into table deleted_users")
 
 
-class Page_Factory(object):
-    __slots__ = ('instances_dict', 'data_store', 'logger', 'deleted_users_dict', 'save_profiles', 'save_relations',
-                 'dont_discard_bc_wifi', 'conn_err_wifi_sleep_period')
+class Page_Fetcher(object):
+    """
+    An originator of Page objects that executes this workflow:
 
-    def __init__(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False, conn_err_wifi_sleep_period=0.0):
+    * Prepares the request
+    * Fails fast if it is unsatisfiable
+    * Instances the Page object
+    * Has the Page object execute the request
+    * If it fails, handles a variety of failed requests in different ways
+    * If it succeeds, yields the Page object.
+    """
+    __slots__ = ('instances_dict', 'data_store', 'logger', 'deleted_users_dict', 'save_profiles', 'save_relations',
+                 'dont_discard_bc_wifi', 'conn_err_wait_time')
+
+    def __init__(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False,
+                       dont_discard_bc_wifi=False, conn_err_wait_time=0.0):
+        """
+        Instances the Page_Fetcher object.
+
+        :param data_store:                 The Data_Store object to use when saving a
+                                           Page or Deleted_User object.
+        :type data_store:                  Data_Store
+        :param logger:                     The Logger object to use to log events.
+        :type logger:                      logger.Logger
+        :param instances_dict:             A dict mapping hostnames to Instance objects
+                                           that is the store of known instance and their
+                                           statuses.
+        :type instances_dict:              dict
+        :param save_profiles:              True to run in profiles-saving mode, False
+                                           otherwise.
+        :type save_profiles:               bool
+        :param save_relations:             True to run in followers/following-saving mode, False
+                                           otherwise.
+        :type save_relations:              bool
+        :param dont_discard_bc_wifi:       True if connection errors are to be treated
+                                           as nonfatal, False if a connection error
+                                           should result in recording a null page to the
+                                           Data Store. (Only applies to profiles at present.)
+        :type dont_discard_bc_wifi:        bool
+        :param conn_err_wait_time:         When a connection error is treated as
+                                           nonfatal, sleep this number of seconds
+                                           before resuming the algorithm.
+        :type conn_err_wait_time:          bool
+        """
+        # FIXME a nonzero value for conn_err_wait_time and a False value
+        # for dont_discard_bc_wifi should result in an error
         self.data_store = data_store
         self.logger = logger
         self.instances_dict = instances_dict
@@ -573,104 +623,184 @@ class Page_Factory(object):
         self.save_profiles = save_profiles
         self.save_relations = save_relations
         self.dont_discard_bc_wifi = dont_discard_bc_wifi
-        self.conn_err_wifi_sleep_period = conn_err_wifi_sleep_period
+        self.conn_err_wait_time = conn_err_wait_time
 
     def instantiate_and_fetch_page(self, handle, url):
         host = handle.host
         instance = self.instances_dict.get(host, None)
+
+        # There exists a record of this instance in the instances_dict. It is
+        # almost certainly not contactable. Figuring out *how* and handle it.
         if instance is not None:
             if instance.malfunctioning or instance.unparseable or instance.suspended:
                 if self.save_profiles:
-                    self.logger.info(f"instance {host} on record as {instance.status}; didn't load {url}; saving null bio to database")
-                    page = Page(handle, url, self.logger, save_profiles=self.save_profiles, save_relations=self.save_relations)
+                    # If in a profile-saving mode, a handle that turns out to
+                    # have a bad instance gets a null profile bio saved to the
+                    # data store. The empty Page for that profile is returned.
+                    self.logger.info(f"instance {host} on record as {instance.status}; "
+                                     f"didn't load {url}; saving null bio to database")
+                    page = Page(handle, url, self.logger, save_profiles=self.save_profiles,
+                                save_relations=self.save_relations)
                     page.save_page(self.data_store)
                     return page, Failed_Request(host,
                                                 malfunctioning=instance.malfunctioning,
                                                 unparseable=instance.unparseable,
                                                 suspended=instance.suspended)
                 else:
+                    # If in a relations-saving mode, no Page is generated or
+                    # saved.
                     self.logger.info(f"instance {host} on record as {instance.status}; didn't load {url}")
                     return None, Failed_Request(host,
                                                 malfunctioning=instance.malfunctioning,
                                                 unparseable=instance.unparseable,
                                                 suspended=instance.suspended)
             elif instance.still_rate_limited():
-                self.logger.info(f"instance {host} still rate limited, expires at {instance.rate_limit_expires_isoformat}, didn't load {url}")
+
+                # The other case for an unreachable instance is if the program
+                # is rate-limited from it.
+                self.logger.info(f"instance {host} still rate limited, expires at "
+                                 f"{instance.rate_limit_expires_isoformat}, didn't load {url}")
                 return None, Failed_Request(host, ratelimited=True)
-        if (handle.username, handle.host) in self.deleted_users_dict:
-            # FIXME: this step can be skipped if a JOIN against deleted_users is added to the handles loading step
+
+        # There exists a record of this user-instance combination in the
+        # deleted_users_dict. Handling it.
+        elif (handle.username, handle.host) in self.deleted_users_dict:
+            # FIXME: this step can be skipped if a JOIN against deleted_users is
+            # added to the handles loading step
+            # FIXME should save a null bio
             self.logger.info(f"user {handle.handle} known to be deleted; didn't load {url}")
             return None, Failed_Request(handle.host, user_deleted=True)
+
+        # Possibilities for aborting transfer don't apply; proceeding with a
+        # normal attempt to load the page.
         page = Page(handle, url, self.logger, save_profiles=self.save_profiles, save_relations=self.save_relations)
         result = page.requests_fetch()
+
+        # If the request failed because the page is dynamic (ie. has a
+        # <noscript> tag), trying again using webdriver.
         if isinstance(result, Failed_Request) and result.is_dynamic:
             self.logger.info(f"loaded {url}: page has <noscript>; loading with webdriver")
             result = page.webdriver_fetch()
+
+        # BEGIN *outer* big conditional
         if isinstance(result, Failed_Request):
+
+            # Beginning the elaborate process of testing for and handling every
+            # possible error case. There's quite a few.
+
+            # BEGIN *inner* big conditional
             if result.ratelimited:
+
+                # The program is rate-limited. Saving that fact to
+                # self.instances_dict.
                 if host not in self.instances_dict:
-                    instance = Instance(host, self.logger, rate_limited=True, x_ratelimit_limit=result.x_ratelimit_limit)
+                    instance = Instance(host, self.logger, rate_limited=True,
+                                        x_ratelimit_limit=result.x_ratelimit_limit)
                     self.instances_dict[host] = instance
                 else:
                     instance = self.instances_dict[host]
                     instance.set_rate_limit(x_ratelimit_limit=result.x_ratelimit_limit)
-                self.logger.info(f"failed to load {url}: rate limited: expires at {instance.rate_limit_expires_isoformat}")
+                self.logger.info(f"failed to load {url}: rate limited: expires at " +
+                                 instance.rate_limit_expires_isoformat)
+
+            # The instance malfunctioned.
             elif result.malfunctioning:
+
+                # Saving that fact to the instances_dict.
                 if host in self.instances_dict:
                     instance = self.instances_dict[host]
                     instance.attempts += 1
                 else:
                     instance = Instance(host, self.logger, attempts=1)
                     self.instances_dict[host] = instance
+
+                # Logging the precise type malfunction it was.
                 if result.ssl_error:
-                    self.logger.info(f"failed to load {url}, host malfunctioning: ssl error (error #{instance.attempts} for this host)")
+                    self.logger.info(f"failed to load {url}, host malfunctioning: ssl error "
+                                     f"(error #{instance.attempts} for this host)")
                 elif result.too_many_redirects:
-                    self.logger.info(f"failed to load {url}, host malfunctioning: too many redirects (error #{instance.attempts} for this host)")
+                    self.logger.info(f"failed to load {url}, host malfunctioning: too many redirects "
+                                     f"(error #{instance.attempts} for this host)")
                 elif result.timeout:
-                    self.logger.info(f"failed to load {url}, host malfunctioning: connection timeout (error #{instance.attempts} for this host)")
+                    self.logger.info(f"failed to load {url}, host malfunctioning: connection timeout "
+                                     f"(error #{instance.attempts} for this host)")
                 elif result.connection_error:
-                    self.logger.info(f"failed to load {url}, host malfunctioning: connection error (error #{instance.attempts} for this host)")
+                    self.logger.info(f"failed to load {url}, host malfunctioning: connection error "
+                                     f"(error #{instance.attempts} for this host)")
                 else:
-                    self.logger.info(f"failed to load {url}, host malfunctioning: got status code {result.status_code} (error #{instance.attempts} for this host)")
+                    self.logger.info(f"failed to load {url}, host malfunctioning: got status code {result.status_code}"
+                                     f"(error #{instance.attempts} for this host)")
+
             elif result.user_deleted:
+
+                # The user has been deleted from the instance. Saving that fact
+                # to the data store.
                 deleted_user = handle.convert_to_deleted_user()
                 deleted_user.logger = self.logger
                 self.deleted_users_dict[handle.username, handle.host] = deleted_user
                 deleted_user.save_deleted_user(self.data_store)
                 self.logger.info(f"failed to load {url}: user deleted")
+
+            # Several other kinds of error that only need to be logged.
             elif result.webdriver_error:
                 self.logger.info(f"loaded {url}: webdriver loading failed with internal error")
             elif result.no_public_posts:
                 self.logger.info(f"loaded {url}: no public posts")
             elif result.posts_too_old:
                 self.logger.info(f"loaded {url}: posts too old")
+            elif result.unparseable:
+                self.logger.info(f"loaded {url}: parsing failed")
+
+            # The profile gave the program a forwarding address.
+            # FIXME should save these to the handles table.
             elif result.forwarding_address:
                 if result.forwarding_address is True:
                     self.logger.info(f"loaded {url}: forwarding page (could not recover handle)")
                 else:
                     self.logger.info(f"loaded {url}: forwarding page")
-            elif result.unparseable:
-                self.logger.info(f"loaded {url}: parsing failed")
             else:
                 self.logger.info(f"loaded {url}: unanticipated error {repr(result)}")
-            if self.save_profiles and page.is_profile:
+            # END *first* big conditional
+
+            # A connection failure when retrieving a profile normally leads to
+            # saving a null profile bio to the data store. The only exception is
+            # if --dont-discard-bc-wifi was specified on the commandline.
+            if self.save_profiles and page.is_profile and result.connection_error:
                 # FIXME relations page fetching should also get this treatment
-                if self.dont_discard_bc_wifi and result.connection_error:
-                    self.logger.info(f"handle {handle.handle}: fetching returned connection error but the wifi might've gone out, saving for later")
-                    if self.conn_err_wifi_sleep_period:
-                        time.sleep(self.conn_err_wifi_sleep_period)
+
+                if self.dont_discard_bc_wifi:
+                    # Handling the case of when the --dont-discard-bc-wifi flag
+                    # is in effect.
+                    self.logger.info(f"handle {handle.handle}: fetching returned connection error but the wifi "
+                                     "might've gone out, saving for later")
+
+                    # If the wifi goes out, it's possible for this program to
+                    # chew through hundreds of passes of the main loop before
+                    # it's restored. That expends lot of queued handles that
+                    # can't be recovered until the program is restarted. The
+                    # --conn-err-wifi-sleep-period flag is used to specify a
+                    # wait time to sleep for when the (self.dont_discard_bc_wifi
+                    # and result.connection_error) condition is True.
+                    if self.conn_err_wait_time:
+                        time.sleep(self.conn_err_wait_time)
                     return page, True
-                elif result.connection_error:
+                else:
                     self.logger.info(f"handle {handle.handle}: fetching returned error, saving null bio to database")
+
             page.save_page(self.data_store)
             return None, result
-        elif self.save_profiles and page.is_profile:
-            self.logger.info(f"loaded {url}: detected profile bio, length {len(page.profile_bio_text)}; saving bio to database")
-            page.save_page(self.data_store)
+
+        # END *outer* big conditional
+        # type(result) is not Failed_Request
+
+        # Logging what kind of page was loaded
+        if self.save_profiles and page.is_profile:
+            self.logger.info(f"loaded {url}: detected profile bio, length {len(page.profile_bio_text)}")
         elif self.save_relations and page.is_following:
             self.logger.info(f"loaded {url}: found {result} following handles")
         elif self.save_relations and page.is_followers:
             self.logger.info(f"loaded {url}: found {result} followers handles")
+
         return page, True
 
 
@@ -684,7 +814,8 @@ class Page(object):
     handle_url_href_re = re.compile(r'https://([\w.]+\.\w+)/@(\w+)')
     moved_handle_re = re.compile(r'moved-account-widget__message')
     profile_url_re = re.compile(r'(?:https://[A-Za-z0-9_.-]+\.[a-z]+)?/@[A-Za-z0-9_.-]+$')
-    relation_url_re = re.compile(r'(?:https://[A-Za-z0-9_.-]+\.[a-z]+)?/(?:users/|@)[A-Za-z0-9_.-]+/(follow(?:ing|ers))(?:\?page=[0-9]+)?$')
+    relation_url_re = re.compile(r'(?:https://[A-Za-z0-9_.-]+\.[a-z]+)?'
+                                 r'/(?:users/|@)[A-Za-z0-9_.-]+/(follow(?:ing|ers))(?:\?page=[0-9]+)?$')
     static_pagination_page_split_re = re.compile("(?<=page=)")
     static_pagination_re = re.compile(r'/users/[A-Za-z0-9_.-]+/follow(?:ing|ers)(?:\?page=\d+)?')
 
@@ -1016,9 +1147,9 @@ class Page(object):
 class Handle_Processor(object):
     __slots__ = ('data_store', 'logger', 'instances_dict', 'save_from_wifi', 'last_time_point', 'current_time_point',
                  'prev_time_point', 'save_profiles', 'save_relations', 'page_factory', 'logger', 'dont_discard_bc_wifi',
-                 'conn_err_wifi_sleep_period')
+                 'conn_err_wait_time')
 
-    def __init__(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False, conn_err_wifi_sleep_period=0.0):
+    def __init__(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False, conn_err_wait_time=0.0):
         self.data_store = data_store
         self.logger = logger
         self.instances_dict = instances_dict
@@ -1026,10 +1157,10 @@ class Handle_Processor(object):
         self.save_relations = save_relations
         self.prev_time_point = current_time_point = time.time()
         self.dont_discard_bc_wifi = dont_discard_bc_wifi
-        self.conn_err_wifi_sleep_period = conn_err_wifi_sleep_period
-        self.page_factory = Page_Factory(data_store, self.logger, instances_dict, save_profiles=save_profiles,
+        self.conn_err_wait_time = conn_err_wait_time
+        self.page_factory = Page_Fetcher(data_store, self.logger, instances_dict, save_profiles=save_profiles,
                                          save_relations=save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi,
-                                         conn_err_wifi_sleep_period=self.conn_err_wifi_sleep_period)
+                                         conn_err_wait_time=self.conn_err_wait_time)
 
     def process_handle_iterable(self, iterable_length, handle_iterable):
         handles_remaining_count = iterable_length
@@ -1094,12 +1225,17 @@ class Handle_Processor(object):
 
     def retrieve_profile(self, handle, profile_page_url):
         profile_page, result = self.page_factory.instantiate_and_fetch_page(handle, profile_page_url)
+        if result is True:
+            self.logger.info(f"saving bio to database")
+            profile_page.save_page(self.data_store)
         return result
 
     def retrieve_relations_from_profile(self, handle, profile_page_url):
         profile_page, result = self.page_factory.instantiate_and_fetch_page(handle, profile_page_url)
         if isinstance(result, Failed_Request):
             return result
+        # FIXME find out why this method tries the two starting pages
+        # successively, correct it
         first_following_page_url, first_followers_page_url = profile_page.generate_initial_relation_page_urls()
         result = self.retrieve_relations(handle, first_following_page_url)
         if isinstance(result, Failed_Request):
@@ -1145,8 +1281,8 @@ parser.add_option("-t", "--use-threads", action="store", default=0, type="int", 
 parser.add_option("-w", "--dont-discard-bc-wifi", action="store_true", default=False, dest="dont_discard_bc_wifi",
                   help="when loading a page leads to a connection error, assume it's the wifi and don't store a null "
                        "bio")
-parser.add_option("-W", "--conn-err-wifi-sleep-period", action="store", default=0.0, type="float",
-                  dest="conn_err_wifi_sleep_period", help="when loading a page leads to a connection error, and the "
+parser.add_option("-W", "--conn-err-wait-time", action="store", default=0.0, type="float",
+                  dest="conn_err_wait_time", help="when loading a page leads to a connection error, and the "
                   "-w flag was specified, sleep the specified number of seconds before resuming the web spidering")
 parser.add_option("-x", "--dry-run", action="store_true", default=False, dest="dry_run", help="don't fetch anything, "
                   "just load data structures from the database and then exit")
@@ -1172,7 +1308,7 @@ elif (options.fetch_profiles_only or options.fetch_profiles_and_relations) and \
     print("with -p or -r specified, please specify _only one_ of -H, -R or -C on the commandline to indicate where to source handles to process")
     exit(1)
 elif options.fetch_relations_only and (options.handles_join_profiles or options.relations_join_profiles):
-    print("with -q specified, please don't specify -H or -R; profiles-only fetching uses a profiles left join relations query for its handles")
+    print("with -q specified, please don't specify -H or -R; relations-only fetching uses a profiles left join relations query for its handles")
     exit(1)
 elif options.handles_from_args and not args:
     print("with -C specified, please supply one or more handles on the commandline")
@@ -1182,9 +1318,6 @@ elif not options.handles_from_args and args:
     exit(1)
 elif options.use_threads and options.dry_run:
     print("-t and -x were both specified, these modes conflict")
-    exit(1)
-elif options.conn_err_wifi_sleep_period and not options.dont_discard_bc_wifi:
-    print("-W specified but -w was not; can't use the sleep period from -W if not in -w mode")
     exit(1)
 
 
@@ -1207,11 +1340,11 @@ elif options.fetch_relations_only:
 else:
     main_logger.info("got -r flag, entering profiles & relations mode")
 if options.relations_join_profiles:
-    main_logger.info("got -R flag, sourcing handles from relations join profiles")
+    main_logger.info("got -R flag, loading handles present in the relations table but absent from the profiles tables")
 elif options.handles_join_profiles:
-    main_logger.info("got -H flag, sourcing handles from handles join profiles")
+    main_logger.info("got -H flag, loading handles present in the handles table but absent from the profiles table")
 elif options.fetch_relations_only:
-    main_logger.info("got -q flag, sourcing handles from profiles join relations")
+    main_logger.info("got -q flag, loading handles present in the profiles table but absent from the relations table")
 if options.dry_run:
     main_logger.info("got -x flag, doing a dry run")
 if options.dry_run:
@@ -1240,6 +1373,10 @@ def determine_rowcount(read_data_store, main_logger):
 save_profiles=(options.fetch_profiles_only or options.fetch_profiles_and_relations)
 save_relations=(options.fetch_relations_only or options.fetch_profiles_and_relations)
 
+
+# FIXME add database-searching mode and database-matching-rows-clearing mode
+# FIXME add robots.txt handling
+
 if options.handles_from_args:
     write_data_store = Data_Store()
     read_data_store = Data_Store()
@@ -1247,7 +1384,7 @@ if options.handles_from_args:
     handle_processor = Handle_Processor(Data_Store(main_logger), main_logger, instances_dict,
                                         save_profiles=save_profiles, save_relations=save_relations,
                                         dont_discard_bc_wifi=options.dont_discard_bc_wifi,
-                                        conn_err_wifi_sleep_period=options.conn_err_wifi_sleep_period)
+                                        conn_err_wait_time=options.conn_err_wait_time)
     handle_objs_from_args = list()
     for handle_str in args:
         match = handle_re.match(handle_str)
@@ -1280,7 +1417,7 @@ elif options.use_threads:
         handle_processors.append(Handle_Processor(read_data_stores[index], loggers[index], instances_dict,
                                                   save_profiles=save_profiles, save_relations=save_relations,
                                                   dont_discard_bc_wifi=options.dont_discard_bc_wifi,
-                                                  conn_err_wifi_sleep_period=options.conn_err_wifi_sleep_period))
+                                                  conn_err_wait_time=options.conn_err_wait_time))
     rowcount = determine_rowcount(read_data_stores[0], main_logger)
     if options.dry_run:
         exit(0)
@@ -1314,7 +1451,7 @@ else:
     handle_processor = Handle_Processor(Data_Store(main_logger), main_logger, instances_dict,
                                         save_profiles=save_profiles, save_relations=save_relations,
                                         dont_discard_bc_wifi=options.dont_discard_bc_wifi,
-                                        conn_err_wifi_sleep_period=options.conn_err_wifi_sleep_period)
+                                        conn_err_wait_time=options.conn_err_wait_time)
     rowcount = determine_rowcount(read_data_store, main_logger)
     if options.dry_run:
         exit(0)
