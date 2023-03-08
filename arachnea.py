@@ -801,22 +801,42 @@ class Page_Fetcher(object):
         elif self.save_relations and page.is_followers:
             self.logger.info(f"loaded {url}: found {result} followers handles")
 
-        return page, True
+        return page, result
 
 
 class Page(object):
+    """
+    Represents a single page; handles retrieving the page and the ensuing errors
+    itself.
+    """
     __slots__ = ('handle', 'username', 'host', 'logger', 'url', 'logger', 'document', 'is_dynamic', 'loaded',
                  'is_profile', 'is_following', 'is_followers', 'page_number', 'profile_no_public_posts',
                  'profile_posts_too_old', 'profile_bio_text', 'relations_list', 'unparseable', 'save_profiles',
                  'save_relations')
 
+    # Regular expressions used in the retrieval and parsing of the page.
+
+    # Matches the handle in a forwarding notice when parsing a page that has one.
     forwarding_handle_re = re.compile(r'^.*(@) ([A-Za-z0-9._]+@[A-Za-z0-9._]+\.[a-z]+).*$', flags=re.M)
+
+    # Matches a url of the form https://instance/@username
     handle_url_href_re = re.compile(r'https://([\w.]+\.\w+)/@(\w+)')
-    moved_handle_re = re.compile(r'moved-account-widget__message')
+
+    # Matches the class used to denote the forwarding handle notice.
+    moved_handle_class_re = re.compile(r'moved-account-widget__message')
+
+    # Matches a url used to link to profiles.
     profile_url_re = re.compile(r'(?:https://[A-Za-z0-9_.-]+\.[a-z]+)?/@[A-Za-z0-9_.-]+$')
+
+    # Matches a url used to link to a following or followers page.
     relation_url_re = re.compile(r'(?:https://[A-Za-z0-9_.-]+\.[a-z]+)?'
                                  r'/(?:users/|@)[A-Za-z0-9_.-]+/(follow(?:ing|ers))(?:\?page=[0-9]+)?$')
+
+    # Matches the breakpoint in a static page pagination url between base url
+    # and the pagination argument.
     static_pagination_page_split_re = re.compile("(?<=page=)")
+
+    # Matches the url of a static page.
     static_pagination_re = re.compile(r'/users/[A-Za-z0-9_.-]+/follow(?:ing|ers)(?:\?page=\d+)?')
 
     @property
@@ -832,6 +852,21 @@ class Page(object):
         return 'following' if self.is_following else 'followers' if self.is_followers else None
 
     def __init__(self, handle, url, logger, save_profiles=False, save_relations=False):
+        """
+        Instances the Page object.
+
+        :param handle:         The handle of the profile the page belongs to.
+        :type handle:          Handle
+        :param url:            The url of the page.
+        :type url:             str
+        :param logger:         The Logger object to log events to.
+        :type logger:          logger.Logger
+        :param save_profiles:  If the program is in a profiles-saving mode.
+        :type save_profiles:   bool
+        :param save_relations: If the program is in a relations-saving mode.
+        :type save_relations:  bool
+        """
+        # Setting instance vars from the args and their attributes.
         self.handle = handle
         self.url = url
         self.logger = logger
@@ -839,6 +874,8 @@ class Page(object):
         self.save_relations = save_relations
         self.username = handle.username
         self.host = handle.host
+
+        # Setting some defaults.
         self.document = None
         self.is_dynamic = False
         self.loaded = None
@@ -847,6 +884,9 @@ class Page(object):
         self.relations_list = list()
         self.unparseable = False
         self.profile_bio_text = ''
+
+        # Parsing the url to discover what kind of page this is and what page
+        # number it is.
         if self.profile_url_re.match(self.url):
             self.is_profile = True
             self.page_number = 0
@@ -868,52 +908,105 @@ class Page(object):
             raise Internal_Exception(f"unable to discern profile, following or follower page from parsing url {self.url} ")
 
     def requests_fetch(self):
+        """
+        Tries to fetch self.url using requests.get()
+
+        :return: 
+
+        """
+        # A big try/except statement to handle a variet of different Exceptions
+        # differently.
         try:
             http_response = requests.get(self.url, timeout=5.0)
         except requests.exceptions.SSLError:
+            # An error in the SSL handshake, or an expired cert.
             self.loaded = False
             return Failed_Request(self.host, malfunctioning=True, ssl_error=True)
         except requests.exceptions.TooManyRedirects:
+            # The instance put the program's client through too many redirects.
             self.loaded = False
             return Failed_Request(self.host, malfunctioning=True, too_many_redirects=True)
         except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout):
+            # The connection timed out.
             self.loaded = False
             return Failed_Request(self.host, malfunctioning=True, timeout=True)
         except (requests.exceptions.ConnectionError, IOError):
+            # There was a generic connection error.
             self.loaded = False
             return Failed_Request(self.host, malfunctioning=True, connection_error=True)
+
+        # There's a requests.models.Response object, but now the program needs
+        # to handle all the non-200 status codes.
         if http_response.status_code == 429:
+            # The program has been rate-limited.
             if http_response.headers['x-ratelimit-limit']:
+                # If there's an X-Ratelimit-Limit header, the program captures
+                # its int value and saves that in the Failed_Request object
+                # bc that's how many seconds the program needs to wait before
+                # trying again.
                 self.loaded = False
-                return Failed_Request(self.host, status_code=http_response.status_code, ratelimited=True, x_ratelimit_limit=float(http_response.headers['x-ratelimit-limit']))
+                return Failed_Request(self.host, status_code=http_response.status_code, ratelimited=True,
+                                                 x_ratelimit_limit=float(http_response.headers['x-ratelimit-limit']))
             else:
                 self.loaded = False
                 return Failed_Request(self.host, status_code=http_response.status_code, ratelimited=True)
         elif http_response.status_code in (401, 400, 403, 406) or http_response.status_code >= 500:
+            # The instance emitted a status code that indicates it's not
+            # handling requests correctly. The program classes it as malfunctioning.
             self.loaded = False
             return Failed_Request(self.host, status_code=http_response.status_code, malfunctioning=True)
         elif http_response.status_code == 404 or http_response.status_code == 410:
+            # The status code is 404 Not Found or 410 Gone. The user has been deleted.
             self.loaded = False
             return Failed_Request(self.host, status_code=http_response.status_code, user_deleted=True)
         elif http_response.status_code != 200:
+            # Any other status code than 200; one the program wasn't expecting.
+            # Saving it to the Failed_Request object for the caller to handle.
             self.loaded = False
             return Failed_Request(self.host, status_code=http_response.status_code)
         else:
+            # An ostensibly valid page was returned. Parse it with BS and see if
+            # it contains the data the program's looking for.
             self.document = bs4.BeautifulSoup(markup=http_response.text, features='lxml')
             if self.document.find_all('noscript'):
+                # The page has a noscript tag, which means it's dynamic. The
+                # caller will need to try again with webdriver.
                 self.loaded = False
                 self.is_dynamic = True
                 return Failed_Request(self.host, is_dynamic=True)
             else:
+                # The page is static and parseable with static tools.
                 self.loaded = True
                 if self.is_profile and self.save_profiles:
+                    # In a profile-saving mode, parse it as a profile page.
                     return self.parse_profile_page()
                 elif (self.is_following or self.is_followers) and self.save_relations:
+                    # In a relations-saving mode, parse it as a relations page.
                     return self.parse_relations_page()
                 else:
-                    return True
+                    # The page is a profile when the program is not saving
+                    # profiles, or a relation when the program is not saving
+                    # relations. This call was made in error. Return False.
+                    return False
+
+        # This is only reachable if the preceding if/then/else chain ended in
+        # its else clause and the page was parsed. So the document was returned
+        # and is in line with the mode. Return True.
+        return True
 
     def webdriver_fetch(self):
+        """
+        Tries to fetch self.url using selenium.webdriver.firefox.
+
+        :return: If the fetch was successful and it's a profile, the lenth of the
+                 bio; if it's a relations page, the number of relations. If it failed,
+                 then a Failed_Request object detailing the problem. If the fetch can't
+                 be done bc it's a profile when not in a profile-fetching mode, or a
+                 relations page when not in relations-fetching mode, False.
+        :rtype:  bool, int, or Failed_Request
+        """
+        # FIXME implement a Successful_Request object to normalize the return
+        # values of this and subordinate methods.
         try:
             options = selenium.webdriver.firefox.options.Options()
             options.add_argument('-headless')
@@ -967,7 +1060,7 @@ class Page(object):
 #            self.profile_posts_too_old = most_recent_toot_datetime < seven_days_ago_datetime
 #            if self.profile_posts_too_old:
 #                return Failed_Request(self.host, posts_too_old=True)
-        forwarding_tag = self.document.find('div', {'class': self.moved_handle_re})
+        forwarding_tag = self.document.find('div', {'class': self.moved_handle_class_re})
         if forwarding_tag:
             forwarding_match = self.forwarding_handle_re.match(html2text.html2text(forwarding_tag.prettify()))
             if forwarding_match is not None:
