@@ -772,29 +772,31 @@ class Page_Fetcher(object):
             # A connection failure when retrieving a profile normally leads to
             # saving a null profile bio to the data store. The only exception is
             # if --dont-discard-bc-wifi was specified on the commandline.
-            if self.save_profiles and page.is_profile and result.connection_error:
-                # FIXME relations page fetching should also get this treatment
+            if result.connection_error and self.dont_discard_bc_wifi:
+                # Handling the case of when the --dont-discard-bc-wifi flag
+                # is in effect and a connection error has happened.
 
-                if self.dont_discard_bc_wifi:
-                    # Handling the case of when the --dont-discard-bc-wifi flag
-                    # is in effect.
-                    self.logger.info(f"handle {handle.handle}: fetching returned connection error but the wifi "
-                                     "might've gone out, saving for later")
+                what_fetched = ('profile' if page.is_profile
+                                else 'following' if self.is_following
+                                else 'followers' if self.is_followers else '???')
 
-                    # If the wifi goes out, it's possible for this program to
-                    # chew through hundreds of passes of the main loop before
-                    # it's restored. That expends lot of queued handles that
-                    # can't be recovered until the program is restarted. The
-                    # --conn-err-wifi-sleep-period flag is used to specify a
-                    # wait time to sleep for when the (self.dont_discard_bc_wifi
-                    # and result.connection_error) condition is True.
-                    if self.conn_err_wait_time:
-                        time.sleep(self.conn_err_wait_time)
-                    return None, result
-                else:
-                    self.logger.info(f"handle {handle.handle}: fetching returned error, saving null bio to database")
+                self.logger.info(f"handle {handle.handle}: fetching {what_fetched} returned connection error; "
+                                 "but the wifi might've gone out, saving for later")
 
-            page.save_page(self.data_store)
+                # If the wifi goes out, it's possible for this program to chew
+                # through hundreds of passes of the main loop before it's
+                # restored. That expends lot of queued handles that can't be
+                # recovered until the program is restarted.
+                # 
+                # The --conn-err-wifi-sleep-period flag is used to specify a
+                # wait time to sleep for when the (self.dont_discard_bc_wifi and
+                # result.connection_error) condition is True.
+                if self.conn_err_wait_time:
+                    time.sleep(self.conn_err_wait_time)
+
+            else:
+                page.save_page(self.data_store)
+
             return None, result
 
         # END *outer* big conditional
@@ -1496,17 +1498,30 @@ class Handle_Processor(object):
             if not handle.handle_id:
                 handle.fetch_or_set_handle_id(write_data_store)
             profile_url = handle.profile_url
+            result = results = None
             try:
                 if self.save_profiles and not self.save_relations:
                     result = self.retrieve_profile(handle, profile_url)
                 else:
-                    result = self.retrieve_relations_from_profile(handle, profile_url)
+                    results = self.retrieve_relations_from_profile(handle, profile_url)
             except Internal_Exception:
                 continue
-            if isinstance(result, Failed_Request):
+
+            if result is not None and isinstance(result, Failed_Request):
                 if result.ratelimited == True or result.connection_error:
                     skipped_handles.append(handle)
-                if result.forwarding_address and result.forwarding_address is not True:
+                elif result.forwarding_address and result.forwarding_address is not True:
+                    handles_remaining_count += 1
+            if results is not None and any(isinstance(result, Failed_Request) for result in results):
+                if any(isinstance(result, int) for result in results):
+                    # So within the retrieve_relations_from_profile() call, one
+                    # retrieve_relations() call succeeded and one failed. That
+                    # situation is too complex to reach any conclusions from so
+                    # the program just passes.
+                    pass
+                elif any(result.ratelimited == True or result.connection_error for result in results):
+                    skipped_handles.append(handle)
+                elif any(result.forwarding_address and result.forwarding_address is not True for result in results):
                     handles_remaining_count += 1
             else:
                 handles_remaining_count -= 1
@@ -1558,15 +1573,11 @@ class Handle_Processor(object):
     def retrieve_relations_from_profile(self, handle, profile_page_url):
         profile_page, result = self.page_factory.instantiate_and_fetch_page(handle, profile_page_url)
         if isinstance(result, Failed_Request):
-            return result
-        # FIXME find out why this method tries the two starting pages
-        # successively, correct it
+            return result, result
         first_following_page_url, first_followers_page_url = profile_page.generate_initial_relation_page_urls()
-        result = self.retrieve_relations(handle, first_following_page_url)
-        if isinstance(result, Failed_Request):
-            return result
-        result = self.retrieve_relations(handle, first_followers_page_url)
-        return result
+        result1 = self.retrieve_relations(handle, first_following_page_url)
+        result2 = self.retrieve_relations(handle, first_followers_page_url)
+        return result1, result2
 
     def retrieve_relations(self, handle, first_relation_page_url):
         first_relation_page, result = self.page_factory.instantiate_and_fetch_page(handle, first_relation_page_url)
@@ -1581,7 +1592,7 @@ class Handle_Processor(object):
             if isinstance(result, Failed_Request):
                 return result
             relation_page.save_page(self.data_store)
-            total_result + result
+            total_result += result
         return total_result
 
 
