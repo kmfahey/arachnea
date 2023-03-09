@@ -180,8 +180,9 @@ class Data_Store(object):
                  values.
         """
         self.logger.info("selecting handles from profiles left join relations")
-        profiles_left_join_relations_sql = """SELECT profiles.profile_handle_id, username, instance FROM profiles
-                                              LEFT JOIN relations ON profiles.profile_handle_id = relations.profile_handle_id
+        profiles_left_join_relations_sql = """SELECT profiles.profile_handle_id, username, instance
+                                              FROM profiles LEFT JOIN relations
+                                              ON profiles.profile_handle_id = relations.profile_handle_id
                                               WHERE relations.profile_handle_id IS NULL ORDER BY RAND();"""
         return self._execute_sql_generator(profiles_left_join_relations_sql)
 
@@ -254,14 +255,19 @@ class Instance(object):
     """
     __slots__ = 'host', 'logger', 'rate_limit_expires', 'attempts', 'malfunctioning', 'suspended', 'unparseable'
 
-    rate_limit_expires_isoformat = property(lambda self: datetime.datetime.fromtimestamp(self.rate_limit_expires).time().isoformat())
+    @property
+    def rate_limit_expires_isoformat(self)
+        return datetime.datetime.fromtimestamp(self.rate_limit_expires).time().isoformat()
 
-    status = property(lambda self: 'malfunctioning' if self.malfunctioning
-                              else 'suspended' if self.suspended
-                              else 'unparseable' if self.unparseable
-                              else 'ingoodstanding')
+    @property
+    def status(self):
+        return 'malfunctioning' if self.malfunctioning
+               else 'suspended' if self.suspended
+               else 'unparseable' if self.unparseable
+               else 'ingoodstanding'
 
-    def __init__(self, host, logger, malfunctioning=False, suspended=False, unparseable=False, rate_limited=False, x_ratelimit_limit=None, attempts=0):
+    def __init__(self, host, logger, malfunctioning=False, suspended=False, unparseable=False, rate_limited=False,
+                       x_ratelimit_limit=None, attempts=0):
         """
         Instances a Instance object.
 
@@ -322,7 +328,8 @@ class Instance(object):
         # Otherwise the default ratelimit period of 300 seconds is used.
         else:
             self.rate_limit_expires = time.time() + 300.0
-        self.logger.info(f"set rate limit on instance '{self.host}': rate limit expires at {self.rate_limit_expires_isoformat}")
+        self.logger.info(f"set rate limit on instance '{self.host}': rate limit expires "
+                         f"at {self.rate_limit_expires_isoformat}")
 
     @classmethod
     def fetch_all_instances(self, data_store, logger):
@@ -783,7 +790,7 @@ class Page_Fetcher(object):
                     # and result.connection_error) condition is True.
                     if self.conn_err_wait_time:
                         time.sleep(self.conn_err_wait_time)
-                    return page, True
+                    return None, result
                 else:
                     self.logger.info(f"handle {handle.handle}: fetching returned error, saving null bio to database")
 
@@ -905,7 +912,8 @@ class Page(object):
             else:
                 self.page_number = 0
         else:
-            raise Internal_Exception(f"unable to discern profile, following or follower page from parsing url {self.url} ")
+            raise Internal_Exception("unable to discern profile, following or follower page "
+                                     f"from parsing url {self.url} ")
 
     def requests_fetch(self):
         """
@@ -1230,7 +1238,8 @@ class Page(object):
                     # Discerning how many tags the program found text for in
                     # this pass, for logging purposes.
                     # FIXME this shouldn't ever report a negative value
-                    loaded_article_tag_count = len(tuple(filter(lambda tag_text: not tag_text, article_tag_text_by_data_id.values())))
+                    loaded_article_tag_count = len(tuple(filter(lambda tag_text: not tag_text,
+                                                                article_tag_text_by_data_id.values())))
                     empty_article_tags_count_diff = total_article_tags_count - loaded_article_tag_count
                     self.logger.info(f"pass #{pass_counter}: {empty_article_tags_count_diff} <article> tags text found")
                     pass_counter += 1
@@ -1405,7 +1414,8 @@ class Page(object):
             rows = data_store.execute(select_sql)
             if rows:
                 # If so, return 0.
-                self.logger.info(f"page {self.page_number} of {relation} for @{self.username}@{self.host} already in database")
+                self.logger.info(f"page {self.page_number} of {relation} for "
+                                 f"@{self.username}@{self.host} already in database")
                 return 0
 
             # Building the INSERT INTO ... VALUES statement's sequence of
@@ -1414,16 +1424,16 @@ class Page(object):
             insertion_count = 0
             for relation_handle in self.relations_list:
                 relation_handle.fetch_or_set_handle_id(data_store)
-                value_sql_list.append(f"({profile_handle.handle_id}, '{self.username}', '{self.host}', "\
-                                      f"{relation_handle.handle_id}, '{relation}', {self.page_number}, "\
-                                      f"'{relation_handle.username}', '{relation_handle.host}')")
+                value_sql_list.append(f"""({profile_handle.handle_id}, '{self.username}', '{self.host}',
+                                           {relation_handle.handle_id}, '{relation}', {self.page_number},
+                                           '{relation_handle.username}', '{relation_handle.host}')""")
 
             # Building the complete INSERT INTO ... VALUES statement.
-            insert_sql = f"""INSERT INTO relations (profile_handle_id, profile_username, profile_instance,
-                                                    relation_handle_id, relation_type, relation_page_number,
-                                                    relation_username, relation_instance)
-                                               VALUES
-                                                   %s;""" % ', '.join(value_sql_list)
+            insert_sql = """INSERT INTO relations (profile_handle_id, profile_username, profile_instance,
+                                                   relation_handle_id, relation_type, relation_page_number,
+                                                   relation_username, relation_instance)
+                                              VALUES
+                                                  %s;""" % ', '.join(value_sql_list)
             try:
                 data_store.execute(insert_sql)
             except MySQLdb._exceptions.IntegrityError:
@@ -1434,24 +1444,28 @@ class Page(object):
                 insertion_count = 0
                 for relation_handle in self.relations_list:
                     relation_handle.fetch_or_set_handle_id(data_store)
-                    insert_sql = "INSERT INTO relations (profile_handle_id, profile_username, profile_instance, "\
-                                 "relation_handle_id, relation_type, relation_page_number, relation_username, "\
-                                 f"relation_instance) VALUES ({profile_handle.handle_id}, '{self.username}', "\
-                                 f"'{self.host}', {relation_handle.handle_id}, '{relation}', {self.page_number}, "\
-                                 f"'{relation_handle.username}', '{relation_handle.host}')"
+                    insert_sql = f"""INSERT INTO relations (profile_handle_id, profile_username, profile_instance,
+                                                            relation_handle_id, relation_type, relation_page_number,
+                                                            relation_username, relation_instance)
+                                                        VALUES
+                                                            ({profile_handle.handle_id}, '{self.username}',
+                                                            '{self.host}', {relation_handle.handle_id}, '{relation}',
+                                                            {self.page_number}, '{relation_handle.username}',
+                                                            '{relation_handle.host}')"""
                     try:
                         data_store.execute(insert_sql)
                     except MySQLdb._exceptions.IntegrityError:
                         # Whatever is causing this error, at least the other
                         # rows got saved.
-                        self.logger.info(f"got an SQL IntegrityError when inserting {relation_handle.handle} %s "\
-                                    f"{profile_handle.handle} into table relations" % (
-                                        'follower of' if relation == 'followers' else relation))
+                        self.logger.info(f"got an SQL IntegrityError when inserting {relation_handle.handle} %s "
+                                         f"{profile_handle.handle} into table relations" % (
+                                             'follower of' if relation == 'followers' else relation))
                     else:
                         insertion_count += 1
             else:
                 insertion_count = len(value_sql_list)
-            self.logger.info(f"saved {insertion_count} %s to the database" % ('followings' if relation == 'following' else relation))
+            relation_expr = 'followings' if relation == 'following' else relation
+            self.logger.info(f"saved {insertion_count} {relation_expr} to the database")
             return insertion_count
 
 
@@ -1536,7 +1550,7 @@ class Handle_Processor(object):
 
     def retrieve_profile(self, handle, profile_page_url):
         profile_page, result = self.page_factory.instantiate_and_fetch_page(handle, profile_page_url)
-        if result is True:
+        if page is not None and result is True and self.save_profiles:
             self.logger.info(f"saving bio to database")
             profile_page.save_page(self.data_store)
         return result
