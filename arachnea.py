@@ -787,7 +787,7 @@ class Page_Fetcher(object):
                 # through hundreds of passes of the main loop before it's
                 # restored. That expends lot of queued handles that can't be
                 # recovered until the program is restarted.
-                # 
+                #
                 # The --conn-err-wifi-sleep-period flag is used to specify a
                 # wait time to sleep for when the (self.dont_discard_bc_wifi and
                 # result.connection_error) condition is True.
@@ -921,7 +921,7 @@ class Page(object):
         """
         Tries to fetch self.url using requests.get()
 
-        :return: 
+        :return:
 
         """
         # A big try/except statement to handle a variet of different Exceptions
@@ -1021,7 +1021,7 @@ class Page(object):
             # Instancing the headless puppet firefox instance.
             options = selenium.webdriver.firefox.options.Options()
             options.add_argument('-headless')
-            self.logger.info(f"webdriver instantiating headless Firefox program")
+            self.logger.info("webdriver instantiating headless Firefox program")
             browser = selenium.webdriver.Firefox(options=options)
             self.logger.info(f"webdriver loading URL {self.url}")
 
@@ -1084,10 +1084,10 @@ class Page(object):
         except (selenium.common.exceptions.NoSuchElementException, selenium.common.exceptions.WebDriverException):
             # selenium.webdriver failed fsr. There's no diagnosing this sort of
             # thing, so a Failed_Request is returned.
-            self.logger.info(f"webdriver experienced an internal error, failing")
+            self.logger.info("webdriver experienced an internal error, failing")
             return Failed_Request(self.host, webdriver_error=True)
         finally:
-            self.logger.info(f"closing out webdriver Firefox instance")
+            self.logger.info("closing out webdriver Firefox instance")
             browser.quit()
             del browser
 
@@ -1104,8 +1104,8 @@ class Page(object):
         """
         # FIXME should draw its post age threshold from a global constant
         self.logger.info(f"parsing profile at {self.url}")
-        time_tags = self.document.find_all('time', {'class': 'time-ago'})
         # FIXME correct time tag parsing to reflect the latest format in use
+#       time_tags = self.document.find_all('time', {'class': 'time-ago'})
 #        if len(time_tags) == 0:
 #            self.profile_no_public_posts = True
 #            return Failed_Request(self.host, no_public_posts=True)
@@ -1200,7 +1200,7 @@ class Page(object):
                 total_article_tags_count = loaded_article_tag_count = len(article_tag_text_by_data_id)
 
                 # Beginning the process of scrolling around the document.
-                self.logger.info(f"using selenium.webdriver to page over dynamic {self.relation_type} page forcing "\
+                self.logger.info(f"using selenium.webdriver to page over dynamic {self.relation_type} page forcing "
                             f"<article> tags to load; found {len(article_tag_text_by_data_id)} <article> tags")
                 pass_counter = 1
                 # FIXME why doesn't this loop just scroll by sending <pgup>?
@@ -1342,7 +1342,7 @@ class Page(object):
             base_url, _ = self.static_pagination_page_split_re.split(highest_page_url)
             if not base_url.startswith('https://'):
                 base_url = 'https://' + self.host + base_url
-            return [f"{base_url}{page_no}" for page_no in range(2,highest_page_no+1)]
+            return [f"{base_url}{page_no}" for page_no in range(2, highest_page_no + 1)]
         else:
             return []
 
@@ -1477,7 +1477,7 @@ class Handle_Processor(object):
     relations, or both for each one depending on configuration.
     """
     __slots__ = ('data_store', 'logger', 'instances_dict', 'save_from_wifi', 'last_time_point', 'current_time_point',
-                 'prev_time_point', 'save_profiles', 'save_relations', 'page_fetcher', 'logger', 'dont_discard_bc_wifi',
+                 'save_profiles', 'save_relations', 'page_fetcher', 'logger', 'dont_discard_bc_wifi',
                  'conn_err_wait_time')
 
     def __init__(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False,
@@ -1516,7 +1516,6 @@ class Handle_Processor(object):
         self.instances_dict = instances_dict
         self.save_profiles = save_profiles
         self.save_relations = save_relations
-        self.prev_time_point = current_time_point = time.time()
         self.dont_discard_bc_wifi = dont_discard_bc_wifi
         self.conn_err_wait_time = conn_err_wait_time
 
@@ -1542,8 +1541,6 @@ class Handle_Processor(object):
         :return:                None
         :rtype:                 types.NoneType
         """
-        count_history = list()
-        rate_history = list()
         skipped_handles = list()
 
         for handle in handle_iterable:
@@ -1568,7 +1565,7 @@ class Handle_Processor(object):
                 continue
 
             if result is not None and isinstance(result, Failed_Request):
-                if result.ratelimited == True or result.connection_error:
+                if result.ratelimited or result.connection_error:
                     skipped_handles.append(handle)
             elif results is not None and any(isinstance(result, Failed_Request) for result in results):
                 if any(isinstance(result, int) for result in results):
@@ -1576,7 +1573,7 @@ class Handle_Processor(object):
                     # retrieve_relations() call succeeded and one failed. That
                     # situation is too complex to reach any conclusions from so
                     # the program just passes.
-                    # 
+                    #
                     # This *might* result in dropping a handle when it could
                     # have been saved to skipped_handles; but half its content
                     # was saved correctly, so re-processing the handle down the
@@ -1584,7 +1581,7 @@ class Handle_Processor(object):
                     # content. This is a rare enough occurrence that dropping
                     # the occasional handle isn't a big deal.
                     pass
-                elif any(result.ratelimited == True or result.connection_error for result in results):
+                elif any(result.ratelimited or result.connection_error for result in results):
                     skipped_handles.append(handle)
 
         # Repeatedly iterates over skipped_handles until it's empty.
@@ -1637,7 +1634,7 @@ class Handle_Processor(object):
         # If the page isn't None and the result is an integer then the fetch
         # succeeded and the page has a bio that can be saved.
         if profile_page is not None and isinstance(result, int) and self.save_profiles:
-            self.logger.info(f"saving bio to database")
+            self.logger.info("saving bio to database")
             profile_page.save_page(self.data_store)
 
         return result
@@ -1703,6 +1700,7 @@ class Handle_Processor(object):
         return total_result
 
 
+# Setting up the options accepted by the program on the commandline
 parser = optparse.OptionParser()
 parser.add_option("-C", "--handles-from-args", action="store_true", default=False, dest="handles_from_args",
                   help="skip querying the database for handles, instead process only the handles specified on the "
@@ -1710,15 +1708,17 @@ parser.add_option("-C", "--handles-from-args", action="store_true", default=Fals
 parser.add_option("-H", "--handles-join-profiles", action="store_true", default=False, dest="handles_join_profiles",
                   help="when fetching profiles, load unfetched handles from the `handles` table left join the "
                        "`profiles` table")
+parser.add_option("-R", "--relations-join-profiles", action="store_true", default=False, dest="relations_join_profiles",
+                  help="when fetching profiles, load unfetched handles from the `relations` table left join the "
+                       "`profiles` table")
+
 parser.add_option("-p", "--fetch-profiles-only", action="store_true", default=False, dest="fetch_profiles_only",
                   help="fetch profiles only, disregard following & followers pages")
 parser.add_option("-q", "--fetch-relations-only", action="store_true", default=False, dest="fetch_relations_only",
                   help="fetch following & followers pages only, disregard profiles")
 parser.add_option("-r", "--fetch-profiles-and-relations", action="store_true", default=False,
                   dest="fetch_profiles_and_relations", help="fetch both profiles and relations")
-parser.add_option("-R", "--relations-join-profiles", action="store_true", default=False, dest="relations_join_profiles",
-                  help="when fetching profiles, load unfetched handles from the `relations` table left join the "
-                       "`profiles` table")
+
 parser.add_option("-t", "--use-threads", action="store", default=0, type="int", dest="use_threads", help="use the "
                   "specified number of threads")
 parser.add_option("-w", "--dont-discard-bc-wifi", action="store_true", default=False, dest="dont_discard_bc_wifi",
@@ -1732,26 +1732,33 @@ parser.add_option("-x", "--dry-run", action="store_true", default=False, dest="d
 
 (options, args) = parser.parse_args()
 
+
+# Argument integrity check; catching illegal combinations of commandline
+# arguments and emitting the appropriate error messages.
 if not options.fetch_profiles_only and not options.fetch_relations_only and not options.fetch_profiles_and_relations:
     print("please specify one of either -p, -q or -r on the commandline to choose the scraping mode")
     exit(1)
 elif options.fetch_profiles_only and options.fetch_relations_only or \
-    options.fetch_profiles_only and options.fetch_profiles_and_relations or \
-    options.fetch_relations_only and options.fetch_profiles_and_relations:
+        options.fetch_profiles_only and options.fetch_profiles_and_relations or \
+        options.fetch_relations_only and options.fetch_profiles_and_relations:
     print("more than just one of -p, -q and -r specified on the commandline; please supply only one")
     exit(1)
 
-if (options.fetch_profiles_only or options.fetch_profiles_and_relations) and not (options.handles_join_profiles or options.relations_join_profiles or options.handles_from_args):
-    print("if -p or -r is specified, please specify one of -H, -R or -C on the commandline to indicate where to source handles to process")
+if ((options.fetch_profiles_only or options.fetch_profiles_and_relations)
+        and not (options.handles_join_profiles or options.relations_join_profiles or options.handles_from_args)):
+    print("if -p or -r is specified, please specify one of -H, -R or -C on the commandline to indicate where to "
+          "source handles to process")
     exit(1)
 elif (options.fetch_profiles_only or options.fetch_profiles_and_relations) and \
         ((options.handles_join_profiles and options.relations_join_profiles) or
          (options.handles_join_profiles and options.handles_from_args) or
          (options.relations_join_profiles and options.handles_from_args)):
-    print("with -p or -r specified, please specify _only one_ of -H, -R or -C on the commandline to indicate where to source handles to process")
+    print("with -p or -r specified, please specify _only one_ of -H, -R or -C on the commandline to indicate where "
+          "to source handles to process")
     exit(1)
 elif options.fetch_relations_only and (options.handles_join_profiles or options.relations_join_profiles):
-    print("with -q specified, please don't specify -H or -R; relations-only fetching uses a profiles left join relations query for its handles")
+    print("with -q specified, please don't specify -H or -R; relations-only fetching uses a profiles left join "
+          "relations query for its handles")
     exit(1)
 elif options.handles_from_args and not args:
     print("with -C specified, please supply one or more handles on the commandline")
@@ -1764,144 +1771,210 @@ elif options.use_threads and options.dry_run:
     exit(1)
 
 
-main_logger = logging.getLogger(name="main")
-main_logger.setLevel(logging.INFO)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.INFO)
-if options.use_threads:
-    formatter = logging.Formatter('[%(asctime)s] <%(name)s> %(levelname)s: %(message)s')
-else:
-    formatter = logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s')
-handler.setFormatter(formatter)
-main_logger.addHandler(handler)
-
-
-if options.fetch_profiles_only:
-    main_logger.info("got -p flag, entering profiles-only mode")
-elif options.fetch_relations_only:
-    main_logger.info("got -q flag, entering relations-only mode")
-else:
-    main_logger.info("got -r flag, entering profiles & relations mode")
-if options.relations_join_profiles:
-    main_logger.info("got -R flag, loading handles present in the relations table but absent from the profiles tables")
-elif options.handles_join_profiles:
-    main_logger.info("got -H flag, loading handles present in the handles table but absent from the profiles table")
-elif options.fetch_relations_only:
-    main_logger.info("got -q flag, loading handles present in the profiles table but absent from the relations table")
-if options.dry_run:
-    main_logger.info("got -x flag, doing a dry run")
-if options.dry_run:
-    main_logger.info("got -w flag, saving handles for later if a generic connection error occurs")
-
-handle_re = re.compile("^@([A-Za-z0-9_.-]+)@([A-Za-z0-9_.-]+)$")
-
-
-def determine_rowcount(read_data_store, main_logger):
+def determine_rowcount(read_data_store, main_logger_obj):
     rowcount = 0
-    main_logger.info(f"loading handles from the profiles table who are not in the relations table")
+    main_logger_obj.info("loading handles from the profiles table who are not in the relations table")
     if options.fetch_relations_only:
         handles_generator = read_data_store.users_in_profiles_not_in_relations()
     elif options.handles_join_profiles:
         handles_generator = read_data_store.users_in_handles_not_in_profiles()
     elif options.relations_join_profiles:
         handles_generator = read_data_store.users_in_relations_not_in_profiles()
-    while True:
-        user = next(handles_generator, None)
-        if user is None:
-            break
-        rowcount += 1
-    main_logger.info(f"detected {rowcount} handles in response to query")
+    rowcount = sum(1 for _ in handles_generator)
+    main_logger_obj.info(f"detected {rowcount} handles in response to query")
     return rowcount
 
-save_profiles=(options.fetch_profiles_only or options.fetch_profiles_and_relations)
-save_relations=(options.fetch_relations_only or options.fetch_profiles_and_relations)
+
+def instance_logger_obj(name, use_threads=False):
+    logger_obj = logging.getLogger(name=name)
+    logger_obj.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    if options.use_threads:
+        formatter = logging.Formatter('[%(asctime)s] <%(name)s> %(levelname)s: %(message)s')
+    else:
+        formatter = logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+    logger_obj.addHandler(handler)
+    return logger_obj
+
+
+# Instance the main logger. This is the only logger needed unless threaded mode is used.
+main_logger_obj = instance_logger_obj("main", options.use_threads)
+
+
+# Logging the commandline flags received.
+if options.fetch_profiles_only:
+    main_logger_obj.info("got -p flag, entering profiles-only mode")
+elif options.fetch_relations_only:
+    main_logger_obj.info("got -q flag, entering relations-only mode")
+else:
+    main_logger_obj.info("got -r flag, entering profiles & relations mode")
+
+if options.relations_join_profiles:
+    main_logger_obj.info("got -R flag, loading handles present in the relations table but absent from the profiles tables")
+elif options.handles_join_profiles:
+    main_logger_obj.info("got -H flag, loading handles present in the handles table but absent from the profiles table")
+elif options.fetch_relations_only:
+    main_logger_obj.info("got -q flag, loading handles present in the profiles table but absent from the relations table")
+
+if options.dry_run:
+    main_logger_obj.info("got -x flag, doing a dry run")
+
+if options.dry_run:
+    main_logger_obj.info("got -w flag, saving handles for later if a generic connection error occurs")
+
+
+handle_re = re.compile("^@([A-Za-z0-9_.-]+)@([A-Za-z0-9_.-]+)$")
+
+
+save_profiles = (options.fetch_profiles_only or options.fetch_profiles_and_relations)
+save_relations = (options.fetch_relations_only or options.fetch_profiles_and_relations)
 
 
 # FIXME add database-searching mode and database-matching-rows-clearing mode
 # FIXME add robots.txt handling
 
+# The three main cases are processing handles from the commandline,
+# processing handles from the database in a threaded fashion,
+# and processing handles from the database in a single-tasking fashion.
+
 if options.handles_from_args:
+
+    # Intializing the needed objects.
+    handle_objs_from_args = list()
     write_data_store = Data_Store()
     read_data_store = Data_Store()
-    instances_dict = Instance.fetch_all_instances(read_data_store, main_logger)
-    handle_processor = Handle_Processor(Data_Store(main_logger), main_logger, instances_dict,
+    instances_dict = Instance.fetch_all_instances(read_data_store, main_logger_obj)
+
+    # The save_profiles, save_relations, dont_discard_bc_wifi, and
+    # conn_err_wait_time args are passed to the Handle_Processor init, which
+    # uses them to instance its captive Page_Fetcher object, which actually uses
+    # them.
+    handle_processor = Handle_Processor(Data_Store(main_logger_obj), main_logger_obj, instances_dict,
                                         save_profiles=save_profiles, save_relations=save_relations,
                                         dont_discard_bc_wifi=options.dont_discard_bc_wifi,
                                         conn_err_wait_time=options.conn_err_wait_time)
-    handle_objs_from_args = list()
+
+    # Iterating across the non-flag arguments, treating each one
+    # as a handle (in @user@instance form) and prepping the
+    # Handle_Processor.process_handle_iterable iterable argument.
     for handle_str in args:
         match = handle_re.match(handle_str)
         if match is None:
             logging.error(f"got argument {handle_str} that doesn't parse as a mastodon handle; fatal error")
             exit(1)
-        username, host = match.group(1,2)
+        username, host = match.group(1, 2)
         handle = Handle(username=username, host=host)
         handle.fetch_or_set_handle_id(write_data_store)
         handle_objs_from_args.append(handle)
+
+    # If this is a dry run, stop here.
     if options.dry_run:
         exit(0)
+
     handle_processor.process_handle_iterable(handle_objs_from_args)
+
 elif options.use_threads:
-    threads = list()
-    loggers = list()
-    read_data_stores = list()
-    handle_processors = list()
-    handles_lists = [list() for _ in range(0, options.use_threads)]
+
+    # SETTING UP PARALLELISM
+    #
+    # Each thread needs its own Logger object, its own Data_Store object, its
+    # own Handle_Processor object, and its own equal-sized list of handles to
+    # process.
+
+    thread_objs = list()
+    logger_objs = list()
+    data_store_objs = list()
+    handle_processor_objs = list()
+    handles_lists = list()
+
     for index in range(0, options.use_threads):
-        loggers.append(logging.getLogger(name=f"thread#{index}"))
-        loggers[-1].setLevel(logging.INFO)
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(logging.INFO)
-        handler.setFormatter(formatter)
-        loggers[-1].addHandler(handler)
-        read_data_stores.append(Data_Store(loggers[-1]))
-    instances_dict = Instance.fetch_all_instances(read_data_stores[0], main_logger)
+        logger_obj = instance_logger_obj(f"thread#{index}", True)
+        logger_objs.append(logger_obj)
+        data_store_objs.append(Data_Store(logger_obj))
+        handles_lists.append(list())
+
+    # The instances_dict is shared between threads. This is especially important
+    # where it stores an Instance object that is tracking a ratelimit that has
+    # been imposed on the program by an instance. The program should only need
+    # to get a status 429 response *once*, after which all threads need to
+    # respect that ratelimit.
+    instances_dict = Instance.fetch_all_instances(data_store_objs[0], main_logger_obj)
+
     for index in range(0, options.use_threads):
-        handle_processors.append(Handle_Processor(read_data_stores[index], loggers[index], instances_dict,
-                                                  save_profiles=save_profiles, save_relations=save_relations,
-                                                  dont_discard_bc_wifi=options.dont_discard_bc_wifi,
-                                                  conn_err_wait_time=options.conn_err_wait_time))
-    rowcount = determine_rowcount(read_data_stores[0], main_logger)
+        handle_processor_obj = Handle_Processor(data_store_objs[index], logger_objs[index], instances_dict,
+                                                save_profiles=save_profiles, save_relations=save_relations,
+                                                dont_discard_bc_wifi=options.dont_discard_bc_wifi,
+                                                conn_err_wait_time=options.conn_err_wait_time)
+        handle_processor_objs.append(handle_processor_obj)
+
+    rowcount = determine_rowcount(data_store_objs[0], main_logger_obj)
+
+    # If this is a dry run, stop here.
     if options.dry_run:
         exit(0)
+
     if options.fetch_relations_only:
-        handles_generator = read_data_stores[0].users_in_profiles_not_in_relations()
+        handles_generator = data_store_objs[0].users_in_profiles_not_in_relations()
     elif options.handles_join_profiles:
-        handles_generator = read_data_stores[0].users_in_handles_not_in_profiles()
+        handles_generator = data_store_objs[0].users_in_handles_not_in_profiles()
     elif options.relations_join_profiles:
-        handles_generator = read_data_stores[0].users_in_relations_not_in_profiles()
+        handles_generator = data_store_objs[0].users_in_relations_not_in_profiles()
+
+    # This setup repeatedly iterates across the handles_lists list, appending
+    # a handle from the handles_generator to each list in turn, until the
+    # generator finally raises StopIteration. This populates the handles_lists
+    # lists with equal or nearly equal numbers of handles.
     try:
         while True:
             for index in range(0, options.use_threads):
                 handles_lists[((index + 1) % options.use_threads) - 1].append(next(handles_generator))
     except StopIteration:
         pass
-    main_logger.info("populated handles lists, lengths " + ", ".join(str(len(handle_list))
-                                                                     for handle_list in handles_lists))
+
+    handles_lists_lens_expr = ", ".join(map(str, map(len, handles_lists)))
+    main_logger_obj.info(f"populated handles lists, lengths {handles_lists_lens_expr}")
+
+    # Instancing & saving the thread objects.
     for index in range(0, options.use_threads):
-        threads.append(threading.Thread(target=handle_processors[index].process_handle_iterable,
-                                        args=(iter(handles_lists[index])), daemon=True),)
-        main_logger.info(f"instantiated thread #{index}")
+        thread_obj = threading.Thread(target=handle_processor_objs[index].process_handle_iterable,
+                                      args=(iter(handles_lists[index]),),
+                                      daemon=True)
+        thread_objs.append(thread_obj)
+        main_logger_obj.info(f"instantiated thread #{index}")
+
+    # Starting the threads.
     for index in range(0, options.use_threads):
-        threads[index].start()
-        main_logger.info(f"started thread #{index}")
+        thread_objs[index].start()
+        main_logger_obj.info(f"started thread #{index}")
+
+    # Waiting for the threads to exit.
     for index in range(0, options.use_threads):
-        threads[index].join()
-        main_logger.info(f"closed thread #{index}")
+        thread_objs[index].join()
+        main_logger_obj.info(f"closed thread #{index}")
 else:
-    read_data_store = Data_Store(main_logger)
-    instances_dict = Instance.fetch_all_instances(read_data_store, main_logger)
-    handle_processor = Handle_Processor(Data_Store(main_logger), main_logger, instances_dict,
+
+    # Instancing the objects needed.
+    data_store_obj = Data_Store(main_logger_obj)
+    instances_dict = Instance.fetch_all_instances(data_store_obj, main_logger_obj)
+    handle_processor = Handle_Processor(Data_Store(main_logger_obj), main_logger_obj, instances_dict,
                                         save_profiles=save_profiles, save_relations=save_relations,
                                         dont_discard_bc_wifi=options.dont_discard_bc_wifi,
                                         conn_err_wait_time=options.conn_err_wait_time)
-    rowcount = determine_rowcount(read_data_store, main_logger)
+
+    # If this is a dry run, stop here.
     if options.dry_run:
         exit(0)
+
+    # Getting the correct handles generator depending on arguments.
     if options.fetch_relations_only:
-        handles_generator = read_data_store.users_in_profiles_not_in_relations()
+        handles_generator = data_store_obj.users_in_profiles_not_in_relations()
     elif options.handles_join_profiles:
-        handles_generator = read_data_store.users_in_handles_not_in_profiles()
+        handles_generator = data_store_obj.users_in_handles_not_in_profiles()
     elif options.relations_join_profiles:
-        handles_generator = read_data_store.users_in_relations_not_in_profiles()
+        handles_generator = data_store_obj.users_in_relations_not_in_profiles()
+
+    # Processing the handles. Main loop here.
     handle_processor.process_handle_iterable(handles_generator)
+
