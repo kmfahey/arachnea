@@ -1,25 +1,28 @@
 #!/usr/bin/python3
 
 import bs4
+import collections
 import datetime
-import logging
-import optparse
-import re
-import selenium
-import socket
-import sys
-import threading
-import time
 import decouple
-
+import fs.glob
+import functools
 import html2text
+import logging
 import MySQLdb
 import MySQLdb._exceptions
+import optparse
+import re
 import requests
+import selenium
 import selenium.common.exceptions
 import selenium.webdriver
 import selenium.webdriver.common.by
 import selenium.webdriver.firefox.options
+import socket
+import sys
+import threading
+import time
+import urllib.parse
 
 
 # One of two places that a timeout of 5 seconds is set. The other place is at
@@ -811,6 +814,112 @@ class Page_Fetcher(object):
             self.logger.info(f"loaded {url}: found {result} followers handles")
 
         return page, result
+
+
+# This class adapted from robotstxt_to_df.py at
+# https://github.com/jcchouinard/SEO-Projects/ . Repository has no LICENSE file
+# so presuming open availability to reuse and adapt without limitations.
+class Robots_Txt_File:
+    """
+    Represents a robots.txt file, implementing functionality to test whether a
+    User-Agent + path combination is allowed or not.
+    """
+    __slots__ = 'user_agent', 'url', 'robots_dict'
+
+    user_agent_re = re.compile("^User-Agent: ", re.I | re.M)
+    disallow_re = re.compile("^Disallow: ", re.I)
+    allow_re = re.compile("^Allow: ", re.I)
+
+    def __init__(self, user_agent, url):
+        """
+        Instances a Robots_Txt_File object.
+
+        :param user_agent: The User-Agent string to test against the robots.txt
+                           constraints. Should be cut off at the first space or slash.
+        :type user_agent:  str
+        :param url:        The URL of the site to retrieve the robots.txt file from.
+        :type url:         str
+        """
+        self.user_agent = user_agent
+        self.url = url
+        # Parsing robots.txt to a dict-of-dicts-of-sets. The outer dict keys are
+        # User-Agents, the inner dict keys are either "Allow" or "Disallow", and
+        # the sets are sets of robots.txt path patterns.
+        robots_txt_url = self._get_robots_txt_url()
+        robots_txt_content = self._read_robots_txt(robots_txt_url)
+        self.robots_dict = self._parse_robots_txt(robots_txt_content)
+
+    def _get_robots_txt_url(self):
+        # Derive the URL for the robots.txt file from the website URL instance var.
+        domain_url = '{uri.scheme}://{uri.netloc}'.format(uri=urllib.parse.urlparse(self.url))
+        robots_txt_url = domain_url + '/robots.txt'
+        return robots_txt_url
+
+    def _read_robots_txt(self, robots_txt_url):
+        # Retrieve the robots.txt file, extract the content and return it.
+        response = requests.get(robots_txt_url)
+        if response.status_code != 200:
+            raise Exception(f"couldn't fetch {robots_txt_url}: got status code {response.status_code}")
+        robots_txt_content = response.content.decode('utf-8')
+        return robots_txt_content
+
+    def _parse_robots_txt(self, robots_txt_content):
+        # Parse the robots.txt content to a dict-of-dicts-of-sets. The outer
+        # dict keys are User-Agents, the inner dict keys are either "Allow" or
+        # "Disallow", and the sets are sets of robots.txt path patterns.
+        robots_dict = collections.defaultdict(functools.partial(collections.defaultdict, set))
+
+        # Breaks the robots.txt file content on "^User-Agent: " and iterate
+        # across the blocks starting at the second substring.
+        user_agent_blocks = self.user_agent_re.split(robots_txt_content)
+        for user_agent_block in user_agent_blocks[1:]:
+            robot_lines = user_agent_block.split("\n")
+            user_agent_line = robot_lines[0]
+            user_agent = self.user_agent_re.sub("", user_agent_line)
+            for robot_line in robot_lines[1:]:
+                if self.disallow_re.match(robot_line):
+                    line_content = self.disallow_re.sub("", robot_line)
+                    robots_dict[user_agent]["Disallow"].add(line_content)
+                elif self.allow_re.match(robot_line):
+                    line_content = self.allow_re.sub("", robot_line)
+                    robots_dict[user_agent]["Allow"].add(line_content)
+        return robots_dict
+
+    def can_fetch(self, query_url):
+        # If the robots.txt file doesn't specify behavior for User-Agent: *, and
+        # doesn't specify behavior for this exact User-Agent, then the program
+        # can fetch anything it likes.
+
+        def globmatch(pattern, path):
+            # fs.glob.match()'s behavior isn't quite what's required. "/mbox*"
+            # doesn't match "/mbox/", and "/help/" doesn't match "/help". This
+            # private function normalizes the pattern and path so cornercases
+            # match.
+            if pattern.endswith('*') or not pattern.endswith('/'):
+                path = path.rstrip('/')
+            elif pattern.endswith('/') and not path.endswith('/'):
+                path += '/'
+            return fs.glob.match(pattern, path)
+
+        if self.user_agent not in self.robots_dict and '*' not in self.robots_dict:
+            return True
+        # Pick the robots.txt parsed block that matches the program's User-Agent.
+        elif self.user_agent in self.robots_dict:
+            robots_block = self.robots_dict[self.user_agent]
+        else:  # '*' in self.robots_dict:
+            robots_block = self.robots_dict['*']
+
+        # Extract the path from the query URL.
+        query_path = urllib.parse.urlparse(query_url).path
+
+        if any(globmatch(listed_path_pattern, query_path) for listed_path_pattern in robots_block["Disallow"]):
+            return False
+        elif "Allow" not in robots_block:
+            return True
+        elif any(globmatch(listed_path_pattern, query_path) for listed_path_pattern in robots_block["Allow"]):
+            return True
+        else:
+            return False
 
 
 class Page(object):
@@ -1977,4 +2086,3 @@ else:
 
     # Processing the handles. Main loop here.
     handle_processor.process_handle_iterable(handles_generator)
-
