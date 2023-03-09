@@ -256,15 +256,15 @@ class Instance(object):
     __slots__ = 'host', 'logger', 'rate_limit_expires', 'attempts', 'malfunctioning', 'suspended', 'unparseable'
 
     @property
-    def rate_limit_expires_isoformat(self)
+    def rate_limit_expires_isoformat(self):
         return datetime.datetime.fromtimestamp(self.rate_limit_expires).time().isoformat()
 
     @property
     def status(self):
-        return 'malfunctioning' if self.malfunctioning
-               else 'suspended' if self.suspended
-               else 'unparseable' if self.unparseable
-               else 'ingoodstanding'
+        return 'malfunctioning' if self.malfunctioning \
+                else 'suspended' if self.suspended \
+                else 'unparseable' if self.unparseable \
+                else 'ingoodstanding'
 
     def __init__(self, host, logger, malfunctioning=False, suspended=False, unparseable=False, rate_limited=False,
                        x_ratelimit_limit=None, attempts=0):
@@ -1550,7 +1550,7 @@ class Handle_Processor(object):
 
     def retrieve_profile(self, handle, profile_page_url):
         profile_page, result = self.page_factory.instantiate_and_fetch_page(handle, profile_page_url)
-        if page is not None and result is True and self.save_profiles:
+        if profile_page is not None and result is True and self.save_profiles:
             self.logger.info(f"saving bio to database")
             profile_page.save_page(self.data_store)
         return result
