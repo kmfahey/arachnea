@@ -1307,13 +1307,26 @@ class Page(object):
         """
         if not (self.is_following or self.is_followers) or not self.is_dynamic:
             return []
+
+        # Collects all links that have pagination parameters.
         a_tags = self.document.find_all('a', {'href': self.static_pagination_re})
         if not len(a_tags):
             return []
+
+        # Collects all the href attribute values.
         hrefs = [a_tag['href'] for a_tag in a_tags]
-        relation_url_dict = {(int(href.split('page=')[1]) if 'page=' in href else 1): href for href in hrefs}
+
+        # Derives a dict associating pages with the urls that link to them.
+        relation_url_dict = {(int(href.split('page=')[1])
+                              if 'page=' in href
+                              else 1): href
+                             for href in hrefs}
+
+        # Finds the highest page number and its url.
         highest_page_no = max(relation_url_dict.keys())
         highest_page_url = relation_url_dict[highest_page_no]
+
+        # Builds all following/followers pages that should exist.
         if 'page=' in highest_page_url:
             base_url, _ = self.static_pagination_page_split_re.split(highest_page_url)
             if not base_url.startswith('https://'):
@@ -1323,33 +1336,80 @@ class Page(object):
             return []
 
     def save_page(self, data_store):
+        """
+        Saves the page's content to the data store. If this is a profile page, saves the
+        profile. If this is a relations page, save the collected following/followers
+        handles.
+
+        :param data_store: The Data_Store object to use to contact the database.
+        :type data_store:  Data_Store
+        :return:           The number of rows affected by the query.
+        :rtype:            int
+        """
         if self.is_profile:
+
+            # Saving a profile to the profiles table.
+            #
+            # If there isn't a handle_id on the object, use
+            # Handle.fetch_or_set_handle_id() to get one. The auto-incrementing
+            # primary key of the handles table is used to identify rows with the
+            # same username and instance in other tables.
+            #
+            # FIXME should use an existing MySQLdb escape method for this
             profile_bio_text = self.profile_bio_text.replace("'", "\\'")
             handle = self.handle
             if not handle.handle_id:
                 handle.fetch_or_set_handle_id(data_store)
-            select_sql = f"SELECT profile_handle_id FROM profiles WHERE profile_handle_id = {handle.handle_id};"
+
+            # Checking if this profile already exists in the profiles table and
+            # already has its profile saved.
+            select_sql = f"""SELECT profile_handle_id, profile_snippet FROM profiles
+                             WHERE profile_handle_id = {handle.handle_id};"""
             rows = data_store.execute(select_sql)
             if rows:
-                return 0
-            insert_sql = f"INSERT INTO profiles (profile_handle_id, username, instance, considered, profile_snippet) "\
-                         f"VALUES ({handle.handle_id}, '{handle.username}', '{handle.host}', 0, "\
-                         f"'{profile_bio_text}');"
-            data_store.execute(insert_sql)
-            return 1
+                ((handle_id, profile_snippet),) = rows
+                if profile_snippet:
+                    return 0
+                elif profile_bio_text:
+                    # If by some chance this handle_id already has a row in the
+                    # profiles table, but its profile_snippet is null, and the
+                    # bio text the program is going to save here is *not*, then
+                    # use an UPDATE statement to set the profile bio.
+                    update_sql = f"""UPDATE profiles SET profile_snippet = {profile_bio_text}
+                                     WHERE profile_handle_id = {handle.handle_id};"""
+                    data_store.execute(update_sql)
+                    return 1
+            else:
+                # Otherwise use an INSERT statement like usual.
+                insert_sql = f"""INSERT INTO profiles (profile_handle_id, username, instance,
+                                                       considered, profile_snippet)
+                                                  VALUES
+                                                      ({handle.handle_id}, '{handle.username}',
+                                                      '{handle.host}', 0, '{profile_bio_text}');"""
+                data_store.execute(insert_sql)
+                return 1
         else:
+
+            # Saving following/followers to the relations table.
             if not len(self.relations_list):
                 return 0
             relation = 'following' if self.is_following else 'followers'
             profile_handle = self.handle
+            # Setting the handle_id attribute if it's missing.
             profile_handle.fetch_or_set_handle_id(data_store)
-            select_sql = f"SELECT DISTINCT profile_handle_id FROM relations WHERE profile_handle_id = "\
-                         f"{profile_handle.handle_id} AND relation_type = '{relation}' AND "\
-                         f"relation_page_number = {self.page_number};"
+
+            # Checking if this page has already been saved to the relations table.
+            select_sql = f"""SELECT DISTINCT profile_handle_id FROM relations
+                             WHERE profile_handle_id = {profile_handle.handle_id} AND relation_type = '{relation}'
+                                   AND relation_page_number = {self.page_number};"""
             rows = data_store.execute(select_sql)
             if rows:
+                # If so, return 0.
                 self.logger.info(f"page {self.page_number} of {relation} for @{self.username}@{self.host} already in database")
                 return 0
+
+            # Building the INSERT INTO ... VALUES statement's sequence of
+            # parenthesized rows to insert.
             value_sql_list = list()
             insertion_count = 0
             for relation_handle in self.relations_list:
@@ -1357,12 +1417,20 @@ class Page(object):
                 value_sql_list.append(f"({profile_handle.handle_id}, '{self.username}', '{self.host}', "\
                                       f"{relation_handle.handle_id}, '{relation}', {self.page_number}, "\
                                       f"'{relation_handle.username}', '{relation_handle.host}')")
-            insert_sql = "INSERT INTO relations (profile_handle_id, profile_username, profile_instance, "\
-                         "relation_handle_id, relation_type, relation_page_number, relation_username, "\
-                         f"relation_instance) VALUES %s;" % ', '.join(value_sql_list)
+
+            # Building the complete INSERT INTO ... VALUES statement.
+            insert_sql = f"""INSERT INTO relations (profile_handle_id, profile_username, profile_instance,
+                                                    relation_handle_id, relation_type, relation_page_number,
+                                                    relation_username, relation_instance)
+                                               VALUES
+                                                   %s;""" % ', '.join(value_sql_list)
             try:
                 data_store.execute(insert_sql)
             except MySQLdb._exceptions.IntegrityError:
+                # If inserting the whole page at once raises an IntegrityError,
+                # then fall back on inserting each row individually and failing
+                # on the specific row that creates the IntegrityError while
+                # still saving all other rows.
                 insertion_count = 0
                 for relation_handle in self.relations_list:
                     relation_handle.fetch_or_set_handle_id(data_store)
@@ -1374,6 +1442,8 @@ class Page(object):
                     try:
                         data_store.execute(insert_sql)
                     except MySQLdb._exceptions.IntegrityError:
+                        # Whatever is causing this error, at least the other
+                        # rows got saved.
                         self.logger.info(f"got an SQL IntegrityError when inserting {relation_handle.handle} %s "\
                                     f"{profile_handle.handle} into table relations" % (
                                         'follower of' if relation == 'followers' else relation))
