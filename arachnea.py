@@ -271,6 +271,9 @@ class Instance(object):
         """
         Instances a Instance object.
 
+        :param attempts:          The number of unsuccessful attempts the program has
+                                  made to contact this instance.
+        :type attempts:           int, optional
         :param host:              The hostname of the instance (str).
         :type host:               str
         :param logger:            The logger object to log events to.
@@ -278,6 +281,9 @@ class Instance(object):
         :param malfunctioning:    Whether the instance is malfunctioning; ie.  returning
                                   a 500-class error when contacted.
         :type malfunctioning:     bool, optional
+        :param rate_limited:      Whether the program has been rate-limited from
+                                  requests with the instance.
+        :type rate_limited:       bool, optional
         :param suspended:         Whether the instance is malfunctioning; ie. has been
                                   excluded from contact due to bad behavior of its
                                   admins, mods or users.
@@ -286,15 +292,9 @@ class Instance(object):
                                   documents returned by the instance can't be parsed by
                                   any means at the program's disposal.
         :type unparseable:        bool, optional
-        :param rate_limited:      Whether the program has been rate-limited from
-                                  requests with the instance.
-        :type rate_limited:       bool, optional
         :param x_ratelimit_limit: The number of seconds remaining on the rate limit with
                                   the instance.
         :type x_ratelimit_limit:  int or float, optional
-        :param attempts:          The number of unsuccessful attempts the program has
-                                  made to contact this instance.
-        :type attempts:           int, optional
         """
         # FIXME should do input checking on args
         self.host = host
@@ -433,59 +433,59 @@ class Failed_Request(object):
                  'ssl_error', 'too_many_redirects', 'timeout', 'connection_error', 'posts_too_old', 'no_public_posts',
                  'forwarding_address', 'is_dynamic', 'webdriver_error', 'x_ratelimit_limit')
 
-    def __init__(self, host, status_code=0, ratelimited=False, user_deleted=False, malfunctioning=False,
-                       unparseable=False, suspended=False, ssl_error=False, too_many_redirects=False, timeout=False,
-                       connection_error=False, posts_too_old=False, no_public_posts=False, forwarding_address='',
-                       is_dynamic=False, webdriver_error=False, x_ratelimit_limit=0):
+    def __init__(self, host, connection_error=False, forwarding_address='', is_dynamic=False, malfunctioning=False,
+                       no_public_posts=False, posts_too_old=False, ratelimited=False, ssl_error=False, status_code=0,
+                       suspended=False, timeout=False, too_many_redirects=False, unparseable=False, user_deleted=False,
+                       webdriver_error=False, x_ratelimit_limit=0):
         """
         Instances a Failed_Request object.
 
-        :param host:               The hostname of the instance that the failed request
-                                   occurred with.
-        :type host:                str
-        :param status_code:        The status code the instance used in the HTTP request
-                                   that indicated failure.
-        :type status_code:         int, optional
-        :param ratelimited:        If the program has been ratelimited.
-        :type ratelimited:         bool, optional
-        :param user_deleted:       If the user has been deleted from the instance that
-                                   was contacted.
-        :type user_deleted:        bool, optional
-        :param malfunctioning:     If the instance returned a request that indicates the
-                                   Mastodon software on the instance is malfunctioning
-                                   (or misconfigured).
-        :type malfunctioning:      bool, optional
-        :param unparseable:        If the HTML returned in the HTTP connection could not
-                                   be parsed by the program.
-        :type unparseable:         bool, optional
-        :param suspended:          If the instance that the program was meant to contact
-                                   is a suspended instance.
-        :type suspended:           bool, optional
-        :param ssl_error:          If the SSL negotiation with the instance failed.
-        :type ssl_error:           bool, optional
-        :param too_many_redirects: If the instance sent the program through too many
-                                   redirects.
-        :type too_many_redirects:  bool, optional
-        :param timeout:            If the instance did not response before the timeout
-                                   period had elapsed.
-        :type timeout:             bool, optional
         :param connection_error:   If there was a connection error when contacting the
                                    instance.
         :type connection_error:    bool, optional
-        :param posts_too_old:      If the newest post that was retrieved from the
-                                   instance for the particular user was older than the
-                                   minimum period for consideration.
-        :type posts_too_old:       bool, optional
-        :param no_public_posts:    If the profile retrieved had no publicly accessible
-                                   posts.
-        :type no_public_posts:     bool, optional
         :param forwarding_address: If the profile had a forwarding address, indicating
                                    it was defunct.
         :type forwarding_address:  bool, optional
+        :param host:               The hostname of the instance that the failed request
+                                   occurred with.
+        :type host:                str
         :param is_dynamic:         If the page had a <noscript> tag, indicating that
                                    JavaScript evaluation is required to view the page's
                                    content.
         :type is_dynamic:          bool, optional
+        :param malfunctioning:     If the instance returned a request that indicates the
+                                   Mastodon software on the instance is malfunctioning
+                                   (or misconfigured).
+        :type malfunctioning:      bool, optional
+        :param no_public_posts:    If the profile retrieved had no publicly accessible
+                                   posts.
+        :type no_public_posts:     bool, optional
+        :param posts_too_old:      If the newest post that was retrieved from the
+                                   instance for the particular user was older than the
+                                   minimum period for consideration.
+        :type posts_too_old:       bool, optional
+        :param ratelimited:        If the program has been ratelimited.
+        :type ratelimited:         bool, optional
+        :param ssl_error:          If the SSL negotiation with the instance failed.
+        :type ssl_error:           bool, optional
+        :param status_code:        The status code the instance used in the HTTP request
+                                   that indicated failure.
+        :type status_code:         int, optional
+        :param suspended:          If the instance that the program was meant to contact
+                                   is a suspended instance.
+        :type suspended:           bool, optional
+        :param timeout:            If the instance did not response before the timeout
+                                   period had elapsed.
+        :type timeout:             bool, optional
+        :param too_many_redirects: If the instance sent the program through too many
+                                   redirects.
+        :type too_many_redirects:  bool, optional
+        :param unparseable:        If the HTML returned in the HTTP connection could not
+                                   be parsed by the program.
+        :type unparseable:         bool, optional
+        :param user_deleted:       If the user has been deleted from the instance that
+                                   was contacted.
+        :type user_deleted:        bool, optional
         :param webdriver_error:    If selenium.webdriver had an internal error.
         :type webdriver_error:     bool, optional
         :param x_ratelimit_limit:  If the request failed with a Status 429 error, and
@@ -777,8 +777,8 @@ class Page_Fetcher(object):
                 # is in effect and a connection error has happened.
 
                 what_fetched = ('profile' if page.is_profile
-                                else 'following' if self.is_following
-                                else 'followers' if self.is_followers else '???')
+                                else 'following' if page.is_following
+                                else 'followers' if page.is_followers else '???')
 
                 self.logger.info(f"handle {handle.handle}: fetching {what_fetched} returned connection error; "
                                  "but the wifi might've gone out, saving for later")
@@ -828,24 +828,24 @@ class Page(object):
     # Matches the handle in a forwarding notice when parsing a page that has one.
     forwarding_handle_re = re.compile(r'^.*(@) ([A-Za-z0-9._]+@[A-Za-z0-9._]+\.[a-z]+).*$', flags=re.M)
 
-    # Matches a url of the form https://instance/@username
+    # Matches a URL of the form https://instance/@username
     handle_url_href_re = re.compile(r'https://([\w.]+\.\w+)/@(\w+)')
 
     # Matches the class used to denote the forwarding handle notice.
     moved_handle_class_re = re.compile(r'moved-account-widget__message')
 
-    # Matches a url used to link to profiles.
+    # Matches a URL used to link to profiles.
     profile_url_re = re.compile(r'(?:https://[A-Za-z0-9_.-]+\.[a-z]+)?/@[A-Za-z0-9_.-]+$')
 
-    # Matches a url used to link to a following or followers page.
+    # Matches a URL used to link to a following or followers page.
     relation_url_re = re.compile(r'(?:https://[A-Za-z0-9_.-]+\.[a-z]+)?'
                                  r'/(?:users/|@)[A-Za-z0-9_.-]+/(follow(?:ing|ers))(?:\?page=[0-9]+)?$')
 
-    # Matches the breakpoint in a static page pagination url between base url
+    # Matches the breakpoint in a static page pagination URL between base URL
     # and the pagination argument.
     static_pagination_page_split_re = re.compile("(?<=page=)")
 
-    # Matches the url of a static page.
+    # Matches the URL of a static page.
     static_pagination_re = re.compile(r'/users/[A-Za-z0-9_.-]+/follow(?:ing|ers)(?:\?page=\d+)?')
 
     @property
@@ -866,7 +866,7 @@ class Page(object):
 
         :param handle:         The handle of the profile the page belongs to.
         :type handle:          Handle
-        :param url:            The url of the page.
+        :param url:            The URL of the page.
         :type url:             str
         :param logger:         The Logger object to log events to.
         :type logger:          logger.Logger
@@ -894,7 +894,7 @@ class Page(object):
         self.unparseable = False
         self.profile_bio_text = ''
 
-        # Parsing the url to discover what kind of page this is and what page
+        # Parsing the URL to discover what kind of page this is and what page
         # number it is.
         if self.profile_url_re.match(self.url):
             self.is_profile = True
@@ -915,7 +915,7 @@ class Page(object):
                 self.page_number = 0
         else:
             raise Internal_Exception("unable to discern profile, following or follower page "
-                                     f"from parsing url {self.url} ")
+                                     f"from parsing URL {self.url} ")
 
     def requests_fetch(self):
         """
@@ -1023,7 +1023,7 @@ class Page(object):
             options.add_argument('-headless')
             self.logger.info(f"webdriver instantiating headless Firefox program")
             browser = selenium.webdriver.Firefox(options=options)
-            self.logger.info(f"webdriver loading url {self.url}")
+            self.logger.info(f"webdriver loading URL {self.url}")
 
             browser.get(self.url)
 
@@ -1270,12 +1270,12 @@ class Page(object):
         # is straightforward.
         else:
             # Sweeps the document for <a> tags whose href attribute matches the
-            # profile url regex.
+            # profile URL regex.
             found_relations_a_tags = self.document.find_all('a', {'href': self.profile_url_re})
             relations_hrefs = [tag.attrs['href'] for tag in found_relations_a_tags]
             for relation_href in relations_hrefs:
                 # Uses a separate, capturing regex to grab instance and username
-                # from each url if possible. Any nonmatching href values are
+                # from each URL if possible. Any nonmatching href values are
                 # discarded.
                 handle_match = self.handle_url_href_re.match(relation_href)
                 if not handle_match:
@@ -1333,7 +1333,7 @@ class Page(object):
                               else 1): href
                              for href in hrefs}
 
-        # Finds the highest page number and its url.
+        # Finds the highest page number and its URL.
         highest_page_no = max(relation_url_dict.keys())
         highest_page_url = relation_url_dict[highest_page_no]
 
@@ -1384,8 +1384,8 @@ class Page(object):
                 elif profile_bio_text:
                     # If by some chance this handle_id already has a row in the
                     # profiles table, but its profile_snippet is null, and the
-                    # bio text the program is going to save here is *not*, then
-                    # use an UPDATE statement to set the profile bio.
+                    # bio text the program is going to save here is *not* null,
+                    # then use an UPDATE statement to set the profile bio.
                     update_sql = f"""UPDATE profiles SET profile_snippet = {profile_bio_text}
                                      WHERE profile_handle_id = {handle.handle_id};"""
                     data_store.execute(update_sql)
@@ -1472,11 +1472,45 @@ class Page(object):
 
 
 class Handle_Processor(object):
+    """
+    Implements a class for processing a list of handles and fetching the profile,
+    relations, or both for each one depending on configuration.
+    """
     __slots__ = ('data_store', 'logger', 'instances_dict', 'save_from_wifi', 'last_time_point', 'current_time_point',
-                 'prev_time_point', 'save_profiles', 'save_relations', 'page_factory', 'logger', 'dont_discard_bc_wifi',
+                 'prev_time_point', 'save_profiles', 'save_relations', 'page_fetcher', 'logger', 'dont_discard_bc_wifi',
                  'conn_err_wait_time')
 
-    def __init__(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False, conn_err_wait_time=0.0):
+    def __init__(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False,
+                       dont_discard_bc_wifi=False, conn_err_wait_time=0.0):
+        """
+        Initializes the Handle_Processor object.
+
+        :param data_store:           The Data_Store object to use to contact the
+                                     database.
+        :type data_store:            Data_Store
+        :param logger:               The Logger object to use to log events.
+        :type logger:                logger.Logger
+        :param instances_dict:       A dict associating hostnames to Instance objects,
+                                     used to identify problematic instances (or ones the
+                                     program has been ratelimited from) and avoid
+                                     contacting them.
+        :type instances_dict:        dict
+        :param save_profiles:        If the program is in a profiles-saving mode.
+        :type save_profiles:         bool
+        :param save_relations:       If the program is in a following/followers-saving
+                                     mode.
+        :type save_relations:        bool
+        :param dont_discard_bc_wifi: If the program has been instructed not to interpret
+                                     a connection error as a reason to mark a profile as
+                                     unfetchable (by saving a null bio to the database).
+        :type dont_discard_bc_wifi:  bool
+        :param conn_err_wait_time:   If the program is not discarding profiles on a
+                                     connection error, the period of time (in seconds)
+                                     to sleep after each connection error. (Done to
+                                     avoid chewing through a large number of unreachable
+                                     profiles while the WiFi is out.)
+        :type conn_err_wait_time:    float
+        """
         self.data_store = data_store
         self.logger = logger
         self.instances_dict = instances_dict
@@ -1485,24 +1519,50 @@ class Handle_Processor(object):
         self.prev_time_point = current_time_point = time.time()
         self.dont_discard_bc_wifi = dont_discard_bc_wifi
         self.conn_err_wait_time = conn_err_wait_time
-        self.page_factory = Page_Fetcher(data_store, self.logger, instances_dict, save_profiles=save_profiles,
+
+        # Instancing the Page_Fetcher object that Handle_Processor will use
+        # to fetch the appropriate pages for each handle. The save_profiles,
+        # save_relations, dont_discard_bc_wifi, and conn_err_wait_time values
+        # were specified on the commandline and passed to this object on
+        # instantiation; now they're being passed down to Page_Fetcher where
+        # they'll actually be used.
+        self.page_fetcher = Page_Fetcher(data_store, self.logger, instances_dict, save_profiles=save_profiles,
                                          save_relations=save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi,
                                          conn_err_wait_time=self.conn_err_wait_time)
 
-    def process_handle_iterable(self, iterable_length, handle_iterable):
-        handles_remaining_count = iterable_length
+    def process_handle_iterable(self, handle_iterable):
+        """
+        Iterates over a provided iterable that yields Handle objects, fetching &
+        processing the appropriate page(s) for each one.
+
+        :param handle_iterable: An iterable obprocess_handle_iterableject that's
+                                comprised of Handle objects, or a generator that yields
+                                Handle objects.
+        :type handle_iterable:  tuple, list, set, or types.GeneratorType
+        :return:                None
+        :rtype:                 types.NoneType
+        """
         count_history = list()
         rate_history = list()
         skipped_handles = list()
+
         for handle in handle_iterable:
+            # Get a handle_id, which inserts this handle into the handles table
+            # as a side effect.
             if not handle.handle_id:
                 handle.fetch_or_set_handle_id(write_data_store)
+
             profile_url = handle.profile_url
             result = results = None
             try:
                 if self.save_profiles and not self.save_relations:
+                    # Retrieves the profile page and saves its bio text to the
+                    # database if possible.
                     result = self.retrieve_profile(handle, profile_url)
                 else:
+                    # Retrieves the profile page if possible, uses it to find
+                    # the profile's following/followers pages, retrieves those
+                    # pages in full if possible and saves them to the database.
                     results = self.retrieve_relations_from_profile(handle, profile_url)
             except Internal_Exception:
                 continue
@@ -1510,68 +1570,93 @@ class Handle_Processor(object):
             if result is not None and isinstance(result, Failed_Request):
                 if result.ratelimited == True or result.connection_error:
                     skipped_handles.append(handle)
-                elif result.forwarding_address and result.forwarding_address is not True:
-                    handles_remaining_count += 1
-            if results is not None and any(isinstance(result, Failed_Request) for result in results):
+            elif results is not None and any(isinstance(result, Failed_Request) for result in results):
                 if any(isinstance(result, int) for result in results):
                     # So within the retrieve_relations_from_profile() call, one
                     # retrieve_relations() call succeeded and one failed. That
                     # situation is too complex to reach any conclusions from so
                     # the program just passes.
+                    # 
+                    # This *might* result in dropping a handle when it could
+                    # have been saved to skipped_handles; but half its content
+                    # was saved correctly, so re-processing the handle down the
+                    # line would create IntegrityErrors when trying to save its
+                    # content. This is a rare enough occurrence that dropping
+                    # the occasional handle isn't a big deal.
                     pass
                 elif any(result.ratelimited == True or result.connection_error for result in results):
                     skipped_handles.append(handle)
-                elif any(result.forwarding_address and result.forwarding_address is not True for result in results):
-                    handles_remaining_count += 1
-            else:
-                handles_remaining_count -= 1
-            #self.check_time_report_progress(iterable_length, handles_remaining_count, count_history, rate_history)
+
+        # Repeatedly iterates over skipped_handles until it's empty.
         while len(skipped_handles):
+            # A count of loop passes where a request was completed. If an entire
+            # inner for loop is completed without incrementing this variable,
+            # the outer while loop exits since all the remaining handles failed.
+            # There may be salvageable handles here but there needs to be a
+            # point at which the salvage operation quits and this is the one
+            # that's used.
             successful_requests = 0
-            for index in range(0, len(skipped_handles)):
+
+            for index in range(len(skipped_handles) - 1, 0, -1):
                 handle = skipped_handles[index]
                 result = self.retrieve_relations_from_profile(handle, profile_url)
-                if isinstance(result, Failed_Request) and result.ratelimited == True:
-                    continue
-                skipped_handles[index] = None
-                successful_requests += 1
-                handles_remaining_count -= 1
-            if successful_requests == 0:
-                self.logger.info("All Handle objects remaining in queue are from instances where we're still ratelimited; "
-                                 "no more retrievals are possible right now. Exitting.")
-                exit(1)
-            skipped_handles = list(filter(lambda handle: handle is not None, skipped_handles))
-            #self.check_time_report_progress(iterable_length, handles_remaining_count, count_history, rate_history)
 
-    def check_time_report_progress(self, total_handles_count, handles_processed_count, count_history, rate_history):
-        self.current_time_point = time.time()
-        prev_datetime = datetime.datetime.fromtimestamp(self.prev_time_point)
-        current_datetime = datetime.datetime.fromtimestamp(self.current_time_point)
-        if prev_datetime.minute != current_datetime.minute:
-            elapsed_timedelta = current_datetime - prev_datetime
-            elapsed_seconds = elapsed_timedelta.seconds + elapsed_timedelta.microseconds/1000000
-            prev_count = count_history[-1] if len(count_history) else 0
-            count_diff = handles_processed_count - prev_count
-            count_history.append(handles_processed_count)
-            handles_per_most_recent_minute = count_diff / (elapsed_seconds / 60)
-            rate_history.append(handles_per_most_recent_minute)
-            handles_remaining = total_handles_count - handles_processed_count
-            average_handles_rate = sum(rate_history) / len(rate_history)
-            minutes_until_completion = handles_remaining / average_handles_rate
-            completion_time = (datetime.datetime.today() + datetime.timedelta(minutes=minutes_until_completion)).today()
-            self.logger.info(f"processed {count_diff} in most recent period, for a rate of {handles_per_most_recent_minute} per minute")
-            self.logger.info(f"average handles per minute rate {average_handles_rate}; total handles processed {handles_processed_count}")
-            self.logger.info(f"handles remaining {handles_remaining}, projected completion time {completion_time.isoformat()}")
+                # On a second pass, connection errors aren't tolerated, even
+                # with dont_discard_bc_wifi True. Connection errors can happen
+                # for other, persistent reasons, and if handles that yield
+                # connection errors aren't dropped, the program could end up
+                # aggressively hammering on the same disconnected hosts in an
+                # infinite loop.
+                if isinstance(result, Failed_Request):
+                    continue
+
+                del skipped_handles[index]
+                successful_requests += 1
+
+            if successful_requests == 0:
+                self.logger.info("An entire skipped_handles salvage pass completed with no successful connections; "
+                                 "giving up on salvage process.")
+                exit(0)
 
     def retrieve_profile(self, handle, profile_page_url):
-        profile_page, result = self.page_factory.instantiate_and_fetch_page(handle, profile_page_url)
-        if profile_page is not None and result is True and self.save_profiles:
+        """
+        Retrieves a profile from the given URL and attempts to save its bio to the
+        database.
+
+        :param handle:           A Handle object to use to define the Page object with.
+        :type handle:            Page
+        :param profile_page_url: The profile URL to retrieve.
+        :type profile_page_url:  str
+        :return:                 If the request succeeded, then the length of the
+                                 profile page's bio in characters; if it failed, a
+                                 Failed_Request object.
+        :rtype:                  int or Failed_Request
+        """
+        profile_page, result = self.page_fetcher.instantiate_and_fetch_page(handle, profile_page_url)
+
+        # If the page isn't None and the result is an integer then the fetch
+        # succeeded and the page has a bio that can be saved.
+        if profile_page is not None and isinstance(result, int) and self.save_profiles:
             self.logger.info(f"saving bio to database")
             profile_page.save_page(self.data_store)
+
         return result
 
     def retrieve_relations_from_profile(self, handle, profile_page_url):
-        profile_page, result = self.page_factory.instantiate_and_fetch_page(handle, profile_page_url)
+        """
+        Retrieves a profile from the given URL, uses it to find the user's
+        following/followers pages, and retrieves those in full.
+
+        :param handle:           A Handle object to use to define the Page object with.
+        :type handle:            Page
+        :param profile_page_url: The profile URL to retrieve.
+        :type profile_page_url:  str
+        :return:                 If the request succeeded, then the number of
+                                 following/followers handles retrieved; if it
+                                 failed, a Failed_Request object.
+        :rtype:                  int or Failed_Request
+        """
+        profile_page, result = self.page_fetcher.instantiate_and_fetch_page(handle, profile_page_url)
         if isinstance(result, Failed_Request):
             return result, result
         first_following_page_url, first_followers_page_url = profile_page.generate_initial_relation_page_urls()
@@ -1580,19 +1665,41 @@ class Handle_Processor(object):
         return result1, result2
 
     def retrieve_relations(self, handle, first_relation_page_url):
-        first_relation_page, result = self.page_factory.instantiate_and_fetch_page(handle, first_relation_page_url)
+        """
+        Retrieves a following/followers page from the given URL, and uses it to fetch
+        all the following/followers handles accessible via that page.
+
+        :param handle:           A Handle object to use to define the Page object with.
+        :type handle:            Page
+        :param profile_page_url: The following/followers URL to retrieve.
+        :type profile_page_url:  str
+        :return:                 If the request succeeded, then the number of
+                                 following/followers handles retrieved; if it
+                                 failed, a Failed_Request object.
+        :rtype:                  int or Failed_Request
+        """
+        first_relation_page, result = self.page_fetcher.instantiate_and_fetch_page(handle, first_relation_page_url)
+
         if isinstance(result, Failed_Request):
             return result
+
+        # A dynamic following/followers page uses infinite scroll to convey all
+        # the handles on a single page, so one save action is all that's needed.
         first_relation_page.save_page(self.data_store)
         if first_relation_page.is_dynamic:
             return result
+
+        # A static initial following/followers is used to generate all the
+        # following/followers page URLs, which are fetched (and parsed), and
+        # stored.
         total_result = 0
         for relation_page_url in first_relation_page.generate_all_relation_page_urls():
-            relation_page, result = self.page_factory.instantiate_and_fetch_page(handle, relation_page_url)
+            relation_page, result = self.page_fetcher.instantiate_and_fetch_page(handle, relation_page_url)
             if isinstance(result, Failed_Request):
                 return result
             relation_page.save_page(self.data_store)
             total_result += result
+
         return total_result
 
 
@@ -1733,7 +1840,7 @@ if options.handles_from_args:
         handle_objs_from_args.append(handle)
     if options.dry_run:
         exit(0)
-    handle_processor.process_handle_iterable(len(handle_objs_from_args), handle_objs_from_args)
+    handle_processor.process_handle_iterable(handle_objs_from_args)
 elif options.use_threads:
     threads = list()
     loggers = list()
@@ -1773,7 +1880,7 @@ elif options.use_threads:
                                                                      for handle_list in handles_lists))
     for index in range(0, options.use_threads):
         threads.append(threading.Thread(target=handle_processors[index].process_handle_iterable,
-                                        args=(len(handles_lists[index]), iter(handles_lists[index])), daemon=True))
+                                        args=(iter(handles_lists[index])), daemon=True),)
         main_logger.info(f"instantiated thread #{index}")
     for index in range(0, options.use_threads):
         threads[index].start()
@@ -1797,4 +1904,4 @@ else:
         handles_generator = read_data_store.users_in_handles_not_in_profiles()
     elif options.relations_join_profiles:
         handles_generator = read_data_store.users_in_relations_not_in_profiles()
-    handle_processor.process_handle_iterable(rowcount, handles_generator)
+    handle_processor.process_handle_iterable(handles_generator)
