@@ -1,11 +1,8 @@
 #!/usr/bin/python3
 
 import bs4
-import collections
 import datetime
 import decouple
-import fs.glob
-import functools
 import html2text
 import logging
 import MySQLdb
@@ -175,7 +172,7 @@ def main():
         if options.dry_run:
             exit(0)
 
-        handle_processor.process_handle_iterable(handle_objs_from_args)
+        handle_processor.process_handle_iterable(handle_objs_from_args, data_store_obj)
 
     elif options.use_threads:
 
@@ -239,7 +236,7 @@ def main():
         # Instancing & saving the thread objects.
         for index in range(0, options.use_threads):
             thread_obj = threading.Thread(target=handle_processor_objs[index].process_handle_iterable,
-                                          args=(iter(handles_lists[index]),),
+                                          args=(iter(handles_lists[index]), data_store_objs[index]),
                                           daemon=True)
             thread_objs.append(thread_obj)
             main_logger_obj.info(f"instantiated thread #{index}")
@@ -276,7 +273,7 @@ def main():
             handles_generator = data_store_obj.users_in_relations_not_in_profiles()
 
         # Processing the handles. Main loop here.
-        handle_processor.process_handle_iterable(handles_generator)
+        handle_processor.process_handle_iterable(handles_generator, data_store_obj)
 
 
 def instance_logger_obj(name, use_threads=False):
@@ -551,7 +548,10 @@ class Robots_Txt_File:
         """
         robots_txt_url = self._get_robots_txt_url()
         robots_txt_content = self._read_robots_txt(robots_txt_url)
-        self.robots_dict = self._parse_robots_txt(robots_txt_content)
+        if robots_txt_content:
+            self.robots_dict = self._parse_robots_txt(robots_txt_content)
+        else:
+            self.robots_dict = dict()
 
     def has_been_loaded(self):
         """
@@ -575,6 +575,10 @@ class Robots_Txt_File:
         if self.robots_dict is None:
             raise Internal_Exception(f"{self._get_robots_txt_url()} hasn't been loaded; can't judge whether "
                                      f"{query_url} can be fetched")
+        # There wasn't a robots.txt or an error occurred while attempting to
+        # read it.
+        elif len(self.robots_dict) == 0:
+            return True
 
         # If the robots.txt file doesn't specify behavior for User-Agent: *, and
         # doesn't specify behavior for this exact User-Agent, then the program
@@ -656,9 +660,13 @@ class Robots_Txt_File:
 
     def _read_robots_txt(self, robots_txt_url):
         # Retrieve the robots.txt file, extract the content and return it.
-        response = requests.get(robots_txt_url)
+        try:
+            response = requests.get(robots_txt_url)
+        except (requests.exceptions.SSLError, requests.exceptions.TooManyRedirects, requests.exceptions.ConnectTimeout,
+                requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, IOError):
+            return ''
         if response.status_code != 200:
-            raise Internal_Exception(f"couldn't fetch {robots_txt_url}: got status code {response.status_code}")
+            return ''
         robots_txt_content = response.content.decode('utf-8')
         return robots_txt_content
 
@@ -752,7 +760,10 @@ class Instance(object):
             self.set_rate_limit(x_ratelimit_limit)
         else:
             self.rate_limit_expires = 0.0
-        self.robots_txt_file_obj = None
+        if not (malfunctioning or suspended or unparseable):
+            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/")
+        else:
+            self.robots_txt_file_obj = None
 
     def set_rate_limit(self, x_ratelimit_limit=None):
         """
@@ -868,7 +879,7 @@ class Instance(object):
 
     def fetch_robots_txt(self):
         try:
-            robots_txt_file_obj = Robots_Txt_File(f"https://{self.host}/")
+            robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/")
             robots_txt_file_obj.load_and_parse()
         except Internal_Exception:
             robots_txt_file_obj = None
@@ -877,9 +888,10 @@ class Instance(object):
     def can_fetch(self, query_url):
         if self.malfunctioning or self.suspended or self.unparseable:
             raise Internal_Exception(f"instance {self.host} has status {self.status}; nothing there can be fetched")
-        elif self.robots_txt_file_obj is None or not self.robots_txt_file_obj.has_been_loaded():
-            raise Internal_Exception(f"{self._get_robots_txt_url()} hasn't been loaded; can't judge whether "
-                                     f"{query_url} can be fetched")
+        if self.robots_txt_file_obj is None:
+            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/")
+        if not self.robots_txt_file_obj.has_been_loaded():
+            self.robots_txt_file_obj.load_and_parse()
         return self.robots_txt_file_obj.can_fetch(query_url)
 
 
@@ -891,67 +903,70 @@ class Failed_Request(object):
     """
     __slots__ = ('host', 'status_code', 'ratelimited', 'user_deleted', 'malfunctioning', 'unparseable', 'suspended',
                  'ssl_error', 'too_many_redirects', 'timeout', 'connection_error', 'posts_too_old', 'no_public_posts',
-                 'forwarding_address', 'is_dynamic', 'webdriver_error', 'x_ratelimit_limit')
+                 'forwarding_address', 'is_dynamic', 'webdriver_error', 'x_ratelimit_limit', 'robots_txt_disallowed')
 
     def __init__(self, host, connection_error=False, forwarding_address='', is_dynamic=False, malfunctioning=False,
                        no_public_posts=False, posts_too_old=False, ratelimited=False, ssl_error=False, status_code=0,
                        suspended=False, timeout=False, too_many_redirects=False, unparseable=False, user_deleted=False,
-                       webdriver_error=False, x_ratelimit_limit=0):
+                       webdriver_error=False, x_ratelimit_limit=0, robots_txt_disallowed=False):
         """
         Instances a Failed_Request object.
 
-        :param connection_error:   If there was a connection error when contacting the
-                                   instance.
-        :type connection_error:    bool, optional
-        :param forwarding_address: If the profile had a forwarding address, indicating
-                                   it was defunct.
-        :type forwarding_address:  bool, optional
-        :param host:               The hostname of the instance that the failed request
-                                   occurred with.
-        :type host:                str
-        :param is_dynamic:         If the page had a <noscript> tag, indicating that
-                                   JavaScript evaluation is required to view the page's
-                                   content.
-        :type is_dynamic:          bool, optional
-        :param malfunctioning:     If the instance returned a request that indicates the
-                                   Mastodon software on the instance is malfunctioning
-                                   (or misconfigured).
-        :type malfunctioning:      bool, optional
-        :param no_public_posts:    If the profile retrieved had no publicly accessible
-                                   posts.
-        :type no_public_posts:     bool, optional
-        :param posts_too_old:      If the newest post that was retrieved from the
-                                   instance for the particular user was older than the
-                                   minimum period for consideration.
-        :type posts_too_old:       bool, optional
-        :param ratelimited:        If the program has been ratelimited.
-        :type ratelimited:         bool, optional
-        :param ssl_error:          If the SSL negotiation with the instance failed.
-        :type ssl_error:           bool, optional
-        :param status_code:        The status code the instance used in the HTTP request
-                                   that indicated failure.
-        :type status_code:         int, optional
-        :param suspended:          If the instance that the program was meant to contact
-                                   is a suspended instance.
-        :type suspended:           bool, optional
-        :param timeout:            If the instance did not response before the timeout
-                                   period had elapsed.
-        :type timeout:             bool, optional
-        :param too_many_redirects: If the instance sent the program through too many
-                                   redirects.
-        :type too_many_redirects:  bool, optional
-        :param unparseable:        If the HTML returned in the HTTP connection could not
-                                   be parsed by the program.
-        :type unparseable:         bool, optional
-        :param user_deleted:       If the user has been deleted from the instance that
-                                   was contacted.
-        :type user_deleted:        bool, optional
-        :param webdriver_error:    If selenium.webdriver had an internal error.
-        :type webdriver_error:     bool, optional
-        :param x_ratelimit_limit:  If the request failed with a Status 429 error, and
-                                   the response had an X-Ratelimit-Limit header, the
-                                   integer value of that header.
-        :type x_ratelimit_limit:   int, optional
+        :param connection_error:      If there was a connection error when contacting the
+                                      instance.
+        :type connection_error:       bool, optional
+        :param forwarding_address:    If the profile had a forwarding address, indicating
+                                      it was defunct.
+        :type forwarding_address:     bool, optional
+        :param host:                  The hostname of the instance that the failed request
+                                      occurred with.
+        :type host:                   str
+        :param is_dynamic:            If the page had a <noscript> tag, indicating that
+                                      JavaScript evaluation is required to view the page's
+                                      content.
+        :type is_dynamic:             bool, optional
+        :param malfunctioning:        If the instance returned a request that indicates the
+                                      Mastodon software on the instance is malfunctioning
+                                      (or misconfigured).
+        :type malfunctioning:         bool, optional
+        :param no_public_posts:       If the profile retrieved had no publicly accessible
+                                      posts.
+        :type no_public_posts:        bool, optional
+        :param posts_too_old:         If the newest post that was retrieved from the
+                                      instance for the particular user was older than the
+                                      minimum period for consideration.
+        :type posts_too_old:          bool, optional
+        :param ratelimited:           If the program has been ratelimited.
+        :type ratelimited:            bool, optional
+        :param ssl_error:             If the SSL negotiation with the instance failed.
+        :type ssl_error:              bool, optional
+        :param status_code:           The status code the instance used in the HTTP request
+                                      that indicated failure.
+        :type status_code:            int, optional
+        :param suspended:             If the instance that the program was meant to contact
+                                      is a suspended instance.
+        :type suspended:              bool, optional
+        :param timeout:               If the instance did not response before the timeout
+                                      period had elapsed.
+        :type timeout:                bool, optional
+        :param too_many_redirects:    If the instance sent the program through too many
+                                      redirects.
+        :type too_many_redirects:     bool, optional
+        :param unparseable:           If the HTML returned in the HTTP connection could not
+                                      be parsed by the program.
+        :type unparseable:            bool, optional
+        :param user_deleted:          If the user has been deleted from the instance that
+                                      was contacted.
+        :type user_deleted:           bool, optional
+        :param webdriver_error:       If selenium.webdriver had an internal error.
+        :type webdriver_error:        bool, optional
+        :param x_ratelimit_limit:     If the request failed with a Status 429 error, and
+                                      the response had an X-Ratelimit-Limit header, the
+                                      integer value of that header.
+        :type x_ratelimit_limit:      int, optional
+        :param robots_txt_disallowed: If the request couldn't be made because the site's
+                                      robots.txt didn't allow it.
+        :type robots_txt_disallowed:  bool, optional
         """
         # FIXME should raise an error if *none* of the optional args are specified
         self.host = host
@@ -1094,7 +1109,10 @@ class Page_Fetcher(object):
 
     def instantiate_and_fetch_page(self, handle, url):
         host = handle.host
-        instance = self.instances_dict.get(host, None)
+        if host in self.instances_dict:
+            instance = self.instances_dict[host]
+        else:
+            self.instances_dict[host] = instance = Instance(host, self.logger)
 
         # There exists a record of this instance in the instances_dict. It is
         # almost certainly not contactable. Figuring out *how* and handle it.
@@ -1106,7 +1124,7 @@ class Page_Fetcher(object):
                     # data store. The empty Page for that profile is returned.
                     self.logger.info(f"instance {host} on record as {instance.status}; "
                                      f"didn't load {url}; saving null bio to database")
-                    page = Page(handle, url, self.logger, save_profiles=self.save_profiles,
+                    page = Page(handle, url, self.logger, instance, save_profiles=self.save_profiles,
                                 save_relations=self.save_relations)
                     page.save_page(self.data_store)
                     return page, Failed_Request(host,
@@ -1140,7 +1158,12 @@ class Page_Fetcher(object):
 
         # Possibilities for aborting transfer don't apply; proceeding with a
         # normal attempt to load the page.
-        page = Page(handle, url, self.logger, save_profiles=self.save_profiles, save_relations=self.save_relations)
+        host = urllib.parse.urlparse(url).netloc
+        if host in self.instances_dict:
+            instance = self.instances_dict[host]
+        else:
+            self.instances_dict[host] = instance = Instance(host, self.logger)
+        page = Page(handle, url, self.logger, instance, save_profiles=self.save_profiles, save_relations=self.save_relations)
         result = page.requests_fetch()
 
         # If the request failed because the page is dynamic (ie. has a
@@ -1210,13 +1233,15 @@ class Page_Fetcher(object):
 
             # Several other kinds of error that only need to be logged.
             elif result.webdriver_error:
-                self.logger.info(f"loaded {url}: webdriver loading failed with internal error")
+                self.logger.info(f"loading {url}: webdriver loading failed with internal error")
             elif result.no_public_posts:
                 self.logger.info(f"loaded {url}: no public posts")
             elif result.posts_too_old:
                 self.logger.info(f"loaded {url}: posts too old")
             elif result.unparseable:
                 self.logger.info(f"loaded {url}: parsing failed")
+            elif result.robots_txt_disallowed:
+                self.logger.info(f"loading {url}: site's robots.txt does not allow it")
 
             # The profile gave the program a forwarding address.
             # FIXME should save these to the handles table.
@@ -1226,7 +1251,7 @@ class Page_Fetcher(object):
                 else:
                     self.logger.info(f"loaded {url}: forwarding page")
             else:
-                self.logger.info(f"loaded {url}: unanticipated error {repr(result)}")
+                self.logger.info(f"loading {url}: unanticipated error {repr(result)}")
             # END *first* big conditional
 
             # A connection failure when retrieving a profile normally leads to
@@ -1278,7 +1303,7 @@ class Page(object):
     Represents a single page; handles retrieving the page and the ensuing errors
     itself.
     """
-    __slots__ = ('handle', 'username', 'host', 'logger', 'url', 'logger', 'document', 'is_dynamic', 'loaded',
+    __slots__ = ('handle', 'username', 'host', 'logger', 'instance', 'url', 'document', 'is_dynamic', 'loaded',
                  'is_profile', 'is_following', 'is_followers', 'page_number', 'profile_no_public_posts',
                  'profile_posts_too_old', 'profile_bio_text', 'relations_list', 'unparseable', 'save_profiles',
                  'save_relations')
@@ -1320,7 +1345,7 @@ class Page(object):
     def relation_type(self):
         return 'following' if self.is_following else 'followers' if self.is_followers else None
 
-    def __init__(self, handle, url, logger, save_profiles=False, save_relations=False):
+    def __init__(self, handle, url, logger, instance, save_profiles=False, save_relations=False):
         """
         Instances the Page object.
 
@@ -1330,6 +1355,9 @@ class Page(object):
         :type url:             str
         :param logger:         The Logger object to log events to.
         :type logger:          logger.Logger
+        :param instance:       The Instance object associated with the host this Page's
+                               url is located at.
+        :type instance:        Instance
         :param save_profiles:  If the program is in a profiles-saving mode.
         :type save_profiles:   bool
         :param save_relations: If the program is in a relations-saving mode.
@@ -1339,6 +1367,7 @@ class Page(object):
         self.handle = handle
         self.url = url
         self.logger = logger
+        self.instance = instance
         self.save_profiles = save_profiles
         self.save_relations = save_relations
         self.username = handle.username
@@ -1386,6 +1415,11 @@ class Page(object):
         """
         # A big try/except statement to handle a variet of different Exceptions
         # differently.
+        if not self.instance.can_fetch(self.url):
+            # The file can't be fetched because the site has a robots.txt and
+            # the robots.txt disallows it.
+            self.loaded = False
+            return Failed_Request(self.host, robots_txt_disallowed=True)
         try:
             http_response = requests.get(self.url, timeout=5.0)
         except requests.exceptions.SSLError:
@@ -1477,6 +1511,11 @@ class Page(object):
         """
         # FIXME implement a Successful_Request object to normalize the return
         # values of this and subordinate methods.
+        if not self.instance.can_fetch(self.url):
+            # The file can't be fetched because the site has a robots.txt and
+            # the robots.txt disallows it.
+            self.loaded = False
+            return Failed_Request(self.host, robots_txt_disallowed=True)
         try:
             # Instancing the headless puppet firefox instance.
             options = selenium.webdriver.firefox.options.Options()
@@ -1989,7 +2028,7 @@ class Handle_Processor(object):
                                          save_relations=save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi,
                                          conn_err_wait_time=self.conn_err_wait_time)
 
-    def process_handle_iterable(self, handle_iterable):
+    def process_handle_iterable(self, handle_iterable, data_store_obj):
         """
         Iterates over a provided iterable that yields Handle objects, fetching &
         processing the appropriate page(s) for each one.
@@ -2007,7 +2046,7 @@ class Handle_Processor(object):
             # Get a handle_id, which inserts this handle into the handles table
             # as a side effect.
             if not handle.handle_id:
-                handle.fetch_or_set_handle_id(write_data_store)
+                handle.fetch_or_set_handle_id(data_store_obj)
 
             profile_url = handle.profile_url
             result = results = None
