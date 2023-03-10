@@ -1,0 +1,8 @@
+exclude .gitignore
+include arachnea.py
+include create_db_tables.sql
+recursive-include docs/arachnea.html
+include LICENSE
+include README.md
+include requirements.txt
+include setup.py
