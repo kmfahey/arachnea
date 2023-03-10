@@ -520,11 +520,9 @@ class Robots_Txt_File:
     """
     __slots__ = 'user_agent', 'url', 'robots_dict'
 
-    user_agent_re = re.compile("^User-Agent: ", re.I | re.M)
+    user_agent_re = re.compile("^(?=User-Agent: )", re.I | re.M)
     disallow_re = re.compile("^Disallow: ", re.I)
     allow_re = re.compile("^Allow: ", re.I)
-
-    #FIXME implement longest matching rule wins
 
     def __init__(self, user_agent, url):
         """
@@ -544,9 +542,111 @@ class Robots_Txt_File:
         self.robots_dict = None
 
     def load_and_parse(self):
+        """
+        Loads the indicated robots.txt file and parses it, such that after this call the
+        can_fetch() method will be operational.
+
+        :return: None
+        :rtype:  types.NoneType
+        """
         robots_txt_url = self._get_robots_txt_url()
         robots_txt_content = self._read_robots_txt(robots_txt_url)
         self.robots_dict = self._parse_robots_txt(robots_txt_content)
+
+    def has_been_loaded(self):
+        """
+        Predicate that returns True if the robots.txt file has been fetched and parsed,
+        False otherwise.
+
+        :return: True or False
+        :rtype:  bool
+        """
+        return isinstance(self.robots_dict, dict)
+
+    def can_fetch(self, query_url):
+        """
+        Check the supplied url against the parsed robots.txt data for the stored
+        User-Agent to see if it is allowed or disallowed. Returns True if it's allowed,
+        False otherwise.
+
+        :return: True or False
+        :rtype:  bool
+        """
+        if self.robots_dict is None:
+            raise Internal_Exception(f"{self._get_robots_txt_url()} hasn't been loaded; can't judge whether "
+                                     f"{query_url} can be fetched")
+
+        # If the robots.txt file doesn't specify behavior for User-Agent: *, and
+        # doesn't specify behavior for this exact User-Agent, then the program
+        # can fetch anything it likes.
+
+        if self.user_agent not in self.robots_dict and '*' not in self.robots_dict:
+            return True
+        # Pick the robots.txt parsed block that matches the program's User-Agent.
+        elif self.user_agent in self.robots_dict:
+            robots_block = self.robots_dict[self.user_agent]
+        else:  # '*' in self.robots_dict:
+            robots_block = self.robots_dict['*']
+
+        # Extract the path from the query URL.
+        query_path = urllib.parse.urlparse(query_url).path
+
+        matching_allow_pats = set()
+        matching_disallow_pats = set()
+        for pattern in robots_block["Disallow"]:
+            if self._glob_match(pattern, query_path):
+                matching_disallow_pats.add(pattern)
+
+        for pattern in robots_block["Allow"]:
+            if self._glob_match(pattern, query_path):
+                matching_allow_pats.add(pattern)
+
+        # If the pattern matches both Allow and Disallow terms, the longest
+        # pattern wins. A pattern ending in a wildcard is considered longest.
+        if matching_allow_pats and matching_disallow_pats:
+            matching_allow_pats_end_w_wc = {pattern for pattern in matching_allow_pats if pattern.endswith('*')}
+            matching_disallow_pats_end_w_wc = {pattern for pattern in matching_disallow_pats if pattern.endswith('*')}
+
+            # If there's an Allow pattern that ends with a wildcard but no
+            # Disallow pattern that does, it's allowed.
+            if matching_allow_pats_end_w_wc and not matching_disallow_pats_end_w_wc:
+                return True
+            # Otoh if there's a Disllow pattern that ends with a wildcard but no
+            # Allow pattern that does, it's disallowed.
+            elif not matching_allow_pats_end_w_wc and matching_disallow_pats_end_w_wc:
+                return False
+            # If there's both Allow and Disallow patterns ending in wildcards
+            # that match, the longest one of *those* wins. (This is ad hoc, also
+            # this is a tiny corner case but it needs to be handled.
+            elif matching_allow_pats_end_w_wc and matching_disallow_pats_end_w_wc:
+                return max(map(len, matching_allow_pats_end_w_wc)) >= max(map(len, matching_disallow_pats_end_w_wc))
+            # No matching patterns end in wildcards so it's allowed if the
+            # longest matching pattern is an Allow one.
+            else:
+                return max(map(len, matching_allow_pats)) >= max(map(len, matching_disallow_pats))
+        # If of matching_allow_pats and matching_disallow_pats one is
+        # zero-length and one is nonzero-length, then it's allowed if Allowed is
+        # the nonzero one.
+        elif (len(matching_allow_pats), len(matching_disallow_pats)).count(0) == 1:
+            return bool(matching_allow_pats)
+        # If none of the patterns matched, but an Allow block *exists* in the
+        # robots.txt, that implies that only paths matching an Allow pattern are
+        # allowed, so the path is disallowed.
+        elif robots_block["Allow"]:
+            return False
+        # No patterns matched and the robots.txt didn't have any Allow patterns.
+        # That implies any path not explicitly blocked is permitted, so the path
+        # is allowed.
+        else:
+            return True
+
+    @classmethod
+    def _glob_match(self, pattern, path):
+        if '*' not in pattern and '$' not in pattern:
+            return path.startswith(pattern)
+        else:
+            pattern = pattern.replace('*', '[^/]*')
+            return bool(re.match(pattern, path))
 
     def _get_robots_txt_url(self):
         # Derive the URL for the robots.txt file from the website URL instance var.
@@ -566,66 +666,30 @@ class Robots_Txt_File:
         # Parse the robots.txt content to a dict-of-dicts-of-sets. The outer
         # dict keys are User-Agents, the inner dict keys are either "Allow" or
         # "Disallow", and the sets are sets of robots.txt path patterns.
-        robots_dict = collections.defaultdict(functools.partial(collections.defaultdict, set))
+        robots_dict = dict()
 
         # Breaks the robots.txt file content on "^User-Agent: " and iterate
         # across the blocks starting at the second substring.
         user_agent_blocks = self.user_agent_re.split(robots_txt_content)
         for user_agent_block in user_agent_blocks[1:]:
+            user_agents, disallow_lines, allow_lines = set(), set(), set()
+            index = 0
             robot_lines = user_agent_block.split("\n")
-            user_agent_line = robot_lines[0]
-            user_agent = self.user_agent_re.sub("", user_agent_line)
-            for robot_line in robot_lines[1:]:
+            while self.user_agent_re.match(robot_lines[index]):
+                robot_line = robot_lines[index]
+                user_agents.add(robot_line[robot_line.index(':')+1:].strip())
+                index += 1
+            while index < len(robot_lines):
+                robot_line = robot_lines[index]
                 if self.disallow_re.match(robot_line):
-                    line_content = self.disallow_re.sub("", robot_line)
-                    robots_dict[user_agent]["Disallow"].add(line_content)
+                    disallow_lines.add(robot_line[robot_line.index(':')+1:].strip())
                 elif self.allow_re.match(robot_line):
-                    line_content = self.allow_re.sub("", robot_line)
-                    robots_dict[user_agent]["Allow"].add(line_content)
+                    allow_lines.add(robot_line[robot_line.index(':')+1:].strip())
+                index += 1
+            directives_dict = {"Allow": allow_lines, "Disallow": disallow_lines}
+            for user_agent in user_agents:
+                robots_dict[user_agent] = directives_dict
         return robots_dict
-
-    def has_been_loaded(self):
-        return isinstance(self.robots_dict, dict)
-
-    def can_fetch(self, query_url):
-        if self.robots_dict is None:
-            raise Internal_Exception(f"{self._get_robots_txt_url()} hasn't been loaded; can't judge whether "
-                                     f"{query_url} can be fetched")
-
-        # If the robots.txt file doesn't specify behavior for User-Agent: *, and
-        # doesn't specify behavior for this exact User-Agent, then the program
-        # can fetch anything it likes.
-
-        def globmatch(pattern, path):
-            # fs.glob.match()'s behavior isn't quite what's required. "/mbox*"
-            # doesn't match "/mbox/", and "/help/" doesn't match "/help". This
-            # private function normalizes the pattern and path so cornercases
-            # match.
-            if pattern.endswith('*') or not pattern.endswith('/'):
-                path = path.rstrip('/')
-            elif pattern.endswith('/') and not path.endswith('/'):
-                path += '/'
-            return fs.glob.match(pattern, path)
-
-        if self.user_agent not in self.robots_dict and '*' not in self.robots_dict:
-            return True
-        # Pick the robots.txt parsed block that matches the program's User-Agent.
-        elif self.user_agent in self.robots_dict:
-            robots_block = self.robots_dict[self.user_agent]
-        else:  # '*' in self.robots_dict:
-            robots_block = self.robots_dict['*']
-
-        # Extract the path from the query URL.
-        query_path = urllib.parse.urlparse(query_url).path
-
-        if any(globmatch(listed_path_pattern, query_path) for listed_path_pattern in robots_block["Disallow"]):
-            return False
-        elif "Allow" not in robots_block:
-            return True
-        elif any(globmatch(listed_path_pattern, query_path) for listed_path_pattern in robots_block["Allow"]):
-            return True
-        else:
-            return False
 
 
 class Instance(object):
