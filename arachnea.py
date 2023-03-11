@@ -63,8 +63,57 @@ parser.add_option("-x", "--dry-run", action="store_true", default=False, dest="d
 
 
 def main():
+    """
+    The main logic of the program. Parses the commandline arguments, validates the
+    flags specified, then executes either processing handles from the commandline,
+    processing handles from the database using threads, or processing handles from
+    the database without using threads, depending on the commandline flags.
+
+    :return: None
+    :rtype:  types.NoneType
+    """
     (options, args) = parser.parse_args()
 
+    # Instance the main logger. This is the only logger needed unless threaded mode is used.
+    main_logger_obj = instance_logger_obj("main", options.use_threads)
+
+    validate_cmdline_flags(options, args, main_logger_obj)
+
+    log_cmdline_flags(options, main_logger_obj)
+
+    save_profiles = (options.fetch_profiles_only or options.fetch_profiles_and_relations)
+    save_relations = (options.fetch_relations_only or options.fetch_profiles_and_relations)
+
+    # FIXME add database-searching mode and database-matching-rows-clearing mode
+
+    # The three main cases are processing handles from the commandline,
+    # processing handles from the database in a threaded fashion,
+    # and processing handles from the database in a single-tasking fashion.
+
+    main_processor_obj = Main_Processor(options, args, main_logger_obj, save_profiles, save_relations)
+
+    if options.handles_from_args:
+        main_processor_obj.process_handles_from_args()
+    elif options.use_threads:
+        main_processor_obj.process_handles_from_db_w_threads()
+    else:
+        main_processor_obj.process_handles_from_db_single_thread()
+
+
+def validate_cmdline_flags(options, args, logger_obj):
+    """
+    Validates the commandline flags received. Checks for invalid combinations of
+    flags. If an invalid combination is found, an error message is printed and the
+    program exits with status 1.
+
+    :param options:    The options object that is the first return value of
+                       optparse.OptionParser.parse_args().
+    :type options:     optparse.Values
+    :param logger_obj: The logger object to use to log events.
+    :type logger_obj:  logger.Logger
+    :return:           None
+    :rtype:            types.NoneType
+    """
     # Argument integrity check; catching illegal combinations of commandline
     # arguments and emitting the appropriate error messages.
     if not options.fetch_profiles_only and not options.fetch_relations_only and not options.fetch_profiles_and_relations:
@@ -102,181 +151,45 @@ def main():
         print("-t and -x were both specified, these modes conflict")
         exit(1)
 
-    # Instance the main logger. This is the only logger needed unless threaded mode is used.
-    main_logger_obj = instance_logger_obj("main", options.use_threads)
 
+def log_cmdline_flags(options, logger_obj):
+    """
+    Logs the commandline flags specified.
+
+    :return:           None
+    :rtype:            types.NoneType
+    """
     # Logging the commandline flags received.
     if options.fetch_profiles_only:
-        main_logger_obj.info("got -p flag, entering profiles-only mode")
+        logger_obj.info("got -p flag, entering profiles-only mode")
     elif options.fetch_relations_only:
-        main_logger_obj.info("got -q flag, entering relations-only mode")
+        logger_obj.info("got -q flag, entering relations-only mode")
     else:
-        main_logger_obj.info("got -r flag, entering profiles & relations mode")
+        logger_obj.info("got -r flag, entering profiles & relations mode")
 
     if options.relations_join_profiles:
-        main_logger_obj.info("got -R flag, loading handles present in the relations table but absent from the profiles tables")
+        logger_obj.info("got -R flag, loading handles present in the relations table but absent from the profiles tables")
     elif options.handles_join_profiles:
-        main_logger_obj.info("got -H flag, loading handles present in the handles table but absent from the profiles table")
+        logger_obj.info("got -H flag, loading handles present in the handles table but absent from the profiles table")
     elif options.fetch_relations_only:
-        main_logger_obj.info("got -q flag, loading handles present in the profiles table but absent from the relations table")
+        logger_obj.info("got -q flag, loading handles present in the profiles table but absent from the relations table")
 
     if options.dry_run:
-        main_logger_obj.info("got -x flag, doing a dry run")
+        logger_obj.info("got -x flag, doing a dry run")
 
-    if options.dry_run:
-        main_logger_obj.info("got -w flag, saving handles for later if a generic connection error occurs")
-
-    handle_re = re.compile("^@([A-Za-z0-9_.-]+)@([A-Za-z0-9_.-]+)$")
-
-    save_profiles = (options.fetch_profiles_only or options.fetch_profiles_and_relations)
-    save_relations = (options.fetch_relations_only or options.fetch_profiles_and_relations)
-
-    # FIXME add database-searching mode and database-matching-rows-clearing mode
-    # FIXME add robots.txt handling
-
-    # The three main cases are processing handles from the commandline,
-    # processing handles from the database in a threaded fashion,
-    # and processing handles from the database in a single-tasking fashion.
-
-    if options.handles_from_args:
-
-        # Intializing the needed objects.
-        handle_objs_from_args = list()
-        write_data_store = Data_Store()
-        read_data_store = Data_Store()
-        instances_dict = Instance.fetch_all_instances(read_data_store, main_logger_obj)
-
-        # The save_profiles, save_relations, dont_discard_bc_wifi, and
-        # conn_err_wait_time args are passed to the Handle_Processor init, which
-        # uses them to instance its captive Page_Fetcher object, which actually uses
-        # them.
-        handle_processor = Handle_Processor(Data_Store(main_logger_obj), main_logger_obj, instances_dict,
-                                            save_profiles=save_profiles, save_relations=save_relations,
-                                            dont_discard_bc_wifi=options.dont_discard_bc_wifi,
-                                            conn_err_wait_time=options.conn_err_wait_time)
-
-        # Iterating across the non-flag arguments, treating each one
-        # as a handle (in @user@instance form) and prepping the
-        # Handle_Processor.process_handle_iterable iterable argument.
-        for handle_str in args:
-            match = handle_re.match(handle_str)
-            if match is None:
-                logging.error(f"got argument {handle_str} that doesn't parse as a mastodon handle; fatal error")
-                exit(1)
-            username, host = match.group(1, 2)
-            handle = Handle(username=username, host=host)
-            handle.fetch_or_set_handle_id(write_data_store)
-            handle_objs_from_args.append(handle)
-
-        # If this is a dry run, stop here.
-        if options.dry_run:
-            exit(0)
-
-        handle_processor.process_handle_iterable(handle_objs_from_args, data_store_obj)
-
-    elif options.use_threads:
-
-        # SETTING UP PARALLELISM
-        #
-        # Each thread needs its own Logger object, its own Data_Store object, its
-        # own Handle_Processor object, and its own equal-sized list of handles to
-        # process.
-
-        thread_objs = list()
-        logger_objs = list()
-        data_store_objs = list()
-        handle_processor_objs = list()
-        handles_lists = list()
-
-        for index in range(0, options.use_threads):
-            logger_obj = instance_logger_obj(f"thread#{index}", True)
-            logger_objs.append(logger_obj)
-            data_store_objs.append(Data_Store(logger_obj))
-            handles_lists.append(list())
-
-        # The instances_dict is shared between threads. This is especially important
-        # where it stores an Instance object that is tracking a ratelimit that has
-        # been imposed on the program by an instance. The program should only need
-        # to get a status 429 response *once*, after which all threads need to
-        # respect that ratelimit.
-        instances_dict = Instance.fetch_all_instances(data_store_objs[0], main_logger_obj)
-
-        for index in range(0, options.use_threads):
-            handle_processor_obj = Handle_Processor(data_store_objs[index], logger_objs[index], instances_dict,
-                                                    save_profiles=save_profiles, save_relations=save_relations,
-                                                    dont_discard_bc_wifi=options.dont_discard_bc_wifi,
-                                                    conn_err_wait_time=options.conn_err_wait_time)
-            handle_processor_objs.append(handle_processor_obj)
-
-        # If this is a dry run, stop here.
-        if options.dry_run:
-            exit(0)
-
-        if options.fetch_relations_only:
-            handles_generator = data_store_objs[0].users_in_profiles_not_in_relations()
-        elif options.handles_join_profiles:
-            handles_generator = data_store_objs[0].users_in_handles_not_in_profiles()
-        elif options.relations_join_profiles:
-            handles_generator = data_store_objs[0].users_in_relations_not_in_profiles()
-
-        # This setup repeatedly iterates across the handles_lists list, appending
-        # a handle from the handles_generator to each list in turn, until the
-        # generator finally raises StopIteration. This populates the handles_lists
-        # lists with equal or nearly equal numbers of handles.
-        try:
-            while True:
-                for index in range(0, options.use_threads):
-                    handles_lists[((index + 1) % options.use_threads) - 1].append(next(handles_generator))
-        except StopIteration:
-            pass
-
-        handles_lists_lens_expr = ", ".join(map(str, map(len, handles_lists)))
-        main_logger_obj.info(f"populated handles lists, lengths {handles_lists_lens_expr}")
-
-        # Instancing & saving the thread objects.
-        for index in range(0, options.use_threads):
-            thread_obj = threading.Thread(target=handle_processor_objs[index].process_handle_iterable,
-                                          args=(iter(handles_lists[index]), data_store_objs[index]),
-                                          daemon=True)
-            thread_objs.append(thread_obj)
-            main_logger_obj.info(f"instantiated thread #{index}")
-
-        # Starting the threads.
-        for index in range(0, options.use_threads):
-            thread_objs[index].start()
-            main_logger_obj.info(f"started thread #{index}")
-
-        # Waiting for the threads to exit.
-        for index in range(0, options.use_threads):
-            thread_objs[index].join()
-            main_logger_obj.info(f"closed thread #{index}")
-    else:
-
-        # Instancing the objects needed.
-        data_store_obj = Data_Store(main_logger_obj)
-        instances_dict = Instance.fetch_all_instances(data_store_obj, main_logger_obj)
-        handle_processor = Handle_Processor(Data_Store(main_logger_obj), main_logger_obj, instances_dict,
-                                            save_profiles=save_profiles, save_relations=save_relations,
-                                            dont_discard_bc_wifi=options.dont_discard_bc_wifi,
-                                            conn_err_wait_time=options.conn_err_wait_time)
-
-        # If this is a dry run, stop here.
-        if options.dry_run:
-            exit(0)
-
-        # Getting the correct handles generator depending on arguments.
-        if options.fetch_relations_only:
-            handles_generator = data_store_obj.users_in_profiles_not_in_relations()
-        elif options.handles_join_profiles:
-            handles_generator = data_store_obj.users_in_handles_not_in_profiles()
-        elif options.relations_join_profiles:
-            handles_generator = data_store_obj.users_in_relations_not_in_profiles()
-
-        # Processing the handles. Main loop here.
-        handle_processor.process_handle_iterable(handles_generator, data_store_obj)
+    if options.dont_discard_bc_wifi:
+        logger_obj.info("got -w flag, saving handles for later if a generic connection error occurs")
 
 
 def instance_logger_obj(name, use_threads=False):
+    """
+    Instances a logger.Logger object and configures it appropriately.
+
+    :param name:        The name for the Logger object to use when logging.
+    :type name:         str
+    :param use_threads: If the program is in threaded mode or not.
+    :type use_threads:  bool, optional
+    """
     logger_obj = logging.getLogger(name=name)
     logger_obj.setLevel(logging.INFO)
     handler = logging.StreamHandler(sys.stdout)
@@ -295,6 +208,233 @@ class Internal_Exception(Exception):
     Thrown in the case of a coding error or other internal issue.
     """
     pass
+
+
+class Main_Processor:
+    """
+    Encapsulates the state and methods needed to run the main processing job of the program.
+    """
+    __slots__ = 'options', 'args', 'logger_obj', 'data_store_obj', 'save_profiles', 'save_relations'
+
+    def __init__(self, options, args, logger_obj, save_profiles, save_relations):
+        """
+        Initializes the Main_Processor object.
+
+        :param options:        The options object that is the first return value of
+                               optparse.OptionParser.parse_args().
+        :type options:         optparse.Values
+        :param args:           The program's commandline arguments absent flags; the second
+                               return value of optparse.OptionParser.parse_args().
+        :type args:            tuple
+        :param logger_obj:     The logger object to use to log events.
+        :type logger_obj:      logger.Logger
+        :param save_profiles:  If the program is in a saving-profiles mode.
+        :type save_profiles:   bool
+        :param save_relations: If the program is in a saving-followers/following mode.
+        :type save_relations:  bool
+        """
+        self.options = options
+        self.args = args
+        self.logger_obj = logger_obj
+        self.save_profiles = save_profiles
+        self.save_relations = save_relations
+        self.data_store_obj = Data_Store(self.logger_obj)
+
+    def process_handles_from_args(self):
+        """
+        Executes the main logic of the program if the program is processing handles
+        from its commandline arguments.
+
+        :return:               False if this is a dry run, True otherwise.
+        :rtype:                bool
+        """
+        # Intializing the needed objects.
+        handle_objs_from_args = list()
+        handle_re = re.compile("^@([A-Za-z0-9_.-]+)@([A-Za-z0-9_.-]+)$")
+        instances_dict = Instance.fetch_all_instances(self.data_store_obj, self.logger_obj)
+
+        # The save_profiles, save_relations, dont_discard_bc_wifi, and
+        # conn_err_wait_time args are passed to the Handle_Processor init, which
+        # uses them to instance its captive Page_Fetcher object, which actually uses
+        # them.
+        handle_processor = Handle_Processor(Data_Store(self.logger_obj), self.logger_obj, instances_dict,
+                                            save_profiles=self.save_profiles, save_relations=self.save_relations,
+                                            dont_discard_bc_wifi=self.options.dont_discard_bc_wifi,
+                                            conn_err_wait_time=self.options.conn_err_wait_time)
+
+        # Iterating across the non-flag arguments, treating each one
+        # as a handle (in @user@instance form) and prepping the
+        # Handle_Processor.process_handle_iterable iterable argument.
+        for handle_str in self.args:
+            match = handle_re.match(handle_str)
+            if match is None:
+                self.logger_obj.error(f"got argument {handle_str} that doesn't parse as a mastodon handle; fatal error")
+                exit(1)
+            username, host = match.group(1, 2)
+            handle = Handle(username=username, host=host)
+            handle.fetch_or_set_handle_id(self.data_store_obj)
+            handle_objs_from_args.append(handle)
+
+        # If this is a dry run, stop here.
+        if self.options.dry_run:
+            return False
+
+        handle_processor.process_handle_iterable(handle_objs_from_args, self.data_store_obj)
+
+        return True
+
+    def process_handles_from_db_w_threads(self):
+        """
+        Executes the main logic of the program if the program is processing handles
+        from the database using threaded execution.
+
+        :return:               False if this is a dry run, True otherwise.
+        :rtype:                bool
+        """
+
+        parallelism_objs = self.set_up_parallelism()
+
+        if self.options.dry_run and not parallelism_objs:
+            return False
+
+        data_store_objs = parallelism_objs["data_store_objs"]
+        handle_processor_objs = parallelism_objs["handle_processor_objs"]
+        handles_lists = parallelism_objs["handles_lists"]
+
+        handles_lists_lens_expr = ", ".join(map(str, map(len, handles_lists)))
+        self.logger_obj.info(f"populated handles lists, lengths {handles_lists_lens_expr}")
+
+        thread_objs = list()
+
+        # Instancing & saving the thread objects.
+        for index in range(0, self.options.use_threads):
+            thread_obj = threading.Thread(target=handle_processor_objs[index].process_handle_iterable,
+                                          args=(iter(handles_lists[index]), data_store_objs[index]),
+                                          daemon=True)
+            thread_objs.append(thread_obj)
+            self.logger_obj.info(f"instantiated thread #{index}")
+
+        # Starting the threads.
+        for index in range(0, self.options.use_threads):
+            thread_objs[index].start()
+            self.logger_obj.info(f"started thread #{index}")
+
+        # Waiting for the threads to exit.
+        for index in range(0, self.options.use_threads):
+            thread_objs[index].join()
+            self.logger_obj.info(f"closed thread #{index}")
+
+        return True
+
+    def set_up_parallelism(self):
+        """
+        Prepares the objects that the main logic of the program (when executing using
+        threads) will need to set up threads with parallel execution on parallel data
+        sets.
+
+        :return:               A dict containing a list of Data Store objects, a list
+                               of Handle Processor objects, and a list of lists of
+                               Handle objects, or an empty dict if this is a dry run.
+        :rtype:                dict
+        """
+
+        # SETTING UP PARALLELISM
+        #
+        # Each thread needs its own Logger object, its own Data_Store object,
+        # its own Handle_Processor object, and its own roughly equal-sized list
+        # of handles to process.
+
+        logger_objs = list()
+        data_store_objs = list()
+        handle_processor_objs = list()
+        handles_lists = list()
+
+        for index in range(0, self.options.use_threads):
+            threads_logger_obj = instance_logger_obj(f"thread#{index}", True)
+            logger_objs.append(threads_logger_obj)
+            data_store_objs.append(Data_Store(threads_logger_obj))
+            handles_lists.append(list())
+
+        # The instances_dict is shared between threads. This is especially
+        # important where it stores an Instance object that is tracking a
+        # ratelimit that has been imposed on the program by an instance, or
+        # that has loaded a robots.txt file.
+        # 
+        # The program should only need to get a status 429 response once, after
+        # which all threads need to respect that ratelimit. Likewise robots.txt
+        # should only need to be loaded once, after which all threads should
+        # have access to that information.
+        instances_dict = Instance.fetch_all_instances(self.data_store_obj, self.logger_obj)
+
+        for index in range(0, self.options.use_threads):
+            handle_processor_obj = Handle_Processor(data_store_objs[index], logger_objs[index], instances_dict,
+                                                    save_profiles=self.save_profiles,
+                                                    save_relations=self.save_relations,
+                                                    dont_discard_bc_wifi=self.options.dont_discard_bc_wifi,
+                                                    conn_err_wait_time=self.options.conn_err_wait_time)
+
+            handle_processor_objs.append(handle_processor_obj)
+
+        # If this is a dry run, stop here.
+        if self.options.dry_run:
+            return dict()
+
+        if self.options.fetch_relations_only:
+            handles_generator = self.data_store_obj.users_in_profiles_not_in_relations()
+        elif self.options.handles_join_profiles:
+            handles_generator = self.data_store_obj.users_in_handles_not_in_profiles()
+        elif self.options.relations_join_profiles:
+            handles_generator = self.data_store_obj.users_in_relations_not_in_profiles()
+
+        # This setup repeatedly iterates across the handles_lists list, appending
+        # a handle from the handles_generator to each list in turn, until the
+        # generator finally raises StopIteration. This populates the handles_lists
+        # lists with equal or nearly equal numbers of handles.
+        try:
+            while True:
+                for index in range(0, self.options.use_threads):
+                    this_threads_handles_list = handles_lists[((index + 1) % self.options.use_threads) - 1]
+                    this_threads_handles_list.append(next(handles_generator))
+        except StopIteration:
+            pass
+
+        return {"data_store_objs": data_store_objs,
+                "handle_processor_objs": handle_processor_objs,
+                "handles_lists": handles_lists}
+
+
+    def process_handles_from_db_single_thread(self):
+        """
+        Executes the main logic of the program if the program is processing handles
+        from the database without using threads.
+
+        :return:               False if this is a dry run, True otherwise.
+        :rtype:                bool
+        """
+        # Instancing the objects needed.
+        instances_dict = Instance.fetch_all_instances(self.data_store_obj, self.main_logger_obj)
+
+        handle_processor = Handle_Processor(Data_Store(self.main_logger_obj), self.main_logger_obj, instances_dict,
+                                            save_profiles=self.save_profiles, save_relations=self.save_relations,
+                                            dont_discard_bc_wifi=self.options.dont_discard_bc_wifi,
+                                            conn_err_wait_time=self.options.conn_err_wait_time)
+
+        # If this is a dry run, stop here.
+        if self.options.dry_run:
+            return False
+
+        # Getting the correct handles generator depending on arguments.
+        if self.options.fetch_relations_only:
+            handles_generator = self.data_store_obj.users_in_profiles_not_in_relations()
+        elif self.options.handles_join_profiles:
+            handles_generator = self.data_store_obj.users_in_handles_not_in_profiles()
+        elif self.options.relations_join_profiles:
+            handles_generator = self.data_store_obj.users_in_relations_not_in_profiles()
+
+        # Processing the handles. Main loop here.
+        handle_processor.process_handle_iterable(handles_generator, self.data_store_obj)
+
+        return True
 
 
 class Handle(object):
