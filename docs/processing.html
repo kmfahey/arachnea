@@ -1,0 +1,312 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module processing</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>processing</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/home/kmfahey/Workspace/arachnea_py/arachnea/arachnea/processing.py">/home/kmfahey/Workspace/arachnea_py/arachnea/arachnea/processing.py</a></font></td></tr></table>
+    <p></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="MySQLdb.html">MySQLdb</a><br>
+<a href="logging.html">logging</a><br>
+</td><td width="25%" valign=top><a href="re.html">re</a><br>
+<a href="sys.html">sys</a><br>
+</td><td width="25%" valign=top><a href="threading.html">threading</a><br>
+</td><td width="25%" valign=top></td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ee77aa">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Classes</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#ee77aa"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl>
+<dt><font face="helvetica, arial"><a href="builtins.html#object">builtins.object</a>
+</font></dt><dd>
+<dl>
+<dt><font face="helvetica, arial"><a href="processing.html#Data_Store">Data_Store</a>
+</font></dt><dt><font face="helvetica, arial"><a href="processing.html#Handle_Processor">Handle_Processor</a>
+</font></dt><dt><font face="helvetica, arial"><a href="processing.html#Main_Processor">Main_Processor</a>
+</font></dt></dl>
+</dd>
+</dl>
+ <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Data_Store">class <strong>Data_Store</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Data_Store">Data_Store</a>(db_host,&nbsp;db_user,&nbsp;db_password,&nbsp;db_database,&nbsp;logger)<br>
+&nbsp;<br>
+Intermediates&nbsp;a&nbsp;connection&nbsp;to&nbsp;the&nbsp;MySQL&nbsp;database.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Data_Store-__del__"><strong>__del__</strong></a>(self)</dt></dl>
+
+<dl><dt><a name="Data_Store-__init__"><strong>__init__</strong></a>(self, db_host, db_user, db_password, db_database, logger)</dt><dd><tt>Instances&nbsp;the&nbsp;<a href="#Data_Store">Data_Store</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
+&nbsp;<br>
+:param&nbsp;logger:&nbsp;A&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
+:type&nbsp;logger:&nbsp;&nbsp;logging.Logger</tt></dd></dl>
+
+<dl><dt><a name="Data_Store-close"><strong>close</strong></a>(self)</dt><dd><tt>Closes&nbsp;the&nbsp;database&nbsp;cursor&nbsp;and&nbsp;the&nbsp;database&nbsp;connection.<br>
+&nbsp;<br>
+:return:&nbsp;None</tt></dd></dl>
+
+<dl><dt><a name="Data_Store-execute"><strong>execute</strong></a>(self, sql)</dt><dd><tt>Executes&nbsp;a&nbsp;query&nbsp;on&nbsp;the&nbsp;database&nbsp;and&nbsp;returns&nbsp;all&nbsp;the&nbsp;matching&nbsp;rows.<br>
+&nbsp;<br>
+:return:&nbsp;If&nbsp;a&nbsp;SELECT&nbsp;statement&nbsp;was&nbsp;executed,&nbsp;returns&nbsp;a&nbsp;tuple-of-tuples&nbsp;where<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;each&nbsp;inner&nbsp;tuple&nbsp;is&nbsp;one&nbsp;matching&nbsp;row&nbsp;from&nbsp;the&nbsp;query&nbsp;that&nbsp;was&nbsp;executed.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;length&nbsp;of&nbsp;the&nbsp;inner&nbsp;tuples&nbsp;and&nbsp;the&nbsp;data&nbsp;contained&nbsp;depends&nbsp;on&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;columns&nbsp;selected.&nbsp;Otherwise,&nbsp;returns&nbsp;a&nbsp;zero-length&nbsp;tuple.</tt></dd></dl>
+
+<dl><dt><a name="Data_Store-users_in_handles_not_in_profiles"><strong>users_in_handles_not_in_profiles</strong></a>(self)</dt><dd><tt>Executes&nbsp;a&nbsp;statement&nbsp;of&nbsp;the&nbsp;form&nbsp;SELECT&nbsp;...&nbsp;FROM&nbsp;handles&nbsp;LEFT&nbsp;JOIN&nbsp;profiles<br>
+...&nbsp;WHERE&nbsp;....&nbsp;IS&nbsp;NULL&nbsp;on&nbsp;the&nbsp;database,&nbsp;selecting&nbsp;records&nbsp;from&nbsp;the&nbsp;handles<br>
+table&nbsp;that&nbsp;don't&nbsp;have&nbsp;a&nbsp;corresponding&nbsp;row&nbsp;in&nbsp;the&nbsp;profiles&nbsp;table.&nbsp;Such&nbsp;a&nbsp;record<br>
+represents&nbsp;a&nbsp;handle&nbsp;that&nbsp;was&nbsp;saved&nbsp;from&nbsp;one&nbsp;of&nbsp;a&nbsp;number&nbsp;of&nbsp;sources,&nbsp;but&nbsp;whose<br>
+profile&nbsp;hasn't&nbsp;been&nbsp;loaded&nbsp;yet.<br>
+&nbsp;<br>
+:return:&nbsp;A&nbsp;generator&nbsp;that&nbsp;yields&nbsp;3-tuples&nbsp;of&nbsp;(handle_id,&nbsp;username,&nbsp;instance)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;values.</tt></dd></dl>
+
+<dl><dt><a name="Data_Store-users_in_profiles_not_in_relations"><strong>users_in_profiles_not_in_relations</strong></a>(self)</dt><dd><tt>Executes&nbsp;a&nbsp;statement&nbsp;of&nbsp;the&nbsp;form&nbsp;SELECT&nbsp;...&nbsp;FROM&nbsp;profiles&nbsp;LEFT&nbsp;JOIN&nbsp;relations<br>
+...&nbsp;WHERE&nbsp;....&nbsp;IS&nbsp;NULL&nbsp;on&nbsp;the&nbsp;database,&nbsp;selecting&nbsp;records&nbsp;from&nbsp;the&nbsp;profiles<br>
+table&nbsp;that&nbsp;don't&nbsp;have&nbsp;a&nbsp;corresponding&nbsp;row&nbsp;in&nbsp;the&nbsp;relations&nbsp;table.&nbsp;Such&nbsp;a&nbsp;record<br>
+represents&nbsp;a&nbsp;user&nbsp;whose&nbsp;profile&nbsp;has&nbsp;been&nbsp;loaded&nbsp;but&nbsp;who&nbsp;doesn't&nbsp;appear&nbsp;in&nbsp;any&nbsp;of<br>
+the&nbsp;followers&nbsp;or&nbsp;following&nbsp;lists&nbsp;that&nbsp;have&nbsp;been&nbsp;downloaded&nbsp;so&nbsp;far.<br>
+&nbsp;<br>
+:return:&nbsp;A&nbsp;generator&nbsp;that&nbsp;yields&nbsp;3-tuples&nbsp;of&nbsp;(handle_id,&nbsp;username,&nbsp;instance)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;values.</tt></dd></dl>
+
+<dl><dt><a name="Data_Store-users_in_relations_not_in_profiles"><strong>users_in_relations_not_in_profiles</strong></a>(self)</dt><dd><tt>Executes&nbsp;a&nbsp;statement&nbsp;of&nbsp;the&nbsp;form&nbsp;SELECT&nbsp;...&nbsp;FROM&nbsp;relations&nbsp;LEFT&nbsp;JOIN&nbsp;profiles<br>
+...&nbsp;WHERE&nbsp;....&nbsp;IS&nbsp;NULL&nbsp;on&nbsp;the&nbsp;database,&nbsp;selecting&nbsp;records&nbsp;from&nbsp;the&nbsp;relations<br>
+table&nbsp;that&nbsp;don't&nbsp;have&nbsp;a&nbsp;corresponding&nbsp;row&nbsp;in&nbsp;the&nbsp;profiles&nbsp;table.&nbsp;Such&nbsp;a&nbsp;record<br>
+represents&nbsp;a&nbsp;user&nbsp;who&nbsp;has&nbsp;been&nbsp;found&nbsp;in&nbsp;someone's&nbsp;following&nbsp;or&nbsp;followers&nbsp;list<br>
+but&nbsp;hasn't&nbsp;had&nbsp;their&nbsp;profile&nbsp;loaded&nbsp;yet.<br>
+&nbsp;<br>
+:return:&nbsp;A&nbsp;generator&nbsp;that&nbsp;yields&nbsp;tuples&nbsp;of&nbsp;(handle_id,&nbsp;username,&nbsp;instance)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;values.</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>db_connection</strong></dt>
+</dl>
+<dl><dt><strong>db_cursor</strong></dt>
+</dl>
+<dl><dt><strong>db_database</strong></dt>
+</dl>
+<dl><dt><strong>db_host</strong></dt>
+</dl>
+<dl><dt><strong>db_password</strong></dt>
+</dl>
+<dl><dt><strong>db_user</strong></dt>
+</dl>
+<dl><dt><strong>logger</strong></dt>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Handle_Processor">class <strong>Handle_Processor</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Handle_Processor">Handle_Processor</a>(data_store,&nbsp;logger,&nbsp;instances_dict,&nbsp;save_profiles=False,&nbsp;save_relations=False,&nbsp;dont_discard_bc_wifi=False,&nbsp;conn_err_wait_time=0.0)<br>
+&nbsp;<br>
+Implements&nbsp;a&nbsp;class&nbsp;for&nbsp;processing&nbsp;a&nbsp;list&nbsp;of&nbsp;handles&nbsp;and&nbsp;fetching&nbsp;the&nbsp;profile,<br>
+relations,&nbsp;or&nbsp;both&nbsp;for&nbsp;each&nbsp;one&nbsp;depending&nbsp;on&nbsp;configuration.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Handle_Processor-__init__"><strong>__init__</strong></a>(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False, conn_err_wait_time=0.0)</dt><dd><tt>Initializes&nbsp;the&nbsp;<a href="#Handle_Processor">Handle_Processor</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
+&nbsp;<br>
+:param&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;<a href="#Data_Store">Data_Store</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;contact&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;database.<br>
+:type&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Data_Store">Data_Store</a><br>
+:param&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events.<br>
+:type&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logger.Logger<br>
+:param&nbsp;instances_dict:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dict&nbsp;associating&nbsp;hostnames&nbsp;to&nbsp;Instance&nbsp;objects,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;used&nbsp;to&nbsp;identify&nbsp;problematic&nbsp;instances&nbsp;(or&nbsp;ones&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;program&nbsp;has&nbsp;been&nbsp;ratelimited&nbsp;from)&nbsp;and&nbsp;avoid<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;contacting&nbsp;them.<br>
+:type&nbsp;instances_dict:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dict<br>
+:param&nbsp;save_profiles:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If&nbsp;the&nbsp;program&nbsp;is&nbsp;in&nbsp;a&nbsp;profiles-saving&nbsp;mode.<br>
+:type&nbsp;save_profiles:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool<br>
+:param&nbsp;save_relations:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If&nbsp;the&nbsp;program&nbsp;is&nbsp;in&nbsp;a&nbsp;following/followers-saving<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mode.<br>
+:type&nbsp;save_relations:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool<br>
+:param&nbsp;dont_discard_bc_wifi:&nbsp;If&nbsp;the&nbsp;program&nbsp;has&nbsp;been&nbsp;instructed&nbsp;not&nbsp;to&nbsp;interpret<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;connection&nbsp;error&nbsp;as&nbsp;a&nbsp;reason&nbsp;to&nbsp;mark&nbsp;a&nbsp;profile&nbsp;as<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unfetchable&nbsp;(by&nbsp;saving&nbsp;a&nbsp;null&nbsp;bio&nbsp;to&nbsp;the&nbsp;database).<br>
+:type&nbsp;dont_discard_bc_wifi:&nbsp;&nbsp;bool<br>
+:param&nbsp;conn_err_wait_time:&nbsp;&nbsp;&nbsp;If&nbsp;the&nbsp;program&nbsp;is&nbsp;not&nbsp;discarding&nbsp;profiles&nbsp;on&nbsp;a<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;connection&nbsp;error,&nbsp;the&nbsp;period&nbsp;of&nbsp;time&nbsp;(in&nbsp;seconds)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to&nbsp;sleep&nbsp;after&nbsp;each&nbsp;connection&nbsp;error.&nbsp;(Done&nbsp;to<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;avoid&nbsp;chewing&nbsp;through&nbsp;a&nbsp;large&nbsp;number&nbsp;of&nbsp;unreachable<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;profiles&nbsp;while&nbsp;the&nbsp;WiFi&nbsp;is&nbsp;out.)<br>
+:type&nbsp;conn_err_wait_time:&nbsp;&nbsp;&nbsp;&nbsp;float</tt></dd></dl>
+
+<dl><dt><a name="Handle_Processor-process_handle_iterable"><strong>process_handle_iterable</strong></a>(self, handle_iterable, data_store_obj)</dt><dd><tt>Iterates&nbsp;over&nbsp;a&nbsp;provided&nbsp;iterable&nbsp;that&nbsp;yields&nbsp;Handle&nbsp;objects,&nbsp;fetching&nbsp;&amp;<br>
+processing&nbsp;the&nbsp;appropriate&nbsp;page(s)&nbsp;for&nbsp;each&nbsp;one.<br>
+&nbsp;<br>
+:param&nbsp;handle_iterable:&nbsp;An&nbsp;iterable&nbsp;obprocess_handle_iterableject&nbsp;that's<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;comprised&nbsp;of&nbsp;Handle&nbsp;objects,&nbsp;or&nbsp;a&nbsp;generator&nbsp;that&nbsp;yields<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Handle&nbsp;objects.<br>
+:type&nbsp;handle_iterable:&nbsp;&nbsp;tuple,&nbsp;list,&nbsp;set,&nbsp;or&nbsp;types.GeneratorType<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;None<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;types.NoneType</tt></dd></dl>
+
+<dl><dt><a name="Handle_Processor-retrieve_profile"><strong>retrieve_profile</strong></a>(self, handle, profile_page_url)</dt><dd><tt>Retrieves&nbsp;a&nbsp;profile&nbsp;from&nbsp;the&nbsp;given&nbsp;URL&nbsp;and&nbsp;attempts&nbsp;to&nbsp;save&nbsp;its&nbsp;bio&nbsp;to&nbsp;the<br>
+database.<br>
+&nbsp;<br>
+:param&nbsp;handle:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;Handle&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;define&nbsp;the&nbsp;Page&nbsp;<a href="builtins.html#object">object</a>&nbsp;with.<br>
+:type&nbsp;handle:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Page<br>
+:param&nbsp;profile_page_url:&nbsp;The&nbsp;profile&nbsp;URL&nbsp;to&nbsp;retrieve.<br>
+:type&nbsp;profile_page_url:&nbsp;&nbsp;str<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If&nbsp;the&nbsp;request&nbsp;succeeded,&nbsp;then&nbsp;the&nbsp;length&nbsp;of&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;profile&nbsp;page's&nbsp;bio&nbsp;in&nbsp;characters;&nbsp;if&nbsp;it&nbsp;failed,&nbsp;a<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Failed_Request&nbsp;<a href="builtins.html#object">object</a>.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;or&nbsp;Failed_Request</tt></dd></dl>
+
+<dl><dt><a name="Handle_Processor-retrieve_relations"><strong>retrieve_relations</strong></a>(self, handle, first_relation_page_url)</dt><dd><tt>Retrieves&nbsp;a&nbsp;following/followers&nbsp;page&nbsp;from&nbsp;the&nbsp;given&nbsp;URL,&nbsp;and&nbsp;uses&nbsp;it&nbsp;to&nbsp;fetch<br>
+all&nbsp;the&nbsp;following/followers&nbsp;handles&nbsp;accessible&nbsp;via&nbsp;that&nbsp;page.<br>
+&nbsp;<br>
+:param&nbsp;handle:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;Handle&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;define&nbsp;the&nbsp;Page&nbsp;<a href="builtins.html#object">object</a>&nbsp;with.<br>
+:type&nbsp;handle:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Page<br>
+:param&nbsp;profile_page_url:&nbsp;The&nbsp;following/followers&nbsp;URL&nbsp;to&nbsp;retrieve.<br>
+:type&nbsp;profile_page_url:&nbsp;&nbsp;str<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If&nbsp;the&nbsp;request&nbsp;succeeded,&nbsp;then&nbsp;the&nbsp;number&nbsp;of<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;following/followers&nbsp;handles&nbsp;retrieved;&nbsp;if&nbsp;it<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;failed,&nbsp;a&nbsp;Failed_Request&nbsp;<a href="builtins.html#object">object</a>.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;or&nbsp;Failed_Request</tt></dd></dl>
+
+<dl><dt><a name="Handle_Processor-retrieve_relations_from_profile"><strong>retrieve_relations_from_profile</strong></a>(self, handle, profile_page_url)</dt><dd><tt>Retrieves&nbsp;a&nbsp;profile&nbsp;from&nbsp;the&nbsp;given&nbsp;URL,&nbsp;uses&nbsp;it&nbsp;to&nbsp;find&nbsp;the&nbsp;user's<br>
+following/followers&nbsp;pages,&nbsp;and&nbsp;retrieves&nbsp;those&nbsp;in&nbsp;full.<br>
+&nbsp;<br>
+:param&nbsp;handle:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;Handle&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;define&nbsp;the&nbsp;Page&nbsp;<a href="builtins.html#object">object</a>&nbsp;with.<br>
+:type&nbsp;handle:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Page<br>
+:param&nbsp;profile_page_url:&nbsp;The&nbsp;profile&nbsp;URL&nbsp;to&nbsp;retrieve.<br>
+:type&nbsp;profile_page_url:&nbsp;&nbsp;str<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If&nbsp;the&nbsp;request&nbsp;succeeded,&nbsp;then&nbsp;the&nbsp;number&nbsp;of<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;following/followers&nbsp;handles&nbsp;retrieved;&nbsp;if&nbsp;it<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;failed,&nbsp;a&nbsp;Failed_Request&nbsp;<a href="builtins.html#object">object</a>.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;or&nbsp;Failed_Request</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>conn_err_wait_time</strong></dt>
+</dl>
+<dl><dt><strong>current_time_point</strong></dt>
+</dl>
+<dl><dt><strong>data_store</strong></dt>
+</dl>
+<dl><dt><strong>dont_discard_bc_wifi</strong></dt>
+</dl>
+<dl><dt><strong>instances_dict</strong></dt>
+</dl>
+<dl><dt><strong>last_time_point</strong></dt>
+</dl>
+<dl><dt><strong>logger</strong></dt>
+</dl>
+<dl><dt><strong>page_fetcher</strong></dt>
+</dl>
+<dl><dt><strong>save_from_wifi</strong></dt>
+</dl>
+<dl><dt><strong>save_profiles</strong></dt>
+</dl>
+<dl><dt><strong>save_relations</strong></dt>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Main_Processor">class <strong>Main_Processor</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Main_Processor">Main_Processor</a>(options,&nbsp;args,&nbsp;logger_obj,&nbsp;save_profiles,&nbsp;save_relations,&nbsp;db_host,&nbsp;db_user,&nbsp;db_password,&nbsp;db_database)<br>
+&nbsp;<br>
+Encapsulates&nbsp;the&nbsp;state&nbsp;and&nbsp;methods&nbsp;needed&nbsp;to&nbsp;run&nbsp;the&nbsp;main&nbsp;processing&nbsp;job&nbsp;of&nbsp;the&nbsp;program.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Main_Processor-__init__"><strong>__init__</strong></a>(self, options, args, logger_obj, save_profiles, save_relations, db_host, db_user, db_password, db_database)</dt><dd><tt>Initializes&nbsp;the&nbsp;<a href="#Main_Processor">Main_Processor</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
+&nbsp;<br>
+:param&nbsp;options:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;options&nbsp;<a href="builtins.html#object">object</a>&nbsp;that&nbsp;is&nbsp;the&nbsp;first&nbsp;return&nbsp;value&nbsp;of<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;optparse.OptionParser.parse_args().<br>
+:type&nbsp;options:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;optparse.Values<br>
+:param&nbsp;args:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;program's&nbsp;commandline&nbsp;arguments&nbsp;absent&nbsp;flags;&nbsp;the&nbsp;second<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;value&nbsp;of&nbsp;optparse.OptionParser.parse_args().<br>
+:type&nbsp;args:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tuple<br>
+:param&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events.<br>
+:type&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logger.Logger<br>
+:param&nbsp;save_profiles:&nbsp;&nbsp;If&nbsp;the&nbsp;program&nbsp;is&nbsp;in&nbsp;a&nbsp;saving-profiles&nbsp;mode.<br>
+:type&nbsp;save_profiles:&nbsp;&nbsp;&nbsp;bool<br>
+:param&nbsp;save_relations:&nbsp;If&nbsp;the&nbsp;program&nbsp;is&nbsp;in&nbsp;a&nbsp;saving-followers/following&nbsp;mode.<br>
+:type&nbsp;save_relations:&nbsp;&nbsp;bool</tt></dd></dl>
+
+<dl><dt><a name="Main_Processor-process_handles_from_args"><strong>process_handles_from_args</strong></a>(self)</dt><dd><tt>Executes&nbsp;the&nbsp;main&nbsp;logic&nbsp;of&nbsp;the&nbsp;program&nbsp;if&nbsp;the&nbsp;program&nbsp;is&nbsp;processing&nbsp;handles<br>
+from&nbsp;its&nbsp;commandline&nbsp;arguments.<br>
+&nbsp;<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;if&nbsp;this&nbsp;is&nbsp;a&nbsp;dry&nbsp;run,&nbsp;True&nbsp;otherwise.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool</tt></dd></dl>
+
+<dl><dt><a name="Main_Processor-process_handles_from_db_single_thread"><strong>process_handles_from_db_single_thread</strong></a>(self)</dt><dd><tt>Executes&nbsp;the&nbsp;main&nbsp;logic&nbsp;of&nbsp;the&nbsp;program&nbsp;if&nbsp;the&nbsp;program&nbsp;is&nbsp;processing&nbsp;handles<br>
+from&nbsp;the&nbsp;database&nbsp;without&nbsp;using&nbsp;threads.<br>
+&nbsp;<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;if&nbsp;this&nbsp;is&nbsp;a&nbsp;dry&nbsp;run,&nbsp;True&nbsp;otherwise.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool</tt></dd></dl>
+
+<dl><dt><a name="Main_Processor-process_handles_from_db_w_threads"><strong>process_handles_from_db_w_threads</strong></a>(self)</dt><dd><tt>Executes&nbsp;the&nbsp;main&nbsp;logic&nbsp;of&nbsp;the&nbsp;program&nbsp;if&nbsp;the&nbsp;program&nbsp;is&nbsp;processing&nbsp;handles<br>
+from&nbsp;the&nbsp;database&nbsp;using&nbsp;threaded&nbsp;execution.<br>
+&nbsp;<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;if&nbsp;this&nbsp;is&nbsp;a&nbsp;dry&nbsp;run,&nbsp;True&nbsp;otherwise.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool</tt></dd></dl>
+
+<dl><dt><a name="Main_Processor-set_up_parallelism"><strong>set_up_parallelism</strong></a>(self)</dt><dd><tt>Prepares&nbsp;the&nbsp;objects&nbsp;that&nbsp;the&nbsp;main&nbsp;logic&nbsp;of&nbsp;the&nbsp;program&nbsp;(when&nbsp;executing&nbsp;using<br>
+threads)&nbsp;will&nbsp;need&nbsp;to&nbsp;set&nbsp;up&nbsp;threads&nbsp;with&nbsp;parallel&nbsp;execution&nbsp;on&nbsp;parallel&nbsp;data<br>
+sets.<br>
+&nbsp;<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dict&nbsp;containing&nbsp;a&nbsp;list&nbsp;of&nbsp;Data&nbsp;Store&nbsp;objects,&nbsp;a&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;of&nbsp;Handle&nbsp;Processor&nbsp;objects,&nbsp;and&nbsp;a&nbsp;list&nbsp;of&nbsp;lists&nbsp;of<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Handle&nbsp;objects,&nbsp;or&nbsp;an&nbsp;empty&nbsp;dict&nbsp;if&nbsp;this&nbsp;is&nbsp;a&nbsp;dry&nbsp;run.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dict</tt></dd></dl>
+
+<hr>
+Class methods defined here:<br>
+<dl><dt><a name="Main_Processor-instance_logger_obj"><strong>instance_logger_obj</strong></a>(name, use_threads=False)<font color="#909090"><font face="helvetica, arial"> from <a href="builtins.html#type">builtins.type</a></font></font></dt><dd><tt>Instances&nbsp;a&nbsp;logger.Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;and&nbsp;configures&nbsp;it&nbsp;appropriately.<br>
+&nbsp;<br>
+:param&nbsp;name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;name&nbsp;for&nbsp;the&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;when&nbsp;logging.<br>
+:type&nbsp;name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str<br>
+:param&nbsp;use_threads:&nbsp;If&nbsp;the&nbsp;program&nbsp;is&nbsp;in&nbsp;threaded&nbsp;mode&nbsp;or&nbsp;not.<br>
+:type&nbsp;use_threads:&nbsp;&nbsp;bool,&nbsp;optional</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>args</strong></dt>
+</dl>
+<dl><dt><strong>data_store_obj</strong></dt>
+</dl>
+<dl><dt><strong>db_database</strong></dt>
+</dl>
+<dl><dt><strong>db_host</strong></dt>
+</dl>
+<dl><dt><strong>db_password</strong></dt>
+</dl>
+<dl><dt><strong>db_user</strong></dt>
+</dl>
+<dl><dt><strong>logger_obj</strong></dt>
+</dl>
+<dl><dt><strong>options</strong></dt>
+</dl>
+<dl><dt><strong>save_profiles</strong></dt>
+</dl>
+<dl><dt><strong>save_relations</strong></dt>
+</dl>
+</td></tr></table></td></tr></table>
+</body></html>

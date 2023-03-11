@@ -1,0 +1,446 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module retrieval</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>retrieval</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/home/kmfahey/Workspace/arachnea_py/arachnea/arachnea/retrieval.py">/home/kmfahey/Workspace/arachnea_py/arachnea/arachnea/retrieval.py</a></font></td></tr></table>
+    <p></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="MySQLdb.html">MySQLdb</a><br>
+<a href="bs4.html">bs4</a><br>
+<a href="datetime.html">datetime</a><br>
+</td><td width="25%" valign=top><a href="html2text.html">html2text</a><br>
+<a href="re.html">re</a><br>
+<a href="requests.html">requests</a><br>
+</td><td width="25%" valign=top><a href="selenium.html">selenium</a><br>
+<a href="socket.html">socket</a><br>
+<a href="time.html">time</a><br>
+</td><td width="25%" valign=top><a href="urllib.html">urllib</a><br>
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ee77aa">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Classes</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#ee77aa"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl>
+<dt><font face="helvetica, arial"><a href="builtins.html#object">builtins.object</a>
+</font></dt><dd>
+<dl>
+<dt><font face="helvetica, arial"><a href="retrieval.html#Instance">Instance</a>
+</font></dt><dt><font face="helvetica, arial"><a href="retrieval.html#Page">Page</a>
+</font></dt><dt><font face="helvetica, arial"><a href="retrieval.html#Page_Fetcher">Page_Fetcher</a>
+</font></dt><dt><font face="helvetica, arial"><a href="retrieval.html#Robots_Txt_File">Robots_Txt_File</a>
+</font></dt></dl>
+</dd>
+</dl>
+ <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Instance">class <strong>Instance</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Instance">Instance</a>(host,&nbsp;logger,&nbsp;malfunctioning=False,&nbsp;suspended=False,&nbsp;unparseable=False,&nbsp;rate_limited=False,&nbsp;x_ratelimit_limit=None,&nbsp;attempts=0)<br>
+&nbsp;<br>
+Represents&nbsp;a&nbsp;mastodon&nbsp;instance.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Instance-__init__"><strong>__init__</strong></a>(self, host, logger, malfunctioning=False, suspended=False, unparseable=False, rate_limited=False, x_ratelimit_limit=None, attempts=0)</dt><dd><tt>Instances&nbsp;a&nbsp;<a href="#Instance">Instance</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
+&nbsp;<br>
+:param&nbsp;attempts:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;number&nbsp;of&nbsp;unsuccessful&nbsp;attempts&nbsp;the&nbsp;program&nbsp;has<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;made&nbsp;to&nbsp;contact&nbsp;this&nbsp;instance.<br>
+:type&nbsp;attempts:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int,&nbsp;optional<br>
+:param&nbsp;host:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;hostname&nbsp;of&nbsp;the&nbsp;instance&nbsp;(str).<br>
+:type&nbsp;host:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str<br>
+:param&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
+:type&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
+:param&nbsp;malfunctioning:&nbsp;&nbsp;&nbsp;&nbsp;Whether&nbsp;the&nbsp;instance&nbsp;is&nbsp;malfunctioning;&nbsp;ie.&nbsp;&nbsp;returning<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;500-class&nbsp;error&nbsp;when&nbsp;contacted.<br>
+:type&nbsp;malfunctioning:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool,&nbsp;optional<br>
+:param&nbsp;rate_limited:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Whether&nbsp;the&nbsp;program&nbsp;has&nbsp;been&nbsp;rate-limited&nbsp;from<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;requests&nbsp;with&nbsp;the&nbsp;instance.<br>
+:type&nbsp;rate_limited:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool,&nbsp;optional<br>
+:param&nbsp;suspended:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Whether&nbsp;the&nbsp;instance&nbsp;is&nbsp;malfunctioning;&nbsp;ie.&nbsp;has&nbsp;been<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;excluded&nbsp;from&nbsp;contact&nbsp;due&nbsp;to&nbsp;bad&nbsp;behavior&nbsp;of&nbsp;its<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admins,&nbsp;mods&nbsp;or&nbsp;users.<br>
+:type&nbsp;suspended:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool,&nbsp;optional<br>
+:param&nbsp;unparseable:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Whether&nbsp;the&nbsp;instance&nbsp;is&nbsp;unparseable;&nbsp;ie.&nbsp;if&nbsp;the&nbsp;HTML<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;documents&nbsp;returned&nbsp;by&nbsp;the&nbsp;instance&nbsp;can't&nbsp;be&nbsp;parsed&nbsp;by<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;any&nbsp;means&nbsp;at&nbsp;the&nbsp;program's&nbsp;disposal.<br>
+:type&nbsp;unparseable:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool,&nbsp;optional<br>
+:param&nbsp;x_ratelimit_limit:&nbsp;The&nbsp;number&nbsp;of&nbsp;seconds&nbsp;remaining&nbsp;on&nbsp;the&nbsp;rate&nbsp;limit&nbsp;with<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;instance.<br>
+:type&nbsp;x_ratelimit_limit:&nbsp;&nbsp;int&nbsp;or&nbsp;float,&nbsp;optional</tt></dd></dl>
+
+<dl><dt><a name="Instance-can_fetch"><strong>can_fetch</strong></a>(self, query_url)</dt></dl>
+
+<dl><dt><a name="Instance-fetch_robots_txt"><strong>fetch_robots_txt</strong></a>(self)</dt></dl>
+
+<dl><dt><a name="Instance-save_instance"><strong>save_instance</strong></a>(self, data_store)</dt><dd><tt>Saves&nbsp;this&nbsp;instance&nbsp;to&nbsp;the&nbsp;database.<br>
+&nbsp;<br>
+:param&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;connect&nbsp;to&nbsp;the&nbsp;database.<br>
+:type&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Data_Store<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;if&nbsp;the&nbsp;instance's&nbsp;malfunctioning,&nbsp;suspended,&nbsp;and<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unparseable&nbsp;instance&nbsp;vars&nbsp;are&nbsp;all&nbsp;False,&nbsp;or&nbsp;if&nbsp;there&nbsp;was<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;already&nbsp;a&nbsp;row&nbsp;in&nbsp;the&nbsp;bad_instances&nbsp;table&nbsp;with&nbsp;a&nbsp;value&nbsp;for<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;instance&nbsp;column&nbsp;matching&nbsp;the&nbsp;host&nbsp;instance&nbsp;var,&nbsp;True<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;otherwise.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool</tt></dd></dl>
+
+<dl><dt><a name="Instance-set_rate_limit"><strong>set_rate_limit</strong></a>(self, x_ratelimit_limit=None)</dt><dd><tt>Sets&nbsp;the&nbsp;rate_limit_expires&nbsp;instance&nbsp;variable&nbsp;to&nbsp;the&nbsp;x_ratelimit_limit&nbsp;argument,<br>
+if&nbsp;supplied,&nbsp;otherwise&nbsp;to&nbsp;300.0.<br>
+&nbsp;<br>
+:param&nbsp;x_ratelimit_limit:&nbsp;int&nbsp;or&nbsp;float,&nbsp;optional<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;None<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;types.NoneType</tt></dd></dl>
+
+<dl><dt><a name="Instance-still_rate_limited"><strong>still_rate_limited</strong></a>(self)</dt><dd><tt>Returns&nbsp;true&nbsp;if&nbsp;the&nbsp;rate&nbsp;limit&nbsp;on&nbsp;this&nbsp;host&nbsp;hasn't&nbsp;expired&nbsp;yet,&nbsp;false&nbsp;if&nbsp;it&nbsp;has.<br>
+&nbsp;<br>
+:return:&nbsp;True&nbsp;or&nbsp;False<br>
+:rtype:&nbsp;&nbsp;bool</tt></dd></dl>
+
+<hr>
+Class methods defined here:<br>
+<dl><dt><a name="Instance-fetch_all_instances"><strong>fetch_all_instances</strong></a>(data_store, logger)<font color="#909090"><font face="helvetica, arial"> from <a href="builtins.html#type">builtins.type</a></font></font></dt><dd><tt>Loads&nbsp;all&nbsp;lines&nbsp;from&nbsp;the&nbsp;bad_instances&nbsp;table,&nbsp;converts&nbsp;them&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects,<br>
+and&nbsp;returns&nbsp;a&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects.<br>
+&nbsp;<br>
+:param&nbsp;data_store:&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;connect&nbsp;to&nbsp;the&nbsp;database.<br>
+:type&nbsp;data_store:&nbsp;&nbsp;Data_Store<br>
+:param&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
+:type&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;(strs)&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dict</tt></dd></dl>
+
+<dl><dt><a name="Instance-save_instances"><strong>save_instances</strong></a>(instances_dict, data_store, logger)<font color="#909090"><font face="helvetica, arial"> from <a href="builtins.html#type">builtins.type</a></font></font></dt><dd><tt>Accepts&nbsp;a&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects,&nbsp;and&nbsp;commits&nbsp;every&nbsp;novel<br>
+one&nbsp;to&nbsp;the&nbsp;database.&nbsp;(Class&nbsp;method.)<br>
+&nbsp;<br>
+:param&nbsp;instances_dict:&nbsp;A&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;(strs)&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects.<br>
+:type&nbsp;instances_dict:&nbsp;&nbsp;dict<br>
+:param&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;connect&nbsp;to&nbsp;the&nbsp;database.<br>
+:type&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Data_Store<br>
+:param&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
+:type&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;None<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;types.NoneType</tt></dd></dl>
+
+<hr>
+Readonly properties defined here:<br>
+<dl><dt><strong>rate_limit_expires_isoformat</strong></dt>
+</dl>
+<dl><dt><strong>status</strong></dt>
+</dl>
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>attempts</strong></dt>
+</dl>
+<dl><dt><strong>host</strong></dt>
+</dl>
+<dl><dt><strong>logger</strong></dt>
+</dl>
+<dl><dt><strong>malfunctioning</strong></dt>
+</dl>
+<dl><dt><strong>rate_limit_expires</strong></dt>
+</dl>
+<dl><dt><strong>robots_txt_file_obj</strong></dt>
+</dl>
+<dl><dt><strong>suspended</strong></dt>
+</dl>
+<dl><dt><strong>unparseable</strong></dt>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Page">class <strong>Page</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Page">Page</a>(handle,&nbsp;url,&nbsp;logger,&nbsp;instance,&nbsp;save_profiles=False,&nbsp;save_relations=False)<br>
+&nbsp;<br>
+Represents&nbsp;a&nbsp;single&nbsp;page;&nbsp;handles&nbsp;retrieving&nbsp;the&nbsp;page&nbsp;and&nbsp;the&nbsp;ensuing&nbsp;errors<br>
+itself.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Page-__init__"><strong>__init__</strong></a>(self, handle, url, logger, instance, save_profiles=False, save_relations=False)</dt><dd><tt>Instances&nbsp;the&nbsp;<a href="#Page">Page</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
+&nbsp;<br>
+:param&nbsp;handle:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;handle&nbsp;of&nbsp;the&nbsp;profile&nbsp;the&nbsp;page&nbsp;belongs&nbsp;to.<br>
+:type&nbsp;handle:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Handle<br>
+:param&nbsp;url:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;URL&nbsp;of&nbsp;the&nbsp;page.<br>
+:type&nbsp;url:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str<br>
+:param&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
+:type&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logger.Logger<br>
+:param&nbsp;instance:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;<a href="#Instance">Instance</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;associated&nbsp;with&nbsp;the&nbsp;host&nbsp;this&nbsp;<a href="#Page">Page</a>'s<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;url&nbsp;is&nbsp;located&nbsp;at.<br>
+:type&nbsp;instance:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Instance">Instance</a><br>
+:param&nbsp;save_profiles:&nbsp;&nbsp;If&nbsp;the&nbsp;program&nbsp;is&nbsp;in&nbsp;a&nbsp;profiles-saving&nbsp;mode.<br>
+:type&nbsp;save_profiles:&nbsp;&nbsp;&nbsp;bool<br>
+:param&nbsp;save_relations:&nbsp;If&nbsp;the&nbsp;program&nbsp;is&nbsp;in&nbsp;a&nbsp;relations-saving&nbsp;mode.<br>
+:type&nbsp;save_relations:&nbsp;&nbsp;bool</tt></dd></dl>
+
+<dl><dt><a name="Page-generate_all_relation_page_urls"><strong>generate_all_relation_page_urls</strong></a>(self)</dt><dd><tt>If&nbsp;this&nbsp;is&nbsp;a&nbsp;static&nbsp;relations&nbsp;page,&nbsp;generate&nbsp;the&nbsp;full&nbsp;list&nbsp;of&nbsp;relations&nbsp;urls<br>
+that&nbsp;should&nbsp;be&nbsp;valid&nbsp;to&nbsp;the&nbsp;server.<br>
+&nbsp;<br>
+:return:&nbsp;If&nbsp;this&nbsp;is&nbsp;a&nbsp;static&nbsp;relations&nbsp;page&nbsp;and&nbsp;the&nbsp;page&nbsp;displays&nbsp;a&nbsp;link&nbsp;to&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;last&nbsp;relations&nbsp;page,&nbsp;returns&nbsp;a&nbsp;list&nbsp;of&nbsp;all&nbsp;urls&nbsp;between&nbsp;page=1&nbsp;and&nbsp;that<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;page,&nbsp;otherwise&nbsp;returns&nbsp;an&nbsp;empty&nbsp;list.<br>
+:rtype:&nbsp;&nbsp;list</tt></dd></dl>
+
+<dl><dt><a name="Page-generate_initial_relation_page_urls"><strong>generate_initial_relation_page_urls</strong></a>(self)</dt><dd><tt>If&nbsp;this&nbsp;is&nbsp;a&nbsp;profile&nbsp;page,&nbsp;generates&nbsp;what&nbsp;its&nbsp;following/followers&nbsp;pages&nbsp;links<br>
+should&nbsp;be&nbsp;based&nbsp;on&nbsp;whether&nbsp;it's&nbsp;dynamic&nbsp;or&nbsp;static.<br>
+&nbsp;<br>
+:return:&nbsp;A&nbsp;2-element&nbsp;list&nbsp;of&nbsp;urls&nbsp;if&nbsp;this&nbsp;is&nbsp;a&nbsp;profile&nbsp;page,&nbsp;or&nbsp;an&nbsp;empty&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;otherwise.<br>
+:rtype:&nbsp;&nbsp;list</tt></dd></dl>
+
+<dl><dt><a name="Page-parse_profile_page"><strong>parse_profile_page</strong></a>(self)</dt><dd><tt>Parses&nbsp;the&nbsp;loaded&nbsp;page&nbsp;in&nbsp;the&nbsp;self.<strong>document</strong>&nbsp;attribute,&nbsp;treating&nbsp;it&nbsp;as&nbsp;a<br>
+profile&nbsp;page.&nbsp;Rules&nbsp;it&nbsp;out&nbsp;if&nbsp;it's&nbsp;not&nbsp;a&nbsp;usable&nbsp;page,&nbsp;otherwise&nbsp;extracts<br>
+the&nbsp;profile&nbsp;bio&nbsp;and&nbsp;save&nbsp;it.<br>
+&nbsp;<br>
+:return:&nbsp;If&nbsp;the&nbsp;page&nbsp;is&nbsp;ruled&nbsp;out&nbsp;for&nbsp;some&nbsp;reason&nbsp;or&nbsp;the&nbsp;parsing&nbsp;failed,&nbsp;returns<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;Failed_Request&nbsp;<a href="builtins.html#object">object</a>.&nbsp;Otherwise&nbsp;returns&nbsp;the&nbsp;length&nbsp;of&nbsp;the&nbsp;bio&nbsp;in<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;acharacters&nbsp;fter&nbsp;the&nbsp;HTML&nbsp;has&nbsp;been&nbsp;converted&nbsp;to&nbsp;markdown.<br>
+:rtype:&nbsp;&nbsp;Failed_Request&nbsp;or&nbsp;int</tt></dd></dl>
+
+<dl><dt><a name="Page-parse_relations_page"><strong>parse_relations_page</strong></a>(self, browser=None)</dt><dd><tt>Parses&nbsp;the&nbsp;loaded&nbsp;page&nbsp;in&nbsp;the&nbsp;self.<strong>document</strong>&nbsp;attribute,&nbsp;treating&nbsp;it&nbsp;as&nbsp;a<br>
+relations&nbsp;(ie.&nbsp;following&nbsp;or&nbsp;followers)&nbsp;page.&nbsp;Rules&nbsp;it&nbsp;out&nbsp;if&nbsp;it's&nbsp;not&nbsp;a&nbsp;usable<br>
+page,&nbsp;otherwise&nbsp;extracts&nbsp;the&nbsp;following&nbsp;or&nbsp;followers&nbsp;profile&nbsp;links&nbsp;and&nbsp;saves<br>
+them.&nbsp;Expects&nbsp;a&nbsp;webdriver&nbsp;browser&nbsp;instance&nbsp;as&nbsp;an&nbsp;argument&nbsp;if&nbsp;self.<strong>is_dynamic</strong>&nbsp;is<br>
+True.<br>
+&nbsp;<br>
+:param&nbsp;browser:&nbsp;The&nbsp;webdriver&nbsp;browser&nbsp;<a href="builtins.html#object">object</a>&nbsp;of&nbsp;the&nbsp;headless&nbsp;puppet<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Firefox&nbsp;instance&nbsp;that&nbsp;has&nbsp;loaded&nbsp;the&nbsp;relations&nbsp;page&nbsp;fully&nbsp;and&nbsp;is<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ready&nbsp;to&nbsp;be&nbsp;scrolled&nbsp;across&nbsp;scaping&nbsp;data.<br>
+:type&nbsp;browser:&nbsp;&nbsp;selenium.webdriver.firefox.webdriver.WebDriver,&nbsp;optional<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If&nbsp;the&nbsp;parsing&nbsp;process&nbsp;failed&nbsp;for&nbsp;any&nbsp;reason,&nbsp;a&nbsp;Failed_Request<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="builtins.html#object">object</a>;&nbsp;otherwise&nbsp;the&nbsp;number&nbsp;of&nbsp;following&nbsp;or&nbsp;followers&nbsp;profile<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;links&nbsp;collected.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Failed_Request&nbsp;or&nbsp;int</tt></dd></dl>
+
+<dl><dt><a name="Page-requests_fetch"><strong>requests_fetch</strong></a>(self)</dt><dd><tt>Tries&nbsp;to&nbsp;fetch&nbsp;self.<strong>url</strong>&nbsp;using&nbsp;requests.get()<br>
+&nbsp;<br>
+:return:</tt></dd></dl>
+
+<dl><dt><a name="Page-save_page"><strong>save_page</strong></a>(self, data_store)</dt><dd><tt>Saves&nbsp;the&nbsp;page's&nbsp;content&nbsp;to&nbsp;the&nbsp;data&nbsp;store.&nbsp;If&nbsp;this&nbsp;is&nbsp;a&nbsp;profile&nbsp;page,&nbsp;saves&nbsp;the<br>
+profile.&nbsp;If&nbsp;this&nbsp;is&nbsp;a&nbsp;relations&nbsp;page,&nbsp;save&nbsp;the&nbsp;collected&nbsp;following/followers<br>
+handles.<br>
+&nbsp;<br>
+:param&nbsp;data_store:&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;contact&nbsp;the&nbsp;database.<br>
+:type&nbsp;data_store:&nbsp;&nbsp;Data_Store<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;number&nbsp;of&nbsp;rows&nbsp;affected&nbsp;by&nbsp;the&nbsp;query.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int</tt></dd></dl>
+
+<dl><dt><a name="Page-webdriver_fetch"><strong>webdriver_fetch</strong></a>(self)</dt><dd><tt>Tries&nbsp;to&nbsp;fetch&nbsp;self.<strong>url</strong>&nbsp;using&nbsp;selenium.webdriver.firefox.<br>
+&nbsp;<br>
+:return:&nbsp;If&nbsp;the&nbsp;fetch&nbsp;was&nbsp;successful&nbsp;and&nbsp;it's&nbsp;a&nbsp;profile,&nbsp;the&nbsp;lenth&nbsp;of&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bio;&nbsp;if&nbsp;it's&nbsp;a&nbsp;relations&nbsp;page,&nbsp;the&nbsp;number&nbsp;of&nbsp;relations.&nbsp;If&nbsp;it&nbsp;failed,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then&nbsp;a&nbsp;Failed_Request&nbsp;<a href="builtins.html#object">object</a>&nbsp;detailing&nbsp;the&nbsp;problem.&nbsp;If&nbsp;the&nbsp;fetch&nbsp;can't<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;be&nbsp;done&nbsp;bc&nbsp;it's&nbsp;a&nbsp;profile&nbsp;when&nbsp;not&nbsp;in&nbsp;a&nbsp;profile-fetching&nbsp;mode,&nbsp;or&nbsp;a<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;relations&nbsp;page&nbsp;when&nbsp;not&nbsp;in&nbsp;relations-fetching&nbsp;mode,&nbsp;False.<br>
+:rtype:&nbsp;&nbsp;bool,&nbsp;int,&nbsp;or&nbsp;Failed_Request</tt></dd></dl>
+
+<hr>
+Readonly properties defined here:<br>
+<dl><dt><strong>relation_type</strong></dt>
+</dl>
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>document</strong></dt>
+</dl>
+<dl><dt><strong>handle</strong></dt>
+</dl>
+<dl><dt><strong>host</strong></dt>
+</dl>
+<dl><dt><strong>instance</strong></dt>
+</dl>
+<dl><dt><strong>is_dynamic</strong></dt>
+</dl>
+<dl><dt><strong>is_followers</strong></dt>
+</dl>
+<dl><dt><strong>is_following</strong></dt>
+</dl>
+<dl><dt><strong>is_profile</strong></dt>
+</dl>
+<dl><dt><strong>is_static</strong></dt>
+</dl>
+<dl><dt><strong>loaded</strong></dt>
+</dl>
+<dl><dt><strong>logger</strong></dt>
+</dl>
+<dl><dt><strong>page_number</strong></dt>
+</dl>
+<dl><dt><strong>profile_bio_text</strong></dt>
+</dl>
+<dl><dt><strong>profile_no_public_posts</strong></dt>
+</dl>
+<dl><dt><strong>profile_posts_too_old</strong></dt>
+</dl>
+<dl><dt><strong>relations_list</strong></dt>
+</dl>
+<dl><dt><strong>save_profiles</strong></dt>
+</dl>
+<dl><dt><strong>save_relations</strong></dt>
+</dl>
+<dl><dt><strong>unparseable</strong></dt>
+</dl>
+<dl><dt><strong>url</strong></dt>
+</dl>
+<dl><dt><strong>username</strong></dt>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>forwarding_handle_re</strong> = re.compile('^.*(@) ([A-Za-z0-9._]+@[A-Za-z0-9._]+\\.[a-z]+).*$', re.MULTILINE)</dl>
+
+<dl><dt><strong>handle_url_href_re</strong> = re.compile('https://([\\w.]+\\.\\w+)/@(\\w+)')</dl>
+
+<dl><dt><strong>moved_handle_class_re</strong> = re.compile('moved-account-widget__message')</dl>
+
+<dl><dt><strong>profile_url_re</strong> = re.compile('(?:https://[A-Za-z0-9_.-]+\\.[a-z]+)?/@[A-Za-z0-9_.-]+$')</dl>
+
+<dl><dt><strong>relation_url_re</strong> = re.compile('(?:https://[A-Za-z0-9_.-]+\\.[a-z]+)...-9_.-]+/(follow(?:ing|ers))(?:\\?page=[0-9]+)?$')</dl>
+
+<dl><dt><strong>static_pagination_page_split_re</strong> = re.compile('(?&lt;=page=)')</dl>
+
+<dl><dt><strong>static_pagination_re</strong> = re.compile('/users/[A-Za-z0-9_.-]+/follow(?:ing|ers)(?:\\?page=\\d+)?')</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Page_Fetcher">class <strong>Page_Fetcher</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Page_Fetcher">Page_Fetcher</a>(data_store,&nbsp;logger,&nbsp;instances_dict,&nbsp;save_profiles=False,&nbsp;save_relations=False,&nbsp;dont_discard_bc_wifi=False,&nbsp;conn_err_wait_time=0.0)<br>
+&nbsp;<br>
+An&nbsp;originator&nbsp;of&nbsp;<a href="#Page">Page</a>&nbsp;objects&nbsp;that&nbsp;executes&nbsp;this&nbsp;workflow:<br>
+&nbsp;<br>
+*&nbsp;Prepares&nbsp;the&nbsp;request<br>
+*&nbsp;Fails&nbsp;fast&nbsp;if&nbsp;it&nbsp;is&nbsp;unsatisfiable<br>
+*&nbsp;Instances&nbsp;the&nbsp;<a href="#Page">Page</a>&nbsp;<a href="builtins.html#object">object</a><br>
+*&nbsp;Has&nbsp;the&nbsp;<a href="#Page">Page</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;execute&nbsp;the&nbsp;request<br>
+*&nbsp;If&nbsp;it&nbsp;fails,&nbsp;handles&nbsp;a&nbsp;variety&nbsp;of&nbsp;failed&nbsp;requests&nbsp;in&nbsp;different&nbsp;ways<br>
+*&nbsp;If&nbsp;it&nbsp;succeeds,&nbsp;yields&nbsp;the&nbsp;<a href="#Page">Page</a>&nbsp;<a href="builtins.html#object">object</a>.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Page_Fetcher-__init__"><strong>__init__</strong></a>(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False, conn_err_wait_time=0.0)</dt><dd><tt>Instances&nbsp;the&nbsp;<a href="#Page_Fetcher">Page_Fetcher</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
+&nbsp;<br>
+:param&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;when&nbsp;saving&nbsp;a<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Page">Page</a>&nbsp;or&nbsp;Deleted_User&nbsp;<a href="builtins.html#object">object</a>.<br>
+:type&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Data_Store<br>
+:param&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events.<br>
+:type&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logger.Logger<br>
+:param&nbsp;instances_dict:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;that&nbsp;is&nbsp;the&nbsp;store&nbsp;of&nbsp;known&nbsp;instance&nbsp;and&nbsp;their<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;statuses.<br>
+:type&nbsp;instances_dict:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dict<br>
+:param&nbsp;save_profiles:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;to&nbsp;run&nbsp;in&nbsp;profiles-saving&nbsp;mode,&nbsp;False<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;otherwise.<br>
+:type&nbsp;save_profiles:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool<br>
+:param&nbsp;save_relations:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;to&nbsp;run&nbsp;in&nbsp;followers/following-saving&nbsp;mode,&nbsp;False<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;otherwise.<br>
+:type&nbsp;save_relations:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool<br>
+:param&nbsp;dont_discard_bc_wifi:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;if&nbsp;connection&nbsp;errors&nbsp;are&nbsp;to&nbsp;be&nbsp;treated<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;as&nbsp;nonfatal,&nbsp;False&nbsp;if&nbsp;a&nbsp;connection&nbsp;error<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;should&nbsp;result&nbsp;in&nbsp;recording&nbsp;a&nbsp;null&nbsp;page&nbsp;to&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Data&nbsp;Store.&nbsp;(Only&nbsp;applies&nbsp;to&nbsp;profiles&nbsp;at&nbsp;present.)<br>
+:type&nbsp;dont_discard_bc_wifi:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool<br>
+:param&nbsp;conn_err_wait_time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When&nbsp;a&nbsp;connection&nbsp;error&nbsp;is&nbsp;treated&nbsp;as<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nonfatal,&nbsp;sleep&nbsp;this&nbsp;number&nbsp;of&nbsp;seconds<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;before&nbsp;resuming&nbsp;the&nbsp;algorithm.<br>
+:type&nbsp;conn_err_wait_time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool</tt></dd></dl>
+
+<dl><dt><a name="Page_Fetcher-instantiate_and_fetch_page"><strong>instantiate_and_fetch_page</strong></a>(self, handle, url)</dt></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>conn_err_wait_time</strong></dt>
+</dl>
+<dl><dt><strong>data_store</strong></dt>
+</dl>
+<dl><dt><strong>deleted_users_dict</strong></dt>
+</dl>
+<dl><dt><strong>dont_discard_bc_wifi</strong></dt>
+</dl>
+<dl><dt><strong>instances_dict</strong></dt>
+</dl>
+<dl><dt><strong>logger</strong></dt>
+</dl>
+<dl><dt><strong>save_profiles</strong></dt>
+</dl>
+<dl><dt><strong>save_relations</strong></dt>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Robots_Txt_File">class <strong>Robots_Txt_File</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Robots_Txt_File">Robots_Txt_File</a>(user_agent,&nbsp;url)<br>
+&nbsp;<br>
+Represents&nbsp;a&nbsp;robots.txt&nbsp;file,&nbsp;implementing&nbsp;functionality&nbsp;to&nbsp;test&nbsp;whether&nbsp;a<br>
+User-Agent&nbsp;+&nbsp;path&nbsp;combination&nbsp;is&nbsp;allowed&nbsp;or&nbsp;not.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Robots_Txt_File-__init__"><strong>__init__</strong></a>(self, user_agent, url)</dt><dd><tt>Instances&nbsp;a&nbsp;<a href="#Robots_Txt_File">Robots_Txt_File</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
+&nbsp;<br>
+:param&nbsp;user_agent:&nbsp;The&nbsp;User-Agent&nbsp;string&nbsp;to&nbsp;test&nbsp;against&nbsp;the&nbsp;robots.txt<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;constraints.&nbsp;Should&nbsp;be&nbsp;cut&nbsp;off&nbsp;at&nbsp;the&nbsp;first&nbsp;space&nbsp;or&nbsp;slash.<br>
+:type&nbsp;user_agent:&nbsp;&nbsp;str<br>
+:param&nbsp;url:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;URL&nbsp;of&nbsp;the&nbsp;site&nbsp;to&nbsp;retrieve&nbsp;the&nbsp;robots.txt&nbsp;file&nbsp;from.<br>
+:type&nbsp;url:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str</tt></dd></dl>
+
+<dl><dt><a name="Robots_Txt_File-can_fetch"><strong>can_fetch</strong></a>(self, query_url)</dt><dd><tt>Check&nbsp;the&nbsp;supplied&nbsp;url&nbsp;against&nbsp;the&nbsp;parsed&nbsp;robots.txt&nbsp;data&nbsp;for&nbsp;the&nbsp;stored<br>
+User-Agent&nbsp;to&nbsp;see&nbsp;if&nbsp;it&nbsp;is&nbsp;allowed&nbsp;or&nbsp;disallowed.&nbsp;Returns&nbsp;True&nbsp;if&nbsp;it's&nbsp;allowed,<br>
+False&nbsp;otherwise.<br>
+&nbsp;<br>
+:return:&nbsp;True&nbsp;or&nbsp;False<br>
+:rtype:&nbsp;&nbsp;bool</tt></dd></dl>
+
+<dl><dt><a name="Robots_Txt_File-has_been_loaded"><strong>has_been_loaded</strong></a>(self)</dt><dd><tt>Predicate&nbsp;that&nbsp;returns&nbsp;True&nbsp;if&nbsp;the&nbsp;robots.txt&nbsp;file&nbsp;has&nbsp;been&nbsp;fetched&nbsp;and&nbsp;parsed,<br>
+False&nbsp;otherwise.<br>
+&nbsp;<br>
+:return:&nbsp;True&nbsp;or&nbsp;False<br>
+:rtype:&nbsp;&nbsp;bool</tt></dd></dl>
+
+<dl><dt><a name="Robots_Txt_File-load_and_parse"><strong>load_and_parse</strong></a>(self)</dt><dd><tt>Loads&nbsp;the&nbsp;indicated&nbsp;robots.txt&nbsp;file&nbsp;and&nbsp;parses&nbsp;it,&nbsp;such&nbsp;that&nbsp;after&nbsp;this&nbsp;call&nbsp;the<br>
+<a href="#Robots_Txt_File-can_fetch">can_fetch</a>()&nbsp;method&nbsp;will&nbsp;be&nbsp;operational.<br>
+&nbsp;<br>
+:return:&nbsp;None<br>
+:rtype:&nbsp;&nbsp;types.NoneType</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>robots_dict</strong></dt>
+</dl>
+<dl><dt><strong>url</strong></dt>
+</dl>
+<dl><dt><strong>user_agent</strong></dt>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>allow_re</strong> = re.compile('^Allow: ', re.IGNORECASE)</dl>
+
+<dl><dt><strong>disallow_re</strong> = re.compile('^Disallow: ', re.IGNORECASE)</dl>
+
+<dl><dt><strong>user_agent_re</strong> = re.compile('^(?=User-Agent: )', re.IGNORECASE|re.MULTILINE)</dl>
+
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#55aa55">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Data</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#55aa55"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><strong>SCROLL_PAUSE_TIME</strong> = 1.0</td></tr></table>
+</body></html>
