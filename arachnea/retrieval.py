@@ -1316,6 +1316,8 @@ class Robots_Txt_File:
             user_agents, disallow_lines, allow_lines = set(), set(), set()
             index = 0
             robot_lines = user_agent_block.split("\n")
+            if not len(robot_lines):
+                return robots_dict
             while self.user_agent_re.match(robot_lines[index]):
                 robot_line = robot_lines[index]
                 user_agents.add(robot_line[robot_line.index(':')+1:].strip())

@@ -592,6 +592,8 @@ class Data_Store(object):
         """
         # FIXME should raise an error if the statement argument isn't a SELECT
         # statement.
+        if select_sql.split()[0].upper() != "SELECT":
+            raise Internal_Exception("Data_Store._execute_sql_generator() method can only execute SELECT statements.")
         self.db_cursor.execute(select_sql)
         row = self.db_cursor.fetchone()
         while row is not None:
