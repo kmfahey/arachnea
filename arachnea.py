@@ -141,8 +141,13 @@ def execute_fulltext_search_mode(options, args, logger_obj):
     :rtype:            types.NoneType
     """
     main_processor_obj = Main_Processor(options, args, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
+
+    # Fetching the current columns of the terminal to use as a maximum width for
+    # the output table to be constrained to.
     terminal_width_cols = shutil.get_terminal_size().columns
 
+    # Executing the fulltext search, and then using the same utility function
+    # that method does to get the search query it used.
     results = main_processor_obj.fulltext_profiles_search(args)
 
     query_str = Data_Store.format_query(args)
@@ -156,6 +161,8 @@ def execute_fulltext_search_mode(options, args, logger_obj):
         print(f"For query {query_str}: {len(results)} results.")
         print()
 
+    # Calling a pre-prep method that does a lot of deriving vars from other vars
+    # to compute values needed to build the ASCII art output table.
     prereqs = query_output_prereqs(options, results, terminal_width_cols)
 
     handles_at_form_padded = prereqs['handles_at_form_padded']
@@ -170,15 +177,20 @@ def execute_fulltext_search_mode(options, args, logger_obj):
                                                         min(16, max_profile_bio_len) + 2) <= output_width_cols
 
     if can_output_w_profile_snippet:
+
+        # Trimming the list of profile bio texts to the maximum length afforded
+        # by the display cols constraint and the amount of each line taken up by
+        # the handles at forms and profile URL columns.
         max_len_for_snippets = output_width_cols - (2 + max_handle_at_len + 3 + max_handle_url_len + 3 + 2)
-        bio_texts_trim_padded_map = map(lambda bio_text: bio_text + ' ' * (max_len_for_snippets - len(bio_text)),
-                                      map(lambda bio_text: bio_text[:max_len_for_snippets],
-                                          profiles_bio_texts))
-        print_query_output_3_col(handles_at_form_padded, handles_urls_padded, bio_texts_trim_padded_map,
+        bio_texts_trim_padded = list(map(lambda bio_text: bio_text + ' ' * (max_len_for_snippets - len(bio_text)),
+                                         map(lambda bio_text: bio_text[:max_len_for_snippets],
+                                             profiles_bio_texts)))
+
+        print_query_output_3_col(handles_at_form_padded, handles_urls_padded, bio_texts_trim_padded,
                                  max_handle_at_len, max_handle_url_len, max_len_for_snippets)
     else:
         print_query_output_2_col(handles_at_form_padded, handles_urls_padded,
-                                 max_handle_at_len, max_handle_url_len, output_width_cols)
+                                 max_handle_at_len, max_handle_url_len)
 
 
 def query_output_prereqs(options, results, terminal_width_cols):
@@ -204,17 +216,25 @@ def query_output_prereqs(options, results, terminal_width_cols):
                                 max_profile_bio_len, and output_width_cols.
     :rtype:                     dict
     """
+    # Preparing the lists of handles in @ form, profile URLs, and profile bio
+    # texts. The bios have their newlines replaced with \n and their tabs
+    # replaced with 4 spaces.
     bio_text_tr_d = {ord('\n'): '\\n', ord('\t'): '    '}
     handles_at_form = [handle_obj.handle for handle_obj, _ in results]
     handles_urls = [handle_obj.profile_url for handle_obj, _ in results]
     profiles_bio_texts = [profile_bio_text.translate(bio_text_tr_d) for _, profile_bio_text in results]
 
+    # Recording the maximum lengths in the previously defined 3 lists.
     max_handle_at_len = max(map(len, handles_at_form))
     max_handle_url_len = max(map(len, handles_urls))
     max_profile_bio_len = max(map(len, profiles_bio_texts))
 
+    # Calculating what the minimum cols are needed to display a ASCII art table
+    # with just the handles_at_form and handles_urls lists.
     min_table_display_width = 2 + max_handle_at_len + 3 + max_handle_url_len + 2
 
+    # Testing if the table can even be displayed with display column
+    # limitations, erroring out if it can't.
     if options.width_cols > 0 and min_table_display_width > options.width_cols:
         print(f"output requires a minimum of {min_table_display_width} columns; commandline -c arg specified a width "
               f"of only {options.width_cols}; cannot display output in compliance with that constraint")
@@ -225,64 +245,76 @@ def query_output_prereqs(options, results, terminal_width_cols):
               "and re-run the program")
         exit(1)
 
+    # Setting the display column limit. If using the terminal width, adding a
+    # slop factor of 5 cols for emoji and other characters that take up more
+    # than 1 col.
     if options.width_cols > 0 and options.width_cols < terminal_width_cols:
         output_width_cols = options.width_cols
     else:
         output_width_cols = terminal_width_cols - 5
 
+    # Deriving space-padded versions of the handles_at_form and handles_urls
+    # lists.
     handles_at_form_padded = [handle_at_form + ' ' * (max_handle_at_len - len(handle_at_form))
                             for handle_at_form in handles_at_form]
     handles_urls_padded = [handle_url + ' ' * (max_handle_url_len - len(handle_url)) for handle_url in handles_urls]
 
+    # Returning all the derived values as a dictionary. 7 is just too many to
+    # return as a tuple.
     return {'handles_at_form_padded': handles_at_form_padded, 'handles_urls_padded': handles_urls_padded,
             'profiles_bio_texts': profiles_bio_texts, 'max_handle_at_len': max_handle_at_len,
             'max_handle_url_len': max_handle_url_len, 'max_profile_bio_len': max_profile_bio_len,
             'output_width_cols': output_width_cols}
 
 
-def print_query_output_3_col(handles_at_form_padded, handles_urls_padded, bio_texts_trim_padded_map,
+def print_query_output_3_col(handles_at_form_padded, handles_urls_padded, bio_texts_trim_padded,
                              max_handle_at_len, max_handle_url_len, max_len_for_snippets):
     """
     Prints the output of the search query in fulltext mode, with the handle at form,
     profile URL, and profile snippet columns.
 
-    :param handles_at_form_padded:    A list of the handles in @username@instance
-                                      forms, space-padded to the length of the longest
-                                      handle in the list.
-    :type handles_at_form_padded:     list
-    :param handles_urls_padded:       A list of the profile URLs for each handle,
-                                      space-padded to the length of the longest URL in
-                                      the list.
-    :type handles_urls_padded:        list
-    :param bio_texts_trim_padded_map: A map object of the profile bio texts trimmed
-                                      to max allowed length and then space-padded to
-                                      that length.
-    :type bio_texts_trim_padded_map:  map
-    :param max_handle_at_len:         Length of the longest handle in
-                                      handles_at_form_padded.
-    :type max_handle_at_len:          int
-    :param max_handle_url_len:        Length of the longest URL in handles_urls_padded.
-    :type max_handle_url_len:         int
-    :param output_width_cols:         The width in columns of the output to print.
-    :type output_width_cols:          int
-    :return:                          None
-    :rtype:                           types.NoneType
-    """handles_urls_padded:
+    :param handles_at_form_padded: A list of the handles in @username@instance
+                                   forms, space-padded to the length of the longest
+                                   handle in the list.
+    :type handles_at_form_padded:  list
+    :param handles_urls_padded:    A list of the profile URLs for each handle,
+                                   space-padded to the length of the longest URL in
+                                   the list.
+    :type handles_urls_padded:     list
+    :param bio_texts_trim_padded:  A list of the profile bio texts trimmed to max
+                                   allowed length and then space-padded to that
+                                   length.
+    :type bio_texts_trim_padded:   list
+    :param max_handle_at_len:      Length of the longest handle in
+                                   handles_at_form_padded.
+    :type max_handle_at_len:       int
+    :param max_handle_url_len:     Length of the longest URL in handles_urls_padded.
+    :type max_handle_url_len:      int
+    :param output_width_cols:      The width in columns of the output to print.
+    :type output_width_cols:       int
+    :return:                       None
+    :rtype:                        types.NoneType
+    """
+
+    # Assembling the top and bottom lines of the ASCII art results table.
     table_top_bottom_border = ('+-' + '-' * max_handle_at_len + '-+-' + '-' * max_handle_url_len + '-+-'
                                + '-' * max_len_for_snippets + '-+')
 
     print(table_top_bottom_border)
 
+    # Printing the rows of the ASCII art results table, having zip'd the
+    # handles_at_form_padded, handles_urls_padded, and bio_texts_trim_padded
+    # lists back together into result rows.
     for handle_at_form_padded, handle_url_padded, bio_text_trim_padded in zip(handles_at_form_padded,
                                                                               handles_urls_padded,
-                                                                              bio_texts_trim_padded_map):
+                                                                              bio_texts_trim_padded):
         print('| ' + handle_at_form_padded + ' | ' + handle_url_padded + ' | ' + bio_text_trim_padded + ' |')
 
     print(table_top_bottom_border)
 
 
 def print_query_output_2_col(handles_at_form_padded, handles_urls_padded, max_handle_at_len,
-                             max_handle_url_len, output_width_cols):
+                             max_handle_url_len):
     """
     Prints the output of the search query in fulltext mode, with just the handle at
     form and profile URL columns.
@@ -299,15 +331,18 @@ def print_query_output_2_col(handles_at_form_padded, handles_urls_padded, max_ha
     :type max_handle_at_len:       int
     :param max_handle_url_len:     Length of the longest URL in handles_urls_padded.
     :type max_handle_url_len:      int
-    :param output_width_cols:      The width in columns of the output to print.
-    :type output_width_cols:       int
     :return:                       None
     :rtype:                        types.NoneType
     """
+
+    # Assembling the top and bottom lines of the ASCII art results table.
     table_top_bottom_border = '+-' + '-' * max_handle_at_len + '-+-' + '-' * max_handle_url_len + '-+'
 
     print(table_top_bottom_border)
 
+    # Printing the rows of the ASCII art results table, having zip'd the
+    # handles_at_form_padded and handles_urls_padded lists back together into
+    # result rows.
     for handle_at_form_padded, handle_url_padded in zip(handles_at_form_padded, handles_urls_padded):
         print('| ' + handle_at_form_padded + ' | ' + handle_url_padded + ' |')
 
