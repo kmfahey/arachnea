@@ -5,6 +5,7 @@ import MySQLdb
 import re
 import sys
 import threading
+import types
 
 from arachnea.retrieval import Instance, Page_Fetcher
 from arachnea.handles import Handle
@@ -540,7 +541,7 @@ class Data_Store(object):
                                               FROM relations LEFT JOIN profiles ON relations.relation_handle_id
                                               = profiles.profile_handle_id WHERE profiles.profile_handle_id IS NULL
                                               ORDER BY RAND();"""
-        return self._execute_sql_generator(relations_left_join_profiles_sql)
+        return self.execute_select_generator(relations_left_join_profiles_sql)
 
     def users_in_profiles_not_in_relations(self):
         """
@@ -558,7 +559,7 @@ class Data_Store(object):
                                               FROM profiles LEFT JOIN relations
                                               ON profiles.profile_handle_id = relations.profile_handle_id
                                               WHERE relations.profile_handle_id IS NULL ORDER BY RAND();"""
-        return self._execute_sql_generator(profiles_left_join_relations_sql)
+        return self.execute_select_generator(profiles_left_join_relations_sql)
 
     def users_in_handles_not_in_profiles(self):
         """
@@ -575,9 +576,41 @@ class Data_Store(object):
         handles_left_join_profiles_sql = """SELECT handles.handle_id, handles.username, handles.instance FROM handles
                                             LEFT JOIN profiles ON handles.handle_id = profiles.profile_handle_id
                                             WHERE profiles.profile_handle_id IS NULL ORDER BY RAND();"""
-        return self._execute_sql_generator(handles_left_join_profiles_sql)
+        return self.execute_select_generator(handles_left_join_profiles_sql)
 
-    def _execute_sql_generator(self, select_sql):
+    def fulltext_profiles_search(self, data_store, query_term_or_terms):
+        """
+        Execute a fulltext search on the profile_bio_markdown column of the profiles
+        table. If query_term_or_terms is a string, it will be used as the argument to
+        MATCH ... AGAINST() unmodified. If query_term_or_terms is a tuple, list, set,
+        map object, filter object, or generator, the terms will be joined with a boolean
+        OR and that string with be the argument to MATCH ... AGAINST(). Returns a list
+        of Handle objects (can be 0-length).
+
+        :param data_store:          The Data_Store object to use to contact the database.
+        :type data_store:           arachnea.processing.Data_Store
+        :param query_term_or_terms: The query term or terms to use as an argument to
+                                    MATCH ... AGAINST().
+        :type query_term_or_terms:  str, tuple, list, set, map, filter, or
+                                    types.GeneratorType
+        :return:                    List of 0 or more Handle objects.
+        :rtype:                     list
+        """
+        escape_quotes_tr_d = {ord('"'): '\\"', ord("'"): "\\'"}
+        if isinstance(query_term_or_terms, str):
+            query_str = '"' + query_terms.translate(escape_quotes_tr_d) + '"'
+        elif isinstance(query_term_or_terms, (tuple, list, set, map, filter, types.GeneratorType)):
+            query_terms_tr_map = map(lambda term: term.translate(escape_quotes_tr_d), query_terms)
+            query_terms_qtd_map = map(lambda term: f'"{term}"', query_terms_tr_map)
+            query_str = "'{query_terms}'".format(query_terms=" OR ".join(query_terms_qtd_map)
+        search_sql = f"""SELECT handle_id, username, instance FROM profiles
+                     WHERE profile_bio_markdown <> '' AND
+                           MATCH(profile_bio_markdown) AGAINST({query_str})
+                           AND considered = 0;"""
+        rows_generator = data_store.execute_select_generator(search_sql)
+        return [Handle(handle_id, username, instance) for handle_id, username, instance in rows_generator]
+
+    def execute_select_generator(self, select_sql):
         """
         A private method used by other methods on this class to execute an SQL statement
         and then return a generator which retrieves & yields rows from the database
@@ -590,10 +623,8 @@ class Data_Store(object):
                            executed.
         :rtype:            types.GeneratorType
         """
-        # FIXME should raise an error if the statement argument isn't a SELECT
-        # statement.
         if select_sql.split()[0].upper() != "SELECT":
-            raise Internal_Exception("Data_Store._execute_sql_generator() method can only execute SELECT statements.")
+            raise Internal_Exception("Data_Store.execute_select_generator() method can only execute SELECT statements.")
         self.db_cursor.execute(select_sql)
         row = self.db_cursor.fetchone()
         while row is not None:

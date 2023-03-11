@@ -38,10 +38,10 @@ CREATE TABLE `profiles` (
   `username` varchar(255) NOT NULL,
   `instance` varchar(255) NOT NULL,
   `considered` tinyint(1) NOT NULL,
-  `profile_snippet` varchar(8192) NOT NULL,
-  `updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `profile_bio_markdown` varchar(8192) NOT NULL,
+  `row_created_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`profile_handle_id`),
-  FULLTEXT KEY `profile_snippet` (`profile_snippet`)
+  FULLTEXT KEY `profile_bio_markdown_ft_index` (`profile_bio_markdown`)
 );
 
 CREATE TABLE `relations` (

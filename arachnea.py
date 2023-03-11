@@ -18,29 +18,29 @@ parser.add_option("-C", "--handles-from-args", action="store_true", default=Fals
                   help="skip querying the database for handles, instead process only the handles specified on the "
                        "commandline")
 parser.add_option("-H", "--handles-join-profiles", action="store_true", default=False, dest="handles_join_profiles",
-                  help="when fetching profiles, load unfetched handles from the `handles` table left join the "
-                       "`profiles` table")
+                  help="when fetching profiles, utilize handles that are present in the `handles` table but are not "
+                       "present in the `profiles` table")
 parser.add_option("-R", "--relations-join-profiles", action="store_true", default=False, dest="relations_join_profiles",
-                  help="when fetching profiles, load unfetched handles from the `relations` table left join the "
-                       "`profiles` table")
-
+                  help="when fetching profiles, utilize handles that are present in the `relations` table but are "
+                       "not present in the `profiles` table")
 parser.add_option("-p", "--fetch-profiles-only", action="store_true", default=False, dest="fetch_profiles_only",
                   help="fetch profiles only, disregard following & followers pages")
 parser.add_option("-q", "--fetch-relations-only", action="store_true", default=False, dest="fetch_relations_only",
                   help="fetch following & followers pages only, disregard profiles")
 parser.add_option("-r", "--fetch-profiles-and-relations", action="store_true", default=False,
-                  dest="fetch_profiles_and_relations", help="fetch both profiles and relations")
+                  dest="fetch_profiles_and_relations", help="fetch both profiles and following & followers pages")
 
-parser.add_option("-t", "--use-threads", action="store", default=0, type="int", dest="use_threads", help="use the "
-                  "specified number of threads")
+parser.add_option("-t", "--use-threads", action="store", default=0, type="int", dest="use_threads",
+                  help="use the specified number of threads")
 parser.add_option("-w", "--dont-discard-bc-wifi", action="store_true", default=False, dest="dont_discard_bc_wifi",
                   help="when loading a page leads to a connection error, assume it's the wifi and don't store a null "
-                       "bio")
+                       "bio, rather save it for later and try again")
 parser.add_option("-W", "--conn-err-wait-time", action="store", default=0.0, type="float",
                   dest="conn_err_wait_time", help="when loading a page leads to a connection error, and the "
-                  "-w flag was specified, sleep the specified number of seconds before resuming the web spidering")
-parser.add_option("-x", "--dry-run", action="store_true", default=False, dest="dry_run", help="don't fetch anything, "
-                  "just load data structures from the database and then exit")
+                                                  "-w flag was specified, sleep the specified number of seconds "
+                                                  "before resuming the web spidering")
+parser.add_option("-x", "--dry-run", action="store_true", default=False, dest="dry_run",
+                  help="don't fetch anything, just load data structures from the database and then exit")
 
 
 def main():
@@ -107,8 +107,7 @@ def validate_cmdline_flags(options, args, logger_obj):
             options.fetch_relations_only and options.fetch_profiles_and_relations:
         print("more than just one of -p, -q and -r specified on the commandline; please supply only one")
         exit(1)
-
-    if ((options.fetch_profiles_only or options.fetch_profiles_and_relations)
+    elif ((options.fetch_profiles_only or options.fetch_profiles_and_relations)
             and not (options.handles_join_profiles or options.relations_join_profiles or options.handles_from_args)):
         print("if -p or -r is specified, please specify one of -H, -R or -C on the commandline to indicate where to "
               "source handles to process")
@@ -131,7 +130,13 @@ def validate_cmdline_flags(options, args, logger_obj):
         print("-C was not specified, but args supplied on the commandline")
         exit(1)
     elif options.use_threads and options.dry_run:
-        print("-t and -x were both specified, these modes conflict")
+        print("-t and -x were both specified; cannot run in these two modes simultaneously")
+        exit(1)
+    elif options.conn_err_wait_time and not options.dont_discard_bc_wifi:
+        print("-W was specified but -w was not; -W value is unusable if not in -w mode")
+        exit(1)
+    elif options.conn_err_wait_time and options.conn_err_wait_time < 0:
+        print(f"argument for -W is a negative number; can't sleep {options.conn_err_wait_time} seconds")
         exit(1)
 
 
@@ -165,6 +170,9 @@ def log_cmdline_flags(options, logger_obj):
 
     if options.dont_discard_bc_wifi:
         logger_obj.info("got -w flag, saving handles for later if a generic connection error occurs")
+    if options.conn_err_wait_time:
+        logger_obj.info(f"got -W flag, when saving handles that were unfetchable due to a connection error, "
+                        f"will sleep {options.conn_err_wait_time} seconds each time")
 
 
 if __name__ == "__main__":

@@ -853,26 +853,26 @@ class Page:
 
             # Checking if this profile already exists in the profiles table and
             # already has its profile saved.
-            select_sql = f"""SELECT profile_handle_id, profile_snippet FROM profiles
+            select_sql = f"""SELECT profile_handle_id, profile_bio_markdown FROM profiles
                              WHERE profile_handle_id = {handle.handle_id};"""
             rows = data_store.execute(select_sql)
             if rows:
-                ((handle_id, profile_snippet),) = rows
-                if profile_snippet:
+                ((handle_id, profile_bio_markdown),) = rows
+                if profile_bio_markdown:
                     return 0
                 elif profile_bio_text:
                     # If by some chance this handle_id already has a row in the
-                    # profiles table, but its profile_snippet is null, and the
+                    # profiles table, but its profile_bio_markdown is null, and the
                     # bio text the program is going to save here is *not* null,
                     # then use an UPDATE statement to set the profile bio.
-                    update_sql = f"""UPDATE profiles SET profile_snippet = {profile_bio_text}
+                    update_sql = f"""UPDATE profiles SET profile_bio_markdown = {profile_bio_text}
                                      WHERE profile_handle_id = {handle.handle_id};"""
                     data_store.execute(update_sql)
                     return 1
             else:
                 # Otherwise use an INSERT statement like usual.
                 insert_sql = f"""INSERT INTO profiles (profile_handle_id, username, instance,
-                                                       considered, profile_snippet)
+                                                       considered, profile_bio_markdown)
                                                   VALUES
                                                       ({handle.handle_id}, '{handle.username}',
                                                       '{handle.host}', 0, '{profile_bio_text}');"""
