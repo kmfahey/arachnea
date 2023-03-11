@@ -521,6 +521,7 @@ class Robots_Txt_File:
     disallow_re = re.compile("^Disallow: ", re.I)
     allow_re = re.compile("^Allow: ", re.I)
 
+    #FIXME add crawl-delay support, somehow
     def __init__(self, user_agent, url):
         """
         Instances a Robots_Txt_File object.
@@ -628,19 +629,11 @@ class Robots_Txt_File:
             # longest matching pattern is an Allow one.
             else:
                 return max(map(len, matching_allow_pats)) >= max(map(len, matching_disallow_pats))
-        # If of matching_allow_pats and matching_disallow_pats one is
-        # zero-length and one is nonzero-length, then it's allowed if Allowed is
-        # the nonzero one.
-        elif (len(matching_allow_pats), len(matching_disallow_pats)).count(0) == 1:
-            return bool(matching_allow_pats)
-        # If none of the patterns matched, but an Allow block *exists* in the
-        # robots.txt, that implies that only paths matching an Allow pattern are
-        # allowed, so the path is disallowed.
-        elif robots_block["Allow"]:
+        # If any Disallow pattern matched, then fetching the URL is not permitted.
+        elif len(matching_disallow_pats):
             return False
-        # No patterns matched and the robots.txt didn't have any Allow patterns.
-        # That implies any path not explicitly blocked is permitted, so the path
-        # is allowed.
+        # Otherwise, the path is not explicitly disallowed, so fetching it is
+        # permitted.
         else:
             return True
 
@@ -717,6 +710,7 @@ class Instance(object):
                 else 'unparseable' if self.unparseable \
                 else 'ingoodstanding'
 
+    # FIXME implement a 4th failure mode, 'blocked'
     def __init__(self, host, logger, malfunctioning=False, suspended=False, unparseable=False, rate_limited=False,
                        x_ratelimit_limit=None, attempts=0):
         """
@@ -986,6 +980,7 @@ class Failed_Request(object):
         self.is_dynamic = is_dynamic
         self.webdriver_error = webdriver_error
         self.x_ratelimit_limit = x_ratelimit_limit
+        self.robots_txt_disallowed = robots_txt_disallowed
 
     def __repr__(self):
         """
