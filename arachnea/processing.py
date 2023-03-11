@@ -6,9 +6,9 @@ import re
 import sys
 import threading
 
-from .retrieval import Instance, Page_Fetcher
-from .handles import Handle
-from .succeedfail import Failed_Request, Internal_Exception
+from arachnea.retrieval import Instance, Page_Fetcher
+from arachnea.handles import Handle
+from arachnea.succeedfail import Failed_Request, Internal_Exception
 
 
 class Main_Processor:

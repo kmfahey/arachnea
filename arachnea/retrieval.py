@@ -15,8 +15,8 @@ import socket
 import time
 import urllib
 
-from .handles import Handle, Deleted_User
-from .succeedfail import Failed_Request, Internal_Exception
+from arachnea.handles import Handle, Deleted_User
+from arachnea.succeedfail import Failed_Request, Internal_Exception
 
 
 # One of two places that a timeout of 5 seconds is set. The other place is at

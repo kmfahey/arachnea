@@ -28,7 +28,7 @@ REQUIRED = [
 ]
 
 # What packages are optional?
-EXTRAS = set()
+EXTRAS = dict()
 
 
 # The rest you shouldn't have to touch too much :)
