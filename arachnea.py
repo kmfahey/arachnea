@@ -3,6 +3,7 @@
 import decouple
 import optparse
 import shutil
+import collections
 
 from arachnea.processing import Main_Processor, Data_Store
 
@@ -25,37 +26,45 @@ parser.add_option("-f", "--fulltext-search", action="store_true", default=False,
 
 ### WEB SPIDER OPTIONS ###
 parser.add_option("-C", "--handles-from-args", action="store_true", default=False, dest="handles_from_args",
-                  help="skip querying the database for handles, instead process only the handles specified on the "
-                       "commandline")
+                  help="in web spider mode, skip querying the database for handles, instead process only the handles "
+                       "specified on the commandline")
 parser.add_option("-H", "--handles-join-profiles", action="store_true", default=False, dest="handles_join_profiles",
-                  help="when fetching profiles, utilize handles that are present in the `handles` table but are not "
-                       "present in the `profiles` table")
+                  help="in web spider mode, when fetching profiles, utilize handles that are present in the "
+                       "`handles` table but are not present in the `profiles` table")
 parser.add_option("-R", "--relations-join-profiles", action="store_true", default=False, dest="relations_join_profiles",
-                  help="when fetching profiles, utilize handles that are present in the `relations` table but are "
-                       "not present in the `profiles` table")
+                  help="in web spider mode, when fetching profiles, utilize handles that are present in the "
+                       "`relations` table but are not present in the `profiles` table")
 parser.add_option("-p", "--fetch-profiles-only", action="store_true", default=False, dest="fetch_profiles_only",
-                  help="fetch profiles only, disregard following & followers pages")
+                  help="in web spider mode, fetch profiles only, disregard following & followers pages")
 parser.add_option("-q", "--fetch-relations-only", action="store_true", default=False, dest="fetch_relations_only",
-                  help="fetch following & followers pages only, disregard profiles")
+                  help="in web spider mode, fetch following & followers pages only, disregard profiles")
 parser.add_option("-r", "--fetch-profiles-and-relations", action="store_true", default=False,
-                  dest="fetch_profiles_and_relations", help="fetch both profiles and following & followers pages")
+                  dest="fetch_profiles_and_relations", help="in web spider mode, fetch both profiles and following "
+                                                            "& followers pages")
 
 parser.add_option("-t", "--use-threads", action="store", default=0, type="int", dest="use_threads",
-                  help="use the specified number of threads")
+                  help="in web spider mode, use the specified number of threads")
 parser.add_option("-w", "--dont-discard-bc-wifi", action="store_true", default=False, dest="dont_discard_bc_wifi",
-                  help="when loading a page leads to a connection error, assume it's the wifi and don't store a null "
-                       "bio, rather save it for later and try again")
+                  help="in web spider mode, when loading a page leads to a connection error, assume it's the wifi "
+                       "and don't store a null bio, rather save it for later and try again")
 parser.add_option("-W", "--conn-err-wait-time", action="store", default=0.0, type="float",
-                  dest="conn_err_wait_time", help="when loading a page leads to a connection error, and the "
-                                                  "-w flag was specified, sleep the specified number of seconds "
-                                                  "before resuming the web spidering")
+                  dest="conn_err_wait_time", help="in web spider mode, when loading a page leads to a connection "
+                                                  "error, and the -w flag was specified, sleep the specified number "
+                                                  "of seconds before resuming the web spidering")
 parser.add_option("-x", "--dry-run", action="store_true", default=False, dest="dry_run",
-                  help="don't fetch anything, just load data structures from the database and then exit")
+                  help="in web spider mode, don't fetch anything, just load data structures from the database "
+                       "and then exit")
 ### END WEB SPIDER OPTIONS ###
 
 ### FULLTEXT SEARCH OPTIONS ###
 parser.add_option("-c", "--width-cols", action="store", default=0, type="int", dest="width_cols",
-                  help="the width in columns of the table of search results to display")
+                  help="in fulltext search mode, use this width in columns for displaying the table of search results")
+parser.add_option("-Q", "--fulltext-query", action="store", default='', type="str", dest="fulltext_pos_query",
+                  help="in fulltext search mode, match bios against this boolean expression to include them in the "
+                       "results; required if -f is used")
+parser.add_option("-N", "--fulltext-negative-query", action="store", default='', type="str", dest="fulltext_neg_query",
+                  help="in fulltext search mode, match bios against this boolean expression to exclude them from the "
+                       "results when they've matched the -Q expression")
 ### END FULLTEXT SEARCH OPTIONS ###
 
 
@@ -72,7 +81,10 @@ def main():
     (options, args) = parser.parse_args()
 
     # Instance the main logger. This is the only logger needed unless threaded mode is used.
-    main_logger_obj = Main_Processor.instance_logger_obj("main", options.use_threads)
+    if options.fulltext_search:
+        main_logger_obj = Main_Processor.instance_logger_obj("main", options.use_threads, no_output=True)
+    else:
+        main_logger_obj = Main_Processor.instance_logger_obj("main", options.use_threads)
 
     validate_cmdline_flags(options, args, main_logger_obj)
 
@@ -137,8 +149,8 @@ def execute_fulltext_search_mode(options, args, logger_obj):
     :type args:        tuple
     :param logger_obj: The Logger object to log events to.
     :type logger_obj:  logger.Logger
-    :return:           None
-    :rtype:            types.NoneType
+    :return:           False if no results were found, True otherwise.
+    :rtype:            bool
     """
     main_processor_obj = Main_Processor(options, args, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
 
@@ -146,51 +158,57 @@ def execute_fulltext_search_mode(options, args, logger_obj):
     # the output table to be constrained to.
     terminal_width_cols = shutil.get_terminal_size().columns
 
-    # Executing the fulltext search, and then using the same utility function
-    # that method does to get the search query it used.
-    results = main_processor_obj.fulltext_profiles_search(args)
-
-    query_str = Data_Store.format_query(args)
-
-    if not len(results):
-        print()
-        print(f"For query {query_str}: no results.")
-        efulltext_profiles_searchxit(0)
+    # Executing the fulltext search.
+    if options.fulltext_neg_query:
+        results = main_processor_obj.fulltext_profiles_search(options.fulltext_pos_query, options.fulltext_neg_query)
     else:
-        print()
-        print(f"For query {query_str}: {len(results)} results.")
-        print()
+        results = main_processor_obj.fulltext_profiles_search(options.fulltext_pos_query)
+
+    # Reporting results.
+    if options.fulltext_neg_query:
+        matching_expr = f"'{options.fulltext_pos_query}' and not matching '{options.fulltext_neg_query}'"
+    else:
+        matching_expr = f"'{options.fulltext_pos_query}'"
+
+    match len(results):
+        case 0:
+            print(f"For query matching {matching_expr}:", "No results.", end="\n\n", sep="\n\n")
+            return False
+        case 1:
+            print(f"For query matching {matching_expr}, 1 result:", end="\n\n", sep="\n\n")
+        case no_of_results:
+            print(f"For query matching {matching_expr}, {no_of_results} results:", end="\n\n", sep="\n\n")
 
     # Calling a pre-prep method that does a lot of deriving vars from other vars
     # to compute values needed to build the ASCII art output table.
-    prereqs = query_output_prereqs(options, results, terminal_width_cols)
+    prq = query_output_prereqs(options, results, terminal_width_cols)
 
-    handles_at_form_padded = prereqs['handles_at_form_padded']
-    handles_urls_padded = prereqs['handles_urls_padded']
-    profiles_bio_texts = prereqs['profiles_bio_texts']
-    max_handle_at_len = prereqs['max_handle_at_len']
-    max_handle_url_len = prereqs['max_handle_url_len']
-    max_profile_bio_len = prereqs['max_profile_bio_len']
-    output_width_cols = prereqs['output_width_cols']
+    output_3_column_width = (2 + prq.max_handle_at_len + 3 + prq.max_handle_url_len + 3
+                             + min(16, prq.max_profile_bio_len) + 2)
 
-    can_output_w_profile_snippet = (2 + max_handle_at_len + 3 + max_handle_url_len + 3 +
-                                                        min(16, max_profile_bio_len) + 2) <= output_width_cols
-
-    if can_output_w_profile_snippet:
-
+    if output_3_column_width <= prq.output_width_cols:
+        # It's possible to display the 3rd column, the bio samples.
+        # 
         # Trimming the list of profile bio texts to the maximum length afforded
         # by the display cols constraint and the amount of each line taken up by
         # the handles at forms and profile URL columns.
-        max_len_for_snippets = output_width_cols - (2 + max_handle_at_len + 3 + max_handle_url_len + 3 + 2)
-        bio_texts_trim_padded = list(map(lambda bio_text: bio_text + ' ' * (max_len_for_snippets - len(bio_text)),
-                                         map(lambda bio_text: bio_text[:max_len_for_snippets],
-                                             profiles_bio_texts)))
+        max_len_for_snippets = prq.output_width_cols - (2 + prq.max_handle_at_len + 3 + prq.max_handle_url_len + 3 + 2)
 
-        print_query_output_3_col(handles_at_form_padded, handles_urls_padded, bio_texts_trim_padded,
-                                 max_handle_at_len, max_handle_url_len, max_len_for_snippets)
+                                     # Right-pads the bio_text str with spaces to width {max_len_for_snippets}.
+        bio_texts_trim_padded = list(map(lambda bio_text: bio_text.ljust(max_len_for_snippets, ' '),
+                                         # Trims the bio texts to the upper bound {max_len_for_snippets}
+                                         map(lambda bio_text: bio_text[:max_len_for_snippets],
+                                             prq.profiles_bio_texts)))
+
+        print_query_output_3_col(prq.handles_at_form_padded, prq.handles_urls_padded, bio_texts_trim_padded,
+                                 prq.max_handle_at_len, prq.max_handle_url_len, max_len_for_snippets)
     else:
-        print_query_output_2_col(handles_at_form_padded, handles_urls_padded,
-                                 max_handle_at_len, max_handle_url_len)
+        # Can only display the 1st two columns, the handle in @ form and the
+        # profile URL.
+        print_query_output_2_col(prq.handles_at_form_padded, prq.handles_urls_padded,
+                                 prq.max_handle_at_len, prq.max_handle_url_len)
+
+    return True
 
 
 def query_output_prereqs(options, results, terminal_width_cols):
@@ -216,6 +234,10 @@ def query_output_prereqs(options, results, terminal_width_cols):
                                 max_profile_bio_len, and output_width_cols.
     :rtype:                     dict
     """
+    Prereqs = collections.namedtuple("Prereqs", ('handles_at_form_padded', 'handles_urls_padded', 'profiles_bio_texts',
+                                                 'max_handle_at_len', 'max_handle_url_len', 'max_profile_bio_len',
+                                                 'output_width_cols'))
+
     # Preparing the lists of handles in @ form, profile URLs, and profile bio
     # texts. The bios have their newlines replaced with \n and their tabs
     # replaced with 4 spaces.
@@ -253,18 +275,16 @@ def query_output_prereqs(options, results, terminal_width_cols):
     else:
         output_width_cols = terminal_width_cols - 5
 
-    # Deriving space-padded versions of the handles_at_form and handles_urls
-    # lists.
-    handles_at_form_padded = [handle_at_form + ' ' * (max_handle_at_len - len(handle_at_form))
+    # Derives a list of handles in @ form that are right-padded to {max_handle_at_len}.
+    handles_at_form_padded = [handle_at_form.ljust(max_handle_at_len, ' ')
                             for handle_at_form in handles_at_form]
-    handles_urls_padded = [handle_url + ' ' * (max_handle_url_len - len(handle_url)) for handle_url in handles_urls]
+    # Derives a list of profile URLs that are right-padded to {max_handle_url_len}.
+    handles_urls_padded = [handle_url.ljust(max_handle_url_len, ' ') for handle_url in handles_urls]
 
     # Returning all the derived values as a dictionary. 7 is just too many to
     # return as a tuple.
-    return {'handles_at_form_padded': handles_at_form_padded, 'handles_urls_padded': handles_urls_padded,
-            'profiles_bio_texts': profiles_bio_texts, 'max_handle_at_len': max_handle_at_len,
-            'max_handle_url_len': max_handle_url_len, 'max_profile_bio_len': max_profile_bio_len,
-            'output_width_cols': output_width_cols}
+    return Prereqs(handles_at_form_padded, handles_urls_padded, profiles_bio_texts,
+                   max_handle_at_len, max_handle_url_len, max_profile_bio_len, output_width_cols)
 
 
 def print_query_output_3_col(handles_at_form_padded, handles_urls_padded, bio_texts_trim_padded,
@@ -363,9 +383,20 @@ def validate_cmdline_flags(options, args, logger_obj):
     :return:           None
     :rtype:            types.NoneType
     """
+    def _exclude_non_mode_flags(mode_flag, mode_name, illeg_args):
+        # Private function that iterates over dict of illegal arguments.
+        for flag, arg_value in illeg_args.items():
+            if arg_value:
+                print(f"with {mode_flag} flag used, {flag} cannot be used; does not apply to {mode_name} mode")
+                exit(1)
+
     # Argument integrity check; catching illegal combinations of commandline
     # arguments and emitting the appropriate error messages.
     if options.web_spider:
+        _exclude_non_mode_flags("-s", "fulltext search",
+                                {"-c": options.width_cols, "-Q": options.fulltext_pos_query,
+                                 "-N": options.fulltext_neg_query})
+
         if options.width_cols:
             print("with -s flag used, -c cannot be used; does not apply to webspider mode")
             exit(1)
@@ -414,21 +445,20 @@ def validate_cmdline_flags(options, args, logger_obj):
                   "of 0.0 or greater with -W flag")
             exit(1)
     elif options.fulltext_search:
-        illeg_args = {"-C": options.handles_from_args, "-H": options.handles_join_profiles,
-                      "-R": options.relations_join_profiles, "-p": options.fetch_profiles_only,
-                      "-q": options.fetch_relations_only, "-r": options.fetch_profiles_and_relations,
-                      "-t": options.use_threads, "-w": options.dont_discard_bc_wifi, "-W": options.conn_err_wait_time,
-                      "-x": options.dry_run}
-        for flag, arg_value in illeg_args.items():
-            if arg_value:
-                print(f"with -f flag used, {flag} cannot be used; does not apply to fulltext search mode")
-                exit(1)
-        if not args:
-            print("with -f flag used, no args were supplied on the commandline")
-            exit(1)
-        elif options.width_cols < 0:
+        _exclude_non_mode_flags("-f", "webspider",
+                                {"-C": options.handles_from_args, "-H": options.handles_join_profiles,
+                                 "-R": options.relations_join_profiles, "-p": options.fetch_profiles_only,
+                                 "-q": options.fetch_relations_only, "-r": options.fetch_profiles_and_relations,
+                                 "-t": options.use_threads, "-w": options.dont_discard_bc_wifi,
+                                 "-W": options.conn_err_wait_time, "-x": options.dry_run})
+
+        if options.width_cols < 0:
             print("with -f flag used, argument for -c is a negative number; please only use an argument "
                   "of 1 or greater with -c flag")
+            exit(1)
+        elif not options.fulltext_pos_query:
+            print("with -f flag used, -Q flag must be used to supply the search query to conduct the fulltext "
+                  "search with")
             exit(1)
     else:
         print("neither -s or -f flag used; please specify one of either webspider mode or fulltext search mode")

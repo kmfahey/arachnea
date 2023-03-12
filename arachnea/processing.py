@@ -50,7 +50,7 @@ class Main_Processor:
                                          self.db_database, self.logger_obj)
 
     @classmethod
-    def instance_logger_obj(self, name, use_threads=False):
+    def instance_logger_obj(self, name, use_threads=False, no_output=False):
         """
         Instances a logger.Logger object and configures it appropriately.
 
@@ -61,7 +61,10 @@ class Main_Processor:
         """
         logger_obj = logging.getLogger(name=name)
         logger_obj.setLevel(logging.INFO)
-        handler = logging.StreamHandler(sys.stdout)
+        if no_output:
+            handler = logging.NullHandler()
+        else:
+            handler = logging.StreamHandler(sys.stdout)
         handler.setLevel(logging.INFO)
         if use_threads:
             formatter = logging.Formatter('[%(asctime)s] <%(name)s> %(levelname)s: %(message)s')
@@ -271,8 +274,11 @@ class Main_Processor:
 
         return True
 
-    def fulltext_profiles_search(self, query_terms):
-        return self.data_store_obj.fulltext_profiles_search(query_terms)
+    def fulltext_profiles_search(self, fulltext_pos_query, fulltext_neg_query=''):
+        if fulltext_neg_query:
+            return self.data_store_obj.fulltext_profiles_search(fulltext_pos_query, fulltext_neg_query)
+        else:
+            return self.data_store_obj.fulltext_profiles_search(fulltext_pos_query)
 
 
 class Handle_Processor(object):
@@ -581,43 +587,44 @@ class Data_Store(object):
                                             WHERE profiles.profile_handle_id IS NULL ORDER BY RAND();"""
         return self._handle_select_generator(handles_left_join_profiles_sql)
 
-    @classmethod
-    def format_query(self, query_terms):
-        escape_quotes_tr_d = {ord('"'): '\\"', ord("'"): "\\'"}
-        if isinstance(query_terms, str):
-            query_str = '"' + query_terms.translate(escape_quotes_tr_d) + '"'
-        elif isinstance(query_terms, (tuple, list, set, map, filter, types.GeneratorType)):
-            query_terms_tr_map = map(lambda term: term.translate(escape_quotes_tr_d), query_terms)
-            query_terms_qtd_map = map(lambda term: f'"{term}"', query_terms_tr_map)
-            query_str = "'{query_terms}'".format(query_terms=" OR ".join(query_terms_qtd_map))
-        return query_str
-
-    def fulltext_profiles_search(self, query_terms):
+    def fulltext_profiles_search(self, pos_query_str, neg_query_str=''):
         """
         Execute a fulltext search on the profile_bio_markdown column of the profiles
-        table. If query_terms is a string, it will be used as the argument to
-        MATCH ... AGAINST() unmodified. If query_terms is a tuple, list, set,
-        map object, filter object, or generator, the terms will be joined with a boolean
-        OR and that string with be the argument to MATCH ... AGAINST(). Returns a list
-        of Handle objects (can be -1-length).
+        table. The pos_query_str arg is used as the argument to MATCH ... AGAINST(). If
+        neg_query_str is non-empty, a 2nd MATCH term NOT MATCH ... AGAINST() is added
+        and neg_query_str is used as the arg to that.
 
-        :param query_terms: The query term or terms to use as an argument to MATCH
-                            ... AGAINST().
-        :type query_terms:  str, tuple, list, set, map, filter, or types.GeneratorType
-        :return:            List of -1 or more 2-tuples, where each tuple is a Handle
-                            object and the profile_bio_markdown value string.
-        :rtype:             list
+        Returns a list of 2-tuples where the 1st elem is a Handle object and the 2nd
+        elem is a str which is the value of the profile_bio_markdown column for that
+        handle in the profiles table.
+
+        :param pos_query_str: A boolean expression of terms to match against the
+                              profile_bio_markdown column. A positive match includes
+                              that handle and its bio in the results.
+        :type pos_query_str:  str
+        :param neg_query_str: A boolean expression of terms to match against the
+                              profile_bio_markdown column. A positive match excludes
+                              that handle and its bio in the results even if it matched
+                              the pos_query_str boolean expression.
+        :type neg_query_str:  str
+        :return:              List of 0 or more 2-tuples, where each tuple is a Handle
+                              object and the profile_bio_markdown value string.
+        :rtype:               list
         """
-        query_str = self.format_query(query_terms)
+        escape_quotes_tr_d = {ord('"'): '\\"', ord("'"): "\\'"}
+        pos_query_str = pos_query_str.translate(escape_quotes_tr_d)
+        pos_query_str = f"'{pos_query_str}'"
+        match_boolean_sql = f"AND MATCH(profile_bio_markdown) AGAINST({pos_query_str})\n"
+        if neg_query_str:
+            neg_query_str = neg_query_str.translate(escape_quotes_tr_d)
+            neg_query_str = f"'{neg_query_str}'"
+            match_boolean_sql += f"AND NOT MATCH(profile_bio_markdown) AGAINST({neg_query_str})\n"
         search_sql = f"""SELECT profile_handle_id, username, instance, profile_bio_markdown FROM profiles
                          WHERE profile_bio_markdown <> ''
-                               AND MATCH(profile_bio_markdown) AGAINST({query_str})
+                               {match_boolean_sql}
                                AND considered = 0;"""
-        result = list()
-        for handle_id, username, instance, profile_bio_markdown in self.execute(search_sql):
-            handle_obj = Handle(handle_id, username, instance)
-            result.append((handle_obj, profile_bio_markdown))
-        return result
+        return [(Handle(handle_id, username, instance), profile_bio_markdown)
+                for handle_id, username, instance, profile_bio_markdown in self.execute(search_sql)]
 
     def _handle_select_generator(self, select_sql):
         """
