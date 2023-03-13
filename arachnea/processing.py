@@ -5,7 +5,6 @@ import MySQLdb
 import re
 import sys
 import threading
-import types
 
 from arachnea.retrieval import Instance, Page_Fetcher
 from arachnea.handles import Handle
@@ -30,8 +29,8 @@ class Main_Processor:
         :param args:           The program's commandline arguments absent flags; the second
                                return value of optparse.OptionParser.parse_args().
         :type args:            tuple
-        :param logger_obj:     The logger object to use to log events.
-        :type logger_obj:      logger.Logger
+        :param logger_obj:     The Logger object to use to log events.
+        :type logger_obj:      logging.Logger
         :param save_profiles:  If the program is in a saving-profiles mode.
         :type save_profiles:   bool
         :param save_relations: If the program is in a saving-followers/following mode.
@@ -52,7 +51,7 @@ class Main_Processor:
     @classmethod
     def instance_logger_obj(self, name, use_threads=False, no_output=False):
         """
-        Instances a logger.Logger object and configures it appropriately.
+        Instances a logging.Logger object and configures it appropriately.
 
         :param name:        The name for the Logger object to use when logging.
         :type name:         str
@@ -289,11 +288,11 @@ class Handle_Processor(object):
     Implements a class for processing a list of handles and fetching the profile,
     relations, or both for each one depending on configuration.
     """
-    __slots__ = ('data_store', 'logger', 'instances_dict', 'save_from_wifi', 'last_time_point', 'current_time_point',
-                 'save_profiles', 'save_relations', 'page_fetcher', 'logger', 'dont_discard_bc_wifi',
+    __slots__ = ('data_store', 'logger_obj', 'instances_dict', 'save_from_wifi', 'last_time_point', 'current_time_point',
+                 'save_profiles', 'save_relations', 'page_fetcher', 'dont_discard_bc_wifi',
                  'conn_err_wait_time')
 
-    def __init__(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False,
+    def __init__(self, data_store, logger_obj, instances_dict, save_profiles=False, save_relations=False,
                        dont_discard_bc_wifi=False, conn_err_wait_time=0.0):
         """
         Initializes the Handle_Processor object.
@@ -301,8 +300,8 @@ class Handle_Processor(object):
         :param data_store:           The Data_Store object to use to contact the
                                      database.
         :type data_store:            Data_Store
-        :param logger:               The Logger object to use to log events.
-        :type logger:                logger.Logger
+        :param logger_obj:               The Logger object to use to log events.
+        :type logger_obj:                logging.Logger
         :param instances_dict:       A dict associating hostnames to Instance objects,
                                      used to identify problematic instances (or ones the
                                      program has been ratelimited from) and avoid
@@ -325,7 +324,7 @@ class Handle_Processor(object):
         :type conn_err_wait_time:    float
         """
         self.data_store = data_store
-        self.logger = logger
+        self.logger_obj = logger_obj
         self.instances_dict = instances_dict
         self.save_profiles = save_profiles
         self.save_relations = save_relations
@@ -338,7 +337,7 @@ class Handle_Processor(object):
         # were specified on the commandline and passed to this object on
         # instantiation; now they're being passed down to Page_Fetcher where
         # they'll actually be used.
-        self.page_fetcher = Page_Fetcher(data_store, self.logger, instances_dict, save_profiles=save_profiles,
+        self.page_fetcher = Page_Fetcher(data_store, self.logger_obj, instances_dict, save_profiles=save_profiles,
                                          save_relations=save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi,
                                          conn_err_wait_time=self.conn_err_wait_time)
 
@@ -424,7 +423,7 @@ class Handle_Processor(object):
                 successful_requests += 1
 
             if successful_requests == 0:
-                self.logger.info("An entire skipped_handles salvage pass completed with no successful connections; "
+                self.logger_obj.info("An entire skipped_handles salvage pass completed with no successful connections; "
                                  "giving up on salvage process.")
                 exit(0)
 
@@ -447,7 +446,7 @@ class Handle_Processor(object):
         # If the page isn't None and the result is an integer then the fetch
         # succeeded and the page has a bio that can be saved.
         if profile_page is not None and isinstance(result, int) and self.save_profiles:
-            self.logger.info("saving bio to database")
+            self.logger_obj.info("saving bio to database")
             profile_page.save_page(self.data_store)
 
         return result
@@ -517,23 +516,23 @@ class Data_Store(object):
     """
     Intermediates a connection to the MySQL database.
     """
-    __slots__ = 'db_host', 'db_user', 'db_password', 'db_database', 'db_connection', 'db_cursor', 'logger'
+    __slots__ = 'db_host', 'db_user', 'db_password', 'db_database', 'db_connection', 'db_cursor', 'logger_obj'
 
-    handle_re = re.compile("^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z0-9]+$")
+    handle_re = re.compile(r"^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z0-9]+$")
 
-    def __init__(self, db_host, db_user, db_password, db_database, logger):
+    def __init__(self, db_host, db_user, db_password, db_database, logger_obj):
         """
         Instances the Data_Store object.
 
-        :param logger: A Logger object to log events to.
-        :type logger:  logging.Logger
+        :param logger_obj: A Logger object to log events to.
+        :type logger_obj:  logging.Logger
         """
         self.db_host = db_host
         self.db_user = db_user
         self.db_password = db_password
         self.db_database = db_database
-        self.logger = logger
-        self.logger.info("opening connection to database")
+        self.logger_obj = logger_obj
+        self.logger_obj.info("opening connection to database")
         self.db_connection = MySQLdb.Connect(host=self.db_host, user=self.db_user,
                                              password=self.db_password, db=self.db_database)
         self.db_connection.autocommit(True)
@@ -550,7 +549,7 @@ class Data_Store(object):
         :return: A generator that yields tuples of (handle_id, username, instance)
                  values.
         """
-        self.logger.info("selecting handles from relations left join profiles")
+        self.logger_obj.info("selecting handles from relations left join profiles")
         relations_left_join_profiles_sql = """SELECT DISTINCT relation_handle_id, relation_username, relation_instance
                                               FROM relations LEFT JOIN profiles ON relations.relation_handle_id
                                               = profiles.profile_handle_id WHERE profiles.profile_handle_id IS NULL
@@ -568,7 +567,7 @@ class Data_Store(object):
         :return: A generator that yields 3-tuples of (handle_id, username, instance)
                  values.
         """
-        self.logger.info("selecting handles from profiles left join relations")
+        self.logger_obj.info("selecting handles from profiles left join relations")
         profiles_left_join_relations_sql = """SELECT profiles.profile_handle_id, username, instance
                                               FROM profiles LEFT JOIN relations
                                               ON profiles.profile_handle_id = relations.profile_handle_id
@@ -586,7 +585,7 @@ class Data_Store(object):
         :return: A generator that yields 3-tuples of (handle_id, username, instance)
                  values.
         """
-        self.logger.info("selecting handles from handles left join profiles")
+        self.logger_obj.info("selecting handles from handles left join profiles")
         handles_left_join_profiles_sql = """SELECT handles.handle_id, handles.username, handles.instance FROM handles
                                             LEFT JOIN profiles ON handles.handle_id = profiles.profile_handle_id
                                             WHERE profiles.profile_handle_id IS NULL ORDER BY RAND();"""

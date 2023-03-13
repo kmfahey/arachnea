@@ -98,7 +98,7 @@ def main():
     """
     (options, args) = parser.parse_args()
 
-    # Instance the main logger. This is the only logger needed unless threaded mode is used.
+    # Instance the main Logger. This is the only Logger needed unless threaded mode is used.
     if options.web_spider:
         main_logger_obj = Main_Processor.instance_logger_obj("main", options.use_threads)
     else:
@@ -125,8 +125,8 @@ def validate_cmdline_flags(options, args, logger_obj):
     :param options:    The options object that is the first return value of
                        optparse.OptionParser.parse_args().
     :type options:     optparse.Values
-    :param logger_obj: The logger object to use to log events.
-    :type logger_obj:  logger.Logger
+    :param logger_obj: The Logger object to use to log events.
+    :type logger_obj:  logging.Logger
     :return:           None
     :rtype:            types.NoneType
     """
@@ -306,7 +306,7 @@ def execute_web_spider_mode(options, args, main_logger_obj):
                        @user@instance form.
     :type args:        tuple
     :param logger_obj: The Logger object to log events to.
-    :type logger_obj:  logger.Logger
+    :type logger_obj:  logging.Logger
     :return:           None
     :rtype:            types.NoneType
     """
@@ -346,7 +346,7 @@ def execute_fulltext_search_mode(options, args, logger_obj):
                        one, query terms are joined with OR booleans.
     :type args:        tuple
     :param logger_obj: The Logger object to log events to.
-    :type logger_obj:  logger.Logger
+    :type logger_obj:  logging.Logger
     :return:           False if no results were found, True otherwise.
     :rtype:            bool
     """
@@ -435,7 +435,7 @@ def execute_mark_handles_considered_or_not_mode(options, args, logger_obj):
                        one, query terms are joined with OR booleans.
     :type args:        tuple
     :param logger_obj: The Logger object to log events to.
-    :type logger_obj:  logger.Logger
+    :type logger_obj:  logging.Logger
     :return:           False if no results were found, True otherwise.
     :rtype:            bool
     """

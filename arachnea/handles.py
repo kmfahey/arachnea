@@ -94,7 +94,7 @@ class Deleted_User(Handle):
     """
     Represents a user who has been deleted from their instance. Inherits from Handle.
     """
-    __slots__ = 'logger',
+    __slots__ = 'logger_obj',
 
     @classmethod
     def fetch_all_deleted_users(self, data_store):
@@ -133,6 +133,6 @@ class Deleted_User(Handle):
         try:
             data_store.execute(insert_sql)
         except MySQLdb._exceptions.IntegrityError:
-            self.logger.info(f"got an SQL IntegrityError when inserting {self.handle} into table deleted_users")
+            self.logger_obj.info(f"got an SQL IntegrityError when inserting {self.handle} into table deleted_users")
         else:
-            self.logger.info(f"inserted {self.handle} into table deleted_users")
+            self.logger_obj.info(f"inserted {self.handle} into table deleted_users")

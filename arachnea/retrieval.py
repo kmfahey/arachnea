@@ -40,10 +40,10 @@ class Page_Fetcher:
     * If it fails, handles a variety of failed requests in different ways
     * If it succeeds, yields the Page object.
     """
-    __slots__ = ('instances_dict', 'data_store', 'logger', 'deleted_users_dict', 'save_profiles', 'save_relations',
+    __slots__ = ('instances_dict', 'data_store', 'logger_obj', 'deleted_users_dict', 'save_profiles', 'save_relations',
                  'dont_discard_bc_wifi', 'conn_err_wait_time')
 
-    def __init__(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False,
+    def __init__(self, data_store, logger_obj, instances_dict, save_profiles=False, save_relations=False,
                        dont_discard_bc_wifi=False, conn_err_wait_time=0.0):
         """
         Instances the Page_Fetcher object.
@@ -51,8 +51,8 @@ class Page_Fetcher:
         :param data_store:                 The Data_Store object to use when saving a
                                            Page or Deleted_User object.
         :type data_store:                  Data_Store
-        :param logger:                     The Logger object to use to log events.
-        :type logger:                      logger.Logger
+        :param logger_obj:                     The Logger object to use to log events.
+        :type logger_obj:                      logging.Logger
         :param instances_dict:             A dict mapping hostnames to Instance objects
                                            that is the store of known instance and their
                                            statuses.
@@ -76,7 +76,7 @@ class Page_Fetcher:
         # FIXME a nonzero value for conn_err_wait_time and a False value
         # for dont_discard_bc_wifi should result in an error
         self.data_store = data_store
-        self.logger = logger
+        self.logger_obj = logger_obj
         self.instances_dict = instances_dict
         self.deleted_users_dict = Deleted_User.fetch_all_deleted_users(self.data_store)
         self.save_profiles = save_profiles
@@ -89,7 +89,7 @@ class Page_Fetcher:
         if host in self.instances_dict:
             instance = self.instances_dict[host]
         else:
-            self.instances_dict[host] = instance = Instance(host, self.logger)
+            self.instances_dict[host] = instance = Instance(host, self.logger_obj)
 
         # There exists a record of this instance in the instances_dict. It is
         # almost certainly not contactable. Figuring out *how* and handle it.
@@ -99,9 +99,9 @@ class Page_Fetcher:
                     # If in a profile-saving mode, a handle that turns out to
                     # have a bad instance gets a null profile bio saved to the
                     # data store. The empty Page for that profile is returned.
-                    self.logger.info(f"instance {host} on record as {instance.status}; "
+                    self.logger_obj.info(f"instance {host} on record as {instance.status}; "
                                      f"didn't load {url}; saving null bio to database")
-                    page = Page(handle, url, self.logger, instance, save_profiles=self.save_profiles,
+                    page = Page(handle, url, self.logger_obj, instance, save_profiles=self.save_profiles,
                                 save_relations=self.save_relations)
                     page.save_page(self.data_store)
                     return page, Failed_Request(host,
@@ -111,7 +111,7 @@ class Page_Fetcher:
                 else:
                     # If in a relations-saving mode, no Page is generated or
                     # saved.
-                    self.logger.info(f"instance {host} on record as {instance.status}; didn't load {url}")
+                    self.logger_obj.info(f"instance {host} on record as {instance.status}; didn't load {url}")
                     return None, Failed_Request(host,
                                                 malfunctioning=instance.malfunctioning,
                                                 unparseable=instance.unparseable,
@@ -120,7 +120,7 @@ class Page_Fetcher:
 
                 # The other case for an unreachable instance is if the program
                 # is rate-limited from it.
-                self.logger.info(f"instance {host} still rate limited, expires at "
+                self.logger_obj.info(f"instance {host} still rate limited, expires at "
                                  f"{instance.rate_limit_expires_isoformat}, didn't load {url}")
                 return None, Failed_Request(host, ratelimited=True)
 
@@ -130,7 +130,7 @@ class Page_Fetcher:
             # FIXME: this step can be skipped if a JOIN against deleted_users is
             # added to the handles loading step
             # FIXME should save a null bio
-            self.logger.info(f"user {handle.handle} known to be deleted; didn't load {url}")
+            self.logger_obj.info(f"user {handle.handle} known to be deleted; didn't load {url}")
             return None, Failed_Request(handle.host, user_deleted=True)
 
         # Possibilities for aborting transfer don't apply; proceeding with a
@@ -139,15 +139,15 @@ class Page_Fetcher:
         if host in self.instances_dict:
             instance = self.instances_dict[host]
         else:
-            self.instances_dict[host] = instance = Instance(host, self.logger)
-        page = Page(handle, url, self.logger, instance, save_profiles=self.save_profiles,
+            self.instances_dict[host] = instance = Instance(host, self.logger_obj)
+        page = Page(handle, url, self.logger_obj, instance, save_profiles=self.save_profiles,
                     save_relations=self.save_relations)
         result = page.requests_fetch()
 
         # If the request failed because the page is dynamic (ie. has a
         # <noscript> tag), trying again using webdriver.
         if isinstance(result, Failed_Request) and result.is_dynamic:
-            self.logger.info(f"loaded {url}: page has <noscript>; loading with webdriver")
+            self.logger_obj.info(f"loaded {url}: page has <noscript>; loading with webdriver")
             result = page.webdriver_fetch()
 
         # BEGIN *outer* big conditional
@@ -162,13 +162,13 @@ class Page_Fetcher:
                 # The program is rate-limited. Saving that fact to
                 # self.instances_dict.
                 if host not in self.instances_dict:
-                    instance = Instance(host, self.logger, rate_limited=True,
+                    instance = Instance(host, self.logger_obj, rate_limited=True,
                                         x_ratelimit_limit=result.x_ratelimit_limit)
                     self.instances_dict[host] = instance
                 else:
                     instance = self.instances_dict[host]
                     instance.set_rate_limit(x_ratelimit_limit=result.x_ratelimit_limit)
-                self.logger.info(f"failed to load {url}: rate limited: expires at " +
+                self.logger_obj.info(f"failed to load {url}: rate limited: expires at " +
                                  instance.rate_limit_expires_isoformat)
 
             # The instance malfunctioned.
@@ -179,24 +179,24 @@ class Page_Fetcher:
                     instance = self.instances_dict[host]
                     instance.attempts += 1
                 else:
-                    instance = Instance(host, self.logger, attempts=1)
+                    instance = Instance(host, self.logger_obj, attempts=1)
                     self.instances_dict[host] = instance
 
                 # Logging the precise type malfunction it was.
                 if result.ssl_error:
-                    self.logger.info(f"failed to load {url}, host malfunctioning: ssl error "
+                    self.logger_obj.info(f"failed to load {url}, host malfunctioning: ssl error "
                                      f"(error #{instance.attempts} for this host)")
                 elif result.too_many_redirects:
-                    self.logger.info(f"failed to load {url}, host malfunctioning: too many redirects "
+                    self.logger_obj.info(f"failed to load {url}, host malfunctioning: too many redirects "
                                      f"(error #{instance.attempts} for this host)")
                 elif result.timeout:
-                    self.logger.info(f"failed to load {url}, host malfunctioning: connection timeout "
+                    self.logger_obj.info(f"failed to load {url}, host malfunctioning: connection timeout "
                                      f"(error #{instance.attempts} for this host)")
                 elif result.connection_error:
-                    self.logger.info(f"failed to load {url}, host malfunctioning: connection error "
+                    self.logger_obj.info(f"failed to load {url}, host malfunctioning: connection error "
                                      f"(error #{instance.attempts} for this host)")
                 else:
-                    self.logger.info(f"failed to load {url}, host malfunctioning: got status code {result.status_code} "
+                    self.logger_obj.info(f"failed to load {url}, host malfunctioning: got status code {result.status_code} "
                                      f"(error #{instance.attempts} for this host)")
 
             elif result.user_deleted:
@@ -204,32 +204,32 @@ class Page_Fetcher:
                 # The user has been deleted from the instance. Saving that fact
                 # to the data store.
                 deleted_user = handle.convert_to_deleted_user()
-                deleted_user.logger = self.logger
+                deleted_user.logger_obj = self.logger_obj
                 self.deleted_users_dict[handle.username, handle.host] = deleted_user
                 deleted_user.save_deleted_user(self.data_store)
-                self.logger.info(f"failed to load {url}: user deleted")
+                self.logger_obj.info(f"failed to load {url}: user deleted")
 
             # Several other kinds of error that only need to be logged.
             elif result.webdriver_error:
-                self.logger.info(f"loading {url}: webdriver loading failed with internal error")
+                self.logger_obj.info(f"loading {url}: webdriver loading failed with internal error")
             elif result.no_public_posts:
-                self.logger.info(f"loaded {url}: no public posts")
+                self.logger_obj.info(f"loaded {url}: no public posts")
             elif result.posts_too_old:
-                self.logger.info(f"loaded {url}: posts too old")
+                self.logger_obj.info(f"loaded {url}: posts too old")
             elif result.unparseable:
-                self.logger.info(f"loaded {url}: parsing failed")
+                self.logger_obj.info(f"loaded {url}: parsing failed")
             elif result.robots_txt_disallowed:
-                self.logger.info(f"loading {url}: site's robots.txt does not allow it")
+                self.logger_obj.info(f"loading {url}: site's robots.txt does not allow it")
 
             # The profile gave the program a forwarding address.
             # FIXME should save these to the handles table.
             elif result.forwarding_address:
                 if result.forwarding_address is True:
-                    self.logger.info(f"loaded {url}: forwarding page (could not recover handle)")
+                    self.logger_obj.info(f"loaded {url}: forwarding page (could not recover handle)")
                 else:
-                    self.logger.info(f"loaded {url}: forwarding page")
+                    self.logger_obj.info(f"loaded {url}: forwarding page")
             else:
-                self.logger.info(f"loading {url}: unanticipated error {repr(result)}")
+                self.logger_obj.info(f"loading {url}: unanticipated error {repr(result)}")
             # END *first* big conditional
 
             # A connection failure when retrieving a profile normally leads to
@@ -243,7 +243,7 @@ class Page_Fetcher:
                                 else 'following' if page.is_following
                                 else 'followers' if page.is_followers else '???')
 
-                self.logger.info(f"handle {handle.handle}: fetching {what_fetched} returned connection error; "
+                self.logger_obj.info(f"handle {handle.handle}: fetching {what_fetched} returned connection error; "
                                  "but the wifi might've gone out, saving for later")
 
                 # If the wifi goes out, it's possible for this program to chew
@@ -267,11 +267,11 @@ class Page_Fetcher:
 
         # Logging what kind of page was loaded
         if self.save_profiles and page.is_profile:
-            self.logger.info(f"loaded {url}: detected profile bio, length {len(page.profile_bio_text)}")
+            self.logger_obj.info(f"loaded {url}: detected profile bio, length {len(page.profile_bio_text)}")
         elif self.save_relations and page.is_following:
-            self.logger.info(f"loaded {url}: found {result} following handles")
+            self.logger_obj.info(f"loaded {url}: found {result} following handles")
         elif self.save_relations and page.is_followers:
-            self.logger.info(f"loaded {url}: found {result} followers handles")
+            self.logger_obj.info(f"loaded {url}: found {result} followers handles")
 
         return page, result
 
@@ -281,7 +281,7 @@ class Page:
     Represents a single page; handles retrieving the page and the ensuing errors
     itself.
     """
-    __slots__ = ('handle', 'username', 'host', 'logger', 'instance', 'url', 'document', 'is_dynamic', 'loaded',
+    __slots__ = ('handle', 'username', 'host', 'logger_obj', 'instance', 'url', 'document', 'is_dynamic', 'loaded',
                  'is_profile', 'is_following', 'is_followers', 'page_number', 'profile_no_public_posts',
                  'profile_posts_too_old', 'profile_bio_text', 'relations_list', 'unparseable', 'save_profiles',
                  'save_relations')
@@ -323,7 +323,7 @@ class Page:
     def relation_type(self):
         return 'following' if self.is_following else 'followers' if self.is_followers else None
 
-    def __init__(self, handle, url, logger, instance, save_profiles=False, save_relations=False):
+    def __init__(self, handle, url, logger_obj, instance, save_profiles=False, save_relations=False):
         """
         Instances the Page object.
 
@@ -331,8 +331,8 @@ class Page:
         :type handle:          Handle
         :param url:            The URL of the page.
         :type url:             str
-        :param logger:         The Logger object to log events to.
-        :type logger:          logger.Logger
+        :param logger_obj:         The Logger object to log events to.
+        :type logger_obj:          logging.Logger
         :param instance:       The Instance object associated with the host this Page's
                                url is located at.
         :type instance:        Instance
@@ -344,7 +344,7 @@ class Page:
         # Setting instance vars from the args and their attributes.
         self.handle = handle
         self.url = url
-        self.logger = logger
+        self.logger_obj = logger_obj
         self.instance = instance
         self.save_profiles = save_profiles
         self.save_relations = save_relations
@@ -498,9 +498,9 @@ class Page:
             # Instancing the headless puppet firefox instance.
             options = selenium.webdriver.firefox.options.Options()
             options.add_argument('-headless')
-            self.logger.info("webdriver instantiating headless Firefox program")
+            self.logger_obj.info("webdriver instantiating headless Firefox program")
             browser = selenium.webdriver.Firefox(options=options)
-            self.logger.info(f"webdriver loading URL {self.url}")
+            self.logger_obj.info(f"webdriver loading URL {self.url}")
 
             browser.get(self.url)
 
@@ -511,7 +511,7 @@ class Page:
                 html = browser.page_source
                 self.document = bs4.BeautifulSoup(markup=html, features='lxml')
                 page_height = browser.execute_script("return document.body.scrollHeight")
-                self.logger.info(f"webdriver loaded page of height {page_height}")
+                self.logger_obj.info(f"webdriver loaded page of height {page_height}")
 
                 # Contrast with parse_relations_page(), which *does* need to
                 # interact with the page further.
@@ -522,7 +522,7 @@ class Page:
                 # is loaded (may be other lazy-loaded elements) and so that
                 # parse_relations_page() starts from the bottom.
                 last_height = browser.execute_script("return document.body.scrollHeight")
-                self.logger.info(f"webdriver loaded initial page height {last_height}")
+                self.logger_obj.info(f"webdriver loaded initial page height {last_height}")
                 while True:
 
                     # The most effective way to scroll the amount needed is to
@@ -547,10 +547,10 @@ class Page:
                     # scrolling is done and the loop exits.
                     new_height = browser.execute_script("return document.body.scrollHeight")
                     if new_height == last_height:
-                        self.logger.info(f"webdriver scrolled down to page height {last_height} and finished scrolling")
+                        self.logger_obj.info(f"webdriver scrolled down to page height {last_height} and finished scrolling")
                         break
                     last_height = new_height
-                    self.logger.info(f"webdriver scrolled down to page height {last_height}")
+                    self.logger_obj.info(f"webdriver scrolled down to page height {last_height}")
 
                 # Time to parse the page. More scrolling and detection of
                 # elements will be involved so parse_relations_page() takes the
@@ -561,10 +561,10 @@ class Page:
         except (selenium.common.exceptions.NoSuchElementException, selenium.common.exceptions.WebDriverException):
             # selenium.webdriver failed fsr. There's no diagnosing this sort of
             # thing, so a Failed_Request is returned.
-            self.logger.info("webdriver experienced an internal error, failing")
+            self.logger_obj.info("webdriver experienced an internal error, failing")
             return Failed_Request(self.host, webdriver_error=True)
         finally:
-            self.logger.info("closing out webdriver Firefox instance")
+            self.logger_obj.info("closing out webdriver Firefox instance")
             browser.quit()
             del browser
 
@@ -580,7 +580,7 @@ class Page:
         :rtype:  Failed_Request or int
         """
         # FIXME should draw its post age threshold from a global constant
-        self.logger.info(f"parsing profile at {self.url}")
+        self.logger_obj.info(f"parsing profile at {self.url}")
         # FIXME correct time tag parsing to reflect the latest format in use
 #       time_tags = self.document.find_all('time', {'class': 'time-ago'})
 #        if len(time_tags) == 0:
@@ -653,7 +653,7 @@ class Page:
                         links collected.
         :rtype:         Failed_Request or int
         """
-        self.logger.info(f"parsing {self.relation_type} at {self.url}")
+        self.logger_obj.info(f"parsing {self.relation_type} at {self.url}")
 
         # This is a dynamic page, so the program parses the dynamic form of the
         # following/followers page, which takes quite a lot of work.
@@ -679,7 +679,7 @@ class Page:
                 total_article_tags_count = loaded_article_tag_count = len(article_tag_text_by_data_id)
 
                 # Beginning the process of scrolling around the document.
-                self.logger.info(f"using selenium.webdriver to page over dynamic {self.relation_type} page forcing "
+                self.logger_obj.info(f"using selenium.webdriver to page over dynamic {self.relation_type} page forcing "
                             f"<article> tags to load; found {len(article_tag_text_by_data_id)} <article> tags")
                 pass_counter = 1
                 # FIXME why doesn't this loop just scroll by sending <pgup>?
@@ -722,7 +722,7 @@ class Page:
                     loaded_article_tag_count = len(tuple(filter(lambda tag_text: not tag_text,
                                                                 article_tag_text_by_data_id.values())))
                     empty_article_tags_count_diff = total_article_tags_count - loaded_article_tag_count
-                    self.logger.info(f"pass #{pass_counter}: {empty_article_tags_count_diff} <article> tags text found")
+                    self.logger_obj.info(f"pass #{pass_counter}: {empty_article_tags_count_diff} <article> tags text found")
                     pass_counter += 1
 
             except (selenium.common.exceptions.NoSuchElementException, selenium.common.exceptions.WebDriverException):
@@ -895,7 +895,7 @@ class Page:
             rows = data_store.execute(select_sql)
             if rows:
                 # If so, return 0.
-                self.logger.info(f"page {self.page_number} of {relation} for "
+                self.logger_obj.info(f"page {self.page_number} of {relation} for "
                                  f"@{self.username}@{self.host} already in database")
                 return 0
 
@@ -938,7 +938,7 @@ class Page:
                     except MySQLdb._exceptions.IntegrityError:
                         # Whatever is causing this error, at least the other
                         # rows got saved.
-                        self.logger.info(f"got an SQL IntegrityError when inserting {relation_handle.handle} %s "
+                        self.logger_obj.info(f"got an SQL IntegrityError when inserting {relation_handle.handle} %s "
                                          f"{profile_handle.handle} into table relations" % (
                                              'follower of' if relation == 'followers' else relation))
                     else:
@@ -946,7 +946,7 @@ class Page:
             else:
                 insertion_count = len(value_sql_list)
             relation_expr = 'followings' if relation == 'following' else relation
-            self.logger.info(f"saved {insertion_count} {relation_expr} to the database")
+            self.logger_obj.info(f"saved {insertion_count} {relation_expr} to the database")
             return insertion_count
 
 
@@ -954,7 +954,7 @@ class Instance:
     """
     Represents a mastodon instance.
     """
-    __slots__ = ('host', 'logger', 'rate_limit_expires', 'attempts', 'malfunctioning', 'suspended', 'unparseable',
+    __slots__ = ('host', 'logger_obj', 'rate_limit_expires', 'attempts', 'malfunctioning', 'suspended', 'unparseable',
                  'robots_txt_file_obj')
 
     @property
@@ -969,7 +969,7 @@ class Instance:
                 else 'ingoodstanding'
 
     # FIXME implement a 4th failure mode, 'blocked'
-    def __init__(self, host, logger, malfunctioning=False, suspended=False, unparseable=False, rate_limited=False,
+    def __init__(self, host, logger_obj, malfunctioning=False, suspended=False, unparseable=False, rate_limited=False,
                        x_ratelimit_limit=None, attempts=0):
         """
         Instances a Instance object.
@@ -979,8 +979,8 @@ class Instance:
         :type attempts:           int, optional
         :param host:              The hostname of the instance (str).
         :type host:               str
-        :param logger:            The logger object to log events to.
-        :type logger:             logging.Logger
+        :param logger_obj:        The Logger object to log events to.
+        :type logger_obj:         logging.Logger
         :param malfunctioning:    Whether the instance is malfunctioning; ie.  returning
                                   a 500-class error when contacted.
         :type malfunctioning:     bool, optional
@@ -1001,7 +1001,7 @@ class Instance:
         """
         # FIXME should do input checking on args
         self.host = host
-        self.logger = logger
+        self.logger_obj = logger_obj
         self.attempts = attempts
         self.malfunctioning = malfunctioning
         self.suspended = suspended
@@ -1013,7 +1013,7 @@ class Instance:
         else:
             self.rate_limit_expires = 0.0
         if not (malfunctioning or suspended or unparseable):
-            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/", self.logger)
+            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/", self.logger_obj)
         else:
             self.robots_txt_file_obj = None
 
@@ -1035,33 +1035,33 @@ class Instance:
         # Otherwise the default ratelimit period of 300 seconds is used.
         else:
             self.rate_limit_expires = time.time() + 300.0
-        self.logger.info(f"set rate limit on instance '{self.host}': rate limit expires "
+        self.logger_obj.info(f"set rate limit on instance '{self.host}': rate limit expires "
                          f"at {self.rate_limit_expires_isoformat}")
 
     @classmethod
-    def fetch_all_instances(self, data_store, logger):
+    def fetch_all_instances(self, data_store, logger_obj):
         """
         Loads all lines from the bad_instances table, converts them to Instance objects,
         and returns a dict mapping hostnames to Instance objects.
 
         :param data_store: The Data_Store object to use to connect to the database.
         :type data_store:  Data_Store
-        :param logger:     The logger object to use to log events to.
-        :type logger:      logging.Logger
+        :param logger_obj: The Logger object to use to log events to.
+        :type logger_obj:  logging.Logger
         :return:           A dict mapping hostnames (strs) to Instance objects.
         :rtype:            dict
         """
         instances_dict = dict()
         for row in data_store.execute("SELECT instance, issue FROM bad_instances;"):
             host, issue = row
-            instances_dict[host] = Instance(host, logger, malfunctioning=(issue == 'malfunctioning'),
+            instances_dict[host] = Instance(host, logger_obj, malfunctioning=(issue == 'malfunctioning'),
                                                           suspended=(issue == 'suspended'),
                                                           unparseable=(issue == 'unparseable'))
-        logger.info(f"retrieved {len(instances_dict)} instances from bad_instances table")
+        logger_obj.info(f"retrieved {len(instances_dict)} instances from bad_instances table")
         return instances_dict
 
     @classmethod
-    def save_instances(self, instances_dict, data_store, logger):
+    def save_instances(self, instances_dict, data_store, logger_obj):
         """
         Accepts a dict mapping hostnames to Instance objects, and commits every novel
         one to the database. (Class method.)
@@ -1070,13 +1070,13 @@ class Instance:
         :type instances_dict:  dict
         :param data_store:     The Data_Store object to use to connect to the database.
         :type data_store:      Data_Store
-        :param logger:         The logger object to use to log events to.
-        :type logger:          logging.Logger
+        :param logger_obj:     The Logger object to use to log events to.
+        :type logger_obj:      logging.Logger
         :return:               None
         :rtype:                types.NoneType
         """
         # FIXME should detect changed instance state between database and memory
-        existing_instances_dict = self.fetch_all_instances(data_store, logger)
+        existing_instances_dict = self.fetch_all_instances(data_store, logger_obj)
         instances_to_insert = dict()
         # instances_to_insert dict is built by (effectively) subtracting
         # existing_instances_dict from instances_dict.
@@ -1089,7 +1089,7 @@ class Instance:
         # Building the VALUES (row), (row), (row), etc. portion of the statement.
         values_stmts = tuple(f"('{instance.host}','{instance.issue}')" for instance in instances_to_insert.values())
         insert_sql = "INSERT INTO bad_instances (instance, issue) VALUES %s;" % ', '.join(values_stmts)
-        logger.info(f"saving {len(instances_to_insert)} bad instances to bad_instances table")
+        logger_obj.info(f"saving {len(instances_to_insert)} bad instances to bad_instances table")
         data_store.execute(insert_sql)
 
     def still_rate_limited(self):
@@ -1125,13 +1125,13 @@ class Instance:
         result = data_store.execute(f"SELECT instance, issue FROM bad_instances WHERE instance = '{self.host}';")
         if result:
             return False
-        self.logger.info(f"saving bad instance {self.host} to bad_instances table")
+        self.logger_obj.info(f"saving bad instance {self.host} to bad_instances table")
         data_store.execute(f"INSERT INTO bad_instances (instance, issue) VALUES ('{self.host}', '{status}');")
         return True
 
     def fetch_robots_txt(self):
         try:
-            robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/", self.logger)
+            robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/", self.logger_obj)
             robots_txt_file_obj.load_and_parse()
         except Internal_Exception:
             robots_txt_file_obj = None
@@ -1141,7 +1141,7 @@ class Instance:
         if self.malfunctioning or self.suspended or self.unparseable:
             raise Internal_Exception(f"instance {self.host} has status {self.status}; nothing there can be fetched")
         if self.robots_txt_file_obj is None:
-            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/", self.logger)
+            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/", self.logger_obj)
         if not self.robots_txt_file_obj.has_been_loaded():
             self.robots_txt_file_obj.load_and_parse()
         return self.robots_txt_file_obj.can_fetch(query_url)
@@ -1155,7 +1155,7 @@ class Robots_Txt_File:
     Represents a robots.txt file, implementing functionality to test whether a
     User-Agent + path combination is allowed or not.
     """
-    __slots__ = 'user_agent', 'url', 'robots_dict', 'logger'
+    __slots__ = 'user_agent', 'url', 'robots_dict', 'logger_obj'
 
     user_agent_re = re.compile("^(?=User-Agent: )", re.I | re.M)
     disallow_re = re.compile("^Disallow: ", re.I)
@@ -1166,7 +1166,7 @@ class Robots_Txt_File:
         return urllib.parse.urlparse(self.url).netloc
 
     #FIXME add crawl-delay support, somehow
-    def __init__(self, user_agent, url, logger):
+    def __init__(self, user_agent, url, logger_obj):
         """
         Instances a Robots_Txt_File object.
 
@@ -1178,7 +1178,7 @@ class Robots_Txt_File:
         """
         self.user_agent = user_agent
         self.url = url
-        self.logger = logger
+        self.logger_obj = logger_obj
         self.robots_dict = None
 
     def load_and_parse(self):
@@ -1296,28 +1296,28 @@ class Robots_Txt_File:
     def _read_robots_txt(self, robots_txt_url):
         # Retrieve the robots.txt file, extract the content and return it.
         try:
-            self.logger.info(f"retrieving robots.txt for {self.host}")
+            self.logger_obj.info(f"retrieving robots.txt for {self.host}")
             response = requests.get(robots_txt_url)
         except requests.exceptions.SSLError:
-            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: SSL error ")
+            self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: SSL error ")
             return ''
         except requests.exceptions.TooManyRedirects:
-            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: too many redirects")
+            self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: too many redirects")
             return ''
         except requests.exceptions.ConnectTimeout:
-            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: connection timeout")
+            self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: connection timeout")
             return ''
         except requests.exceptions.ReadTimeout:
-            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: read timeout")
+            self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: read timeout")
             return ''
         except requests.exceptions.ConnectionError:
-            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: connection error")
+            self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: connection error")
             return ''
         except IOError:
-            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: python IOError")
+            self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: python IOError")
             return ''
         if response.status_code != 200:
-            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: status code {response.status_code}")
+            self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: status code {response.status_code}")
             return ''
         robots_txt_content = response.content.decode('utf-8')
         return robots_txt_content
@@ -1331,13 +1331,13 @@ class Robots_Txt_File:
         # Breaks the robots.txt file content on "^User-Agent: " and iterate
         # across the blocks starting at the second substring.
         user_agent_blocks = self.user_agent_re.split(robots_txt_content)
-        self.logger.info(f"parsing robots.txt for {self.host}")
+        self.logger_obj.info(f"parsing robots.txt for {self.host}")
         for user_agent_block in user_agent_blocks[1:]:
             user_agents, disallow_lines, allow_lines = set(), set(), set()
             index = 0
             robot_lines = user_agent_block.split("\n")
             if not len(robot_lines):
-                self.logger.info(f"robots.txt for {self.host} is zero-length")
+                self.logger_obj.info(f"robots.txt for {self.host} is zero-length")
                 return robots_dict
             try:
                 while self.user_agent_re.match(robot_lines[index]):
@@ -1351,7 +1351,7 @@ class Robots_Txt_File:
                 # point. But the program is still throwing IndexErrors at this
                 # point so it'll log & catch them until I have examples of what
                 # robots.txts are creating the error and can trace it.
-                self.logger.warn(f"parsing robots.txt for {self.host} failed with IndexError "
+                self.logger_obj.warn(f"parsing robots.txt for {self.host} failed with IndexError "
                                  "despite checking for zero-length list")
                 return robots_dict
 
@@ -1365,5 +1365,5 @@ class Robots_Txt_File:
             directives_dict = {"Allow": allow_lines, "Disallow": disallow_lines}
             for user_agent in user_agents:
                 robots_dict[user_agent] = directives_dict
-        self.logger.info(f"robots.txt for {self.host} parsed")
+        self.logger_obj.info(f"robots.txt for {self.host} parsed")
         return robots_dict
