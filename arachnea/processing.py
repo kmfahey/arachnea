@@ -280,6 +280,9 @@ class Main_Processor:
         else:
             return self.data_store_obj.fulltext_profiles_search(fulltext_pos_query)
 
+    def update_profiles_set_considered(self, handles, considered):
+        return self.data_store_obj.update_profiles_set_considered(handles, considered)
+
 
 class Handle_Processor(object):
     """
@@ -516,6 +519,8 @@ class Data_Store(object):
     """
     __slots__ = 'db_host', 'db_user', 'db_password', 'db_database', 'db_connection', 'db_cursor', 'logger'
 
+    handle_re = re.compile("^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z0-9]+$")
+
     def __init__(self, db_host, db_user, db_password, db_database, logger):
         """
         Instances the Data_Store object.
@@ -625,6 +630,39 @@ class Data_Store(object):
                                AND considered = 0;"""
         return [(Handle(handle_id, username, instance), profile_bio_markdown)
                 for handle_id, username, instance, profile_bio_markdown in self.execute(search_sql)]
+
+    @classmethod
+    def validate_handle(self, handle):
+        return bool(self.handle_re.match(handle))
+
+    def update_profiles_set_considered(self, handles, considered):
+        """
+        Updates the profiles table, setting considered = {considered argument} where the
+        handle is one of the handles in the handles argument.
+
+        :param handles:         A sequence of strs, each of which is a mastodon handle
+                                in @ form.
+        :type handles:          tuple, list, set, map, filter, or types.GeneratorType
+        :param considered:      The new value to set the `considered` BOOLEAN column to;
+                                either 0, 1, False, or True.
+        :type considered:       int or bool
+        :return:                The number of rows affected by the UPDATE statement.
+        :rtype:                 int
+        """
+        if considered not in (0.0, 1.0, 0, 1, False, True):
+            raise Internal_Exception("the 'considered' argument must be 0, 1, False, or True")
+        considered = int(considered)
+        iter_count = 0
+        for handle in handles:
+            if not self.handle_re.match(handle):
+                raise Internal_Exception(f"the 'handles' argument must consist of a sequence of strs that match the "
+                                         f"regex {self.handle_re.pattern}; element #{iter_count} was '{handle}'")
+            iter_count += 1
+        handles_list_sql = "({handles_list})".format(handles_list=', '.join(f"'{handle}'" for handle in handles))
+        update_sql = f"""UPDATE profiles SET considered = {considered}
+                         WHERE CONCAT('@', username, '@', instance) IN {handles_list_sql};"""
+        self.execute(update_sql)
+        return self.db_cursor.rowcount
 
     def _handle_select_generator(self, select_sql):
         """

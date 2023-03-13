@@ -4,6 +4,7 @@ import decouple
 import optparse
 import shutil
 import collections
+import sys
 
 from arachnea.processing import Main_Processor, Data_Store
 
@@ -23,6 +24,14 @@ parser.add_option("-s", "--web-spider", action="store_true", default=False, dest
 parser.add_option("-f", "--fulltext-search", action="store_true", default=False, dest="fulltext_search",
                   help="operate in database fulltext search mode, accepting query terms on the commandline and "
                        "querying the profile table for profiles with matching bios, which are then displayed")
+parser.add_option("-m", "--mark-handles-considered", action="store_true", default=False, dest="mark_handles_considered_eq_1",
+                  help="operate in mark handles considered mode, accepting handles in @ form on standard input, "
+                       "and setting considered = 1 on each corresponding row in the profiles table; "
+                       "rows with considered = 1 don't show up in fulltext searches")
+parser.add_option("-M", "--mark-handles-not-considered", action="store_true", default=False, dest="mark_handles_considered_eq_0",
+                  help="operate in mark handles NOT considered mode, accepting handles in @ form on standard input, "
+                       "and setting considered = 0 on each corresponding row in the profiles table; "
+                       "a row must have considered = 0 to show up in fulltext searches")
 
 ### WEB SPIDER OPTIONS ###
 parser.add_option("-C", "--handles-from-args", action="store_true", default=False, dest="handles_from_args",
@@ -73,6 +82,9 @@ parser.add_option("-u", "--output-urls", action="store_true", default=False, des
                        "handles, one per line")
 ### END FULLTEXT SEARCH OPTIONS ###
 
+# N.B. The 'mark handles considered' and 'mark handles not considered' modes
+# have no flags to modify their execution at the moment.
+
 
 def main():
     """
@@ -87,10 +99,10 @@ def main():
     (options, args) = parser.parse_args()
 
     # Instance the main logger. This is the only logger needed unless threaded mode is used.
-    if options.fulltext_search:
-        main_logger_obj = Main_Processor.instance_logger_obj("main", options.use_threads, no_output=True)
-    else:
+    if options.web_spider:
         main_logger_obj = Main_Processor.instance_logger_obj("main", options.use_threads)
+    else:
+        main_logger_obj = Main_Processor.instance_logger_obj("main", options.use_threads, no_output=True)
 
     validate_cmdline_flags(options, args, main_logger_obj)
 
@@ -100,6 +112,8 @@ def main():
         execute_web_spider_mode(options, args, main_logger_obj)
     elif options.fulltext_search:
         execute_fulltext_search_mode(options, args, main_logger_obj)
+    elif options.mark_handles_considered_eq_1 or options.mark_handles_considered_eq_0:
+        execute_mark_handles_considered_or_not_mode(options, args, main_logger_obj)
 
 
 def validate_cmdline_flags(options, args, logger_obj):
@@ -122,6 +136,14 @@ def validate_cmdline_flags(options, args, logger_obj):
             if arg_value:
                 print(f"with {mode_flag} flag used, {flag} cannot be used; does not apply to {mode_name} mode")
                 exit(1)
+
+    # Compact way of testing whether more than one of these four booleans is
+    # True. Better than constructing a big boolean expression that checks each
+    # permuation round-robin.
+    if ((options.web_spider, options.fulltext_search, options.mark_handles_considered_eq_1,
+             options.mark_handles_considered_eq_0).count(True) > 1):
+        print("please specify only one of -s, -f, -m or -M; these flags are mutually exclusive")
+        exit(1)
 
     # Argument integrity check; catching illegal combinations of commandline
     # arguments and emitting the appropriate error messages.
@@ -175,8 +197,8 @@ def validate_cmdline_flags(options, args, logger_obj):
             print("with -s flag used, -W was used but -w was not; -W value is unusable if not in -w mode")
             exit(1)
         elif options.conn_err_wait_time and options.conn_err_wait_time < 0:
-            print("with -s, -w and -W flags used, argument for -W is a negative number; please only use an argument "
-                  "of 0.0 or greater with -W flag")
+            print("with -s flag used, and -w and -W flags used, argument for -W is a negative number; please only "
+                  "use an argument of 0.0 or greater with -W flag")
             exit(1)
     elif options.fulltext_search:
         _exclude_non_mode_flags("-f", "webspider",
@@ -201,9 +223,18 @@ def validate_cmdline_flags(options, args, logger_obj):
             print("with -f flag used, using -c flag with either -i or -u flags is nonsensical, can't control "
                   "the width of the output table while also not printing it")
             exit(1)
-    else:
-        print("neither -s or -f flag used; please specify one of either webspider mode or fulltext search mode")
-        exit(1)
+    elif options.mark_handles_considered_eq_0 or options.mark_handles_considered_eq_1:
+        illegal_flags_d = {"-c": options.width_cols, "-Q": options.fulltext_pos_query, "-N": options.fulltext_neg_query,
+                           "-i": options.output_handles, "-u": options.output_urls, "-C": options.handles_from_args,
+                           "-H": options.handles_join_profiles, "-R": options.relations_join_profiles,
+                           "-p": options.fetch_profiles_only, "-q": options.fetch_relations_only,
+                           "-r": options.fetch_profiles_and_relations, "-t": options.use_threads,
+                           "-w": options.dont_discard_bc_wifi, "-W": options.conn_err_wait_time, "-x": options.dry_run}
+
+        if options.mark_handles_considered_eq_0:
+            _exclude_non_mode_flags("-m", "mark handles considered", illegal_flags_d)
+        else:
+            _exclude_non_mode_flags("-M", "mark handles not considered", illegal_flags_d)
 
 
 def log_cmdline_flags(options, logger_obj):
@@ -252,6 +283,13 @@ def log_cmdline_flags(options, logger_obj):
         elif options.output_urls:
             logger_obj.info("got -u flag, will omit output table and just output the profile URLs of matching "
                             "handles, one per line")
+    elif options.mark_handles_considered_eq_1:
+        logger_obj.info("got -m flag, will accept handles on standard input and update the profiles table to "
+                        "set considered = 1 on matching rows")
+    elif options.mark_handles_considered_eq_0:
+        logger_obj.info("got -m flag, will accept handles on standard input and update the profiles table to "
+                        "set considered = 0 on matching rows")
+
 
 
 def execute_web_spider_mode(options, args, main_logger_obj):
@@ -376,6 +414,28 @@ def execute_fulltext_search_mode(options, args, logger_obj):
                                  prq.max_handle_at_len, prq.max_handle_url_len)
 
     return True
+
+
+def execute_mark_handles_considered_or_not_mode(options, args, logger_obj):
+    considered = int(options.mark_handles_considered_eq_1)
+
+    handles = list()
+
+    for stdin_line in sys.stdin:
+        stdin_data = stdin_line.rstrip("\n")
+        if not Data_Store.validate_handle(stdin_data):
+            print(f"with -m or -M flag used, got an argument on the commandline which isn't a handle: {stdin_data}")
+        handles.append(stdin_data)
+
+    main_processor_obj = Main_Processor(options, args, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
+
+    match main_processor_obj.update_profiles_set_considered(handles, considered):
+        case 0:
+            print("No rows affected.")
+        case 1:
+            print("1 row affected.")
+        case rows:
+            print(f"{rows} rows affected.")
 
 
 def query_output_prereqs(options, results, terminal_width_cols):
