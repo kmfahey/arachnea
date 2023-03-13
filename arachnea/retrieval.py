@@ -196,7 +196,7 @@ class Page_Fetcher:
                     self.logger.info(f"failed to load {url}, host malfunctioning: connection error "
                                      f"(error #{instance.attempts} for this host)")
                 else:
-                    self.logger.info(f"failed to load {url}, host malfunctioning: got status code {result.status_code}"
+                    self.logger.info(f"failed to load {url}, host malfunctioning: got status code {result.status_code} "
                                      f"(error #{instance.attempts} for this host)")
 
             elif result.user_deleted:

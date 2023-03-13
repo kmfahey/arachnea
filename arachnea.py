@@ -65,6 +65,12 @@ parser.add_option("-Q", "--fulltext-query", action="store", default='', type="st
 parser.add_option("-N", "--fulltext-negative-query", action="store", default='', type="str", dest="fulltext_neg_query",
                   help="in fulltext search mode, match bios against this boolean expression to exclude them from the "
                        "results when they've matched the -Q expression")
+parser.add_option("-i", "--output-handles", action="store_true", default=False, dest="output_handles",
+                  help="in fulltext search mode, suppress normal output; just output matching handles in @ form, "
+                       "one per line")
+parser.add_option("-u", "--output-urls", action="store_true", default=False, dest="output_urls",
+                  help="in fulltext search mode, suppress normal output; just output the profile URLs of matching "
+                       "handles, one per line")
 ### END FULLTEXT SEARCH OPTIONS ###
 
 
@@ -94,6 +100,158 @@ def main():
         execute_web_spider_mode(options, args, main_logger_obj)
     elif options.fulltext_search:
         execute_fulltext_search_mode(options, args, main_logger_obj)
+
+
+def validate_cmdline_flags(options, args, logger_obj):
+    """
+    Validates the commandline flags received. Checks for invalid combinations of
+    flags. If an invalid combination is found, an error message is printed and the
+    program exits with status 1.
+
+    :param options:    The options object that is the first return value of
+                       optparse.OptionParser.parse_args().
+    :type options:     optparse.Values
+    :param logger_obj: The logger object to use to log events.
+    :type logger_obj:  logger.Logger
+    :return:           None
+    :rtype:            types.NoneType
+    """
+    def _exclude_non_mode_flags(mode_flag, mode_name, illeg_args):
+        # Private function that iterates over dict of illegal arguments.
+        for flag, arg_value in illeg_args.items():
+            if arg_value:
+                print(f"with {mode_flag} flag used, {flag} cannot be used; does not apply to {mode_name} mode")
+                exit(1)
+
+    # Argument integrity check; catching illegal combinations of commandline
+    # arguments and emitting the appropriate error messages.
+    if options.web_spider:
+        _exclude_non_mode_flags("-s", "fulltext search",
+                                {"-c": options.width_cols, "-Q": options.fulltext_pos_query,
+                                 "-N": options.fulltext_neg_query, "-i": options.output_handles,
+                                 "-u": options.output_urls})
+
+        if options.width_cols:
+            print("with -s flag used, -c cannot be used; does not apply to webspider mode")
+            exit(1)
+        elif (not options.fetch_profiles_only and not options.fetch_relations_only
+                  and not options.fetch_profiles_and_relations):
+            print("when -s flag is used, please specify one of either -p, -q or -r on the commandline to choose "
+                  "the scraping mode")
+            exit(1)
+        elif options.fetch_profiles_only and options.fetch_relations_only or \
+                options.fetch_profiles_only and options.fetch_profiles_and_relations or \
+                options.fetch_relations_only and options.fetch_profiles_and_relations:
+            print("when -s flag was used, more than just one of -p, -q and -r used on the commandline; please "
+                  "supply only one")
+            exit(1)
+        elif ((options.fetch_profiles_only or options.fetch_profiles_and_relations)
+                and not (options.handles_join_profiles or options.relations_join_profiles
+                         or options.handles_from_args)):
+            print("when -s flag is used, if -p or -r is used, please specify one of -H, -R or -C on the commandline "
+                  "to indicate where to source handles to process")
+            exit(1)
+        elif (options.fetch_profiles_only or options.fetch_profiles_and_relations) and \
+                ((options.handles_join_profiles and options.relations_join_profiles) or
+                 (options.handles_join_profiles and options.handles_from_args) or
+                 (options.relations_join_profiles and options.handles_from_args)):
+            print("when -s flag is used, with either -p or -r, please specify _only one_ of -H, -R or -C on the "
+                  "commandline to indicate where to source handles to process")
+            exit(1)
+        elif options.fetch_relations_only and (options.handles_join_profiles or options.relations_join_profiles):
+            print("with -s and -q flags used, please don't specify -H or -R; relations-only fetching sources its "
+                  "handle from those present in the profiles table which aren't in the relations table")
+            exit(1)
+        elif options.handles_from_args and not args:
+            print("when -s and -C flags are used, please supply one or more handles on the commandline")
+            exit(1)
+        elif not options.handles_from_args and args:
+            print("with -s flag used, -C was not used, but args supplied on the commandline")
+            exit(1)
+        elif options.use_threads and options.dry_run:
+            print("with -s flag used, and both -t and -x used; cannot run in these two modes simultaneously")
+            exit(1)
+        elif options.conn_err_wait_time and not options.dont_discard_bc_wifi:
+            print("with -s flag used, -W was used but -w was not; -W value is unusable if not in -w mode")
+            exit(1)
+        elif options.conn_err_wait_time and options.conn_err_wait_time < 0:
+            print("with -s, -w and -W flags used, argument for -W is a negative number; please only use an argument "
+                  "of 0.0 or greater with -W flag")
+            exit(1)
+    elif options.fulltext_search:
+        _exclude_non_mode_flags("-f", "webspider",
+                                {"-C": options.handles_from_args, "-H": options.handles_join_profiles,
+                                 "-R": options.relations_join_profiles, "-p": options.fetch_profiles_only,
+                                 "-q": options.fetch_relations_only, "-r": options.fetch_profiles_and_relations,
+                                 "-t": options.use_threads, "-w": options.dont_discard_bc_wifi,
+                                 "-W": options.conn_err_wait_time, "-x": options.dry_run})
+
+        if options.width_cols < 0:
+            print("with -f flag used, argument for -c is a negative number; please only use an argument "
+                  "of 1 or greater with -c flag")
+            exit(1)
+        elif not options.fulltext_pos_query:
+            print("with -f flag used, -Q flag must be used to supply the search query to conduct the fulltext "
+                  "search with")
+            exit(1)
+        elif options.output_handles and options.output_urls:
+            print("with -f flag used, cannot use both -i and -u flags: options are mutually exclusive")
+            exit(1)
+        elif options.width_cols and (options.output_handles or options.output_urls):
+            print("with -f flag used, using -c flag with either -i or -u flags is nonsensical, can't control "
+                  "the width of the output table while also not printing it")
+            exit(1)
+    else:
+        print("neither -s or -f flag used; please specify one of either webspider mode or fulltext search mode")
+        exit(1)
+
+
+def log_cmdline_flags(options, logger_obj):
+    """
+    Logs the commandline flags specified.
+
+    :return:           None
+    :rtype:            types.NoneType
+    """
+    # Logging the commandline flags received.
+    if options.web_spider:
+        logger_obj.info("got -s flag, entering webspider mode")
+        if options.fetch_profiles_only:
+            logger_obj.info("got -p flag, entering profiles-only mode")
+        elif options.fetch_relations_only:
+            logger_obj.info("got -q flag, entering relations-only mode")
+        else:
+            logger_obj.info("got -r flag, entering profiles & relations mode")
+
+        if options.relations_join_profiles:
+            logger_obj.info("got -R flag, loading handles present in the relations table "
+                                         "but absent from the profiles tables")
+        elif options.handles_join_profiles:
+            logger_obj.info("got -H flag, loading handles present in the handles table "
+                                         "but absent from the profiles table")
+        elif options.fetch_relations_only:
+            logger_obj.info("got -q flag, loading handles present in the profiles table "
+                                         "but absent from the relations table")
+
+        if options.dry_run:
+            logger_obj.info("got -x flag, doing a dry run")
+
+        if options.dont_discard_bc_wifi:
+            logger_obj.info("got -w flag, saving handles for later if a generic connection error occurs")
+        if options.conn_err_wait_time:
+            logger_obj.info(f"got -W flag, when saving handles that were unfetchable due to a connection error, "
+                            f"will sleep {options.conn_err_wait_time} seconds each time")
+    elif options.fulltext_search:
+        logger_obj.info("got -s flag, entering fulltext search mode")
+        if options.width_cols:
+            logger_obj.info("got -c flag, when printing results will conform the output table to a screen width "
+                            f"of {options.width_cols}")
+        if options.output_handles:
+            logger_obj.info("got -i flag, will omit output table and just output matching handles in @ form, "
+                            "one per line")
+        elif options.output_urls:
+            logger_obj.info("got -u flag, will omit output table and just output the profile URLs of matching "
+                            "handles, one per line")
 
 
 def execute_web_spider_mode(options, args, main_logger_obj):
@@ -163,6 +321,15 @@ def execute_fulltext_search_mode(options, args, logger_obj):
         results = main_processor_obj.fulltext_profiles_search(options.fulltext_pos_query, options.fulltext_neg_query)
     else:
         results = main_processor_obj.fulltext_profiles_search(options.fulltext_pos_query)
+
+    if options.output_handles:
+        for handle_obj, _ in results:
+            print(handle_obj.handle)
+        exit(0)
+    elif options.output_urls:
+        for handle_obj, _ in results:
+            print(handle_obj.profile_url)
+        exit(0)
 
     # Reporting results.
     if options.fulltext_neg_query:
@@ -368,143 +535,6 @@ def print_query_output_2_col(handles_at_form_padded, handles_urls_padded, max_ha
 
     print(table_top_bottom_border)
 
-
-def validate_cmdline_flags(options, args, logger_obj):
-    """
-    Validates the commandline flags received. Checks for invalid combinations of
-    flags. If an invalid combination is found, an error message is printed and the
-    program exits with status 1.
-
-    :param options:    The options object that is the first return value of
-                       optparse.OptionParser.parse_args().
-    :type options:     optparse.Values
-    :param logger_obj: The logger object to use to log events.
-    :type logger_obj:  logger.Logger
-    :return:           None
-    :rtype:            types.NoneType
-    """
-    def _exclude_non_mode_flags(mode_flag, mode_name, illeg_args):
-        # Private function that iterates over dict of illegal arguments.
-        for flag, arg_value in illeg_args.items():
-            if arg_value:
-                print(f"with {mode_flag} flag used, {flag} cannot be used; does not apply to {mode_name} mode")
-                exit(1)
-
-    # Argument integrity check; catching illegal combinations of commandline
-    # arguments and emitting the appropriate error messages.
-    if options.web_spider:
-        _exclude_non_mode_flags("-s", "fulltext search",
-                                {"-c": options.width_cols, "-Q": options.fulltext_pos_query,
-                                 "-N": options.fulltext_neg_query})
-
-        if options.width_cols:
-            print("with -s flag used, -c cannot be used; does not apply to webspider mode")
-            exit(1)
-        elif (not options.fetch_profiles_only and not options.fetch_relations_only
-                  and not options.fetch_profiles_and_relations):
-            print("when -s flag is used, please specify one of either -p, -q or -r on the commandline to choose "
-                  "the scraping mode")
-            exit(1)
-        elif options.fetch_profiles_only and options.fetch_relations_only or \
-                options.fetch_profiles_only and options.fetch_profiles_and_relations or \
-                options.fetch_relations_only and options.fetch_profiles_and_relations:
-            print("when -s flag was used, more than just one of -p, -q and -r used on the commandline; please "
-                  "supply only one")
-            exit(1)
-        elif ((options.fetch_profiles_only or options.fetch_profiles_and_relations)
-                and not (options.handles_join_profiles or options.relations_join_profiles
-                         or options.handles_from_args)):
-            print("when -s flag is used, if -p or -r is used, please specify one of -H, -R or -C on the commandline "
-                  "to indicate where to source handles to process")
-            exit(1)
-        elif (options.fetch_profiles_only or options.fetch_profiles_and_relations) and \
-                ((options.handles_join_profiles and options.relations_join_profiles) or
-                 (options.handles_join_profiles and options.handles_from_args) or
-                 (options.relations_join_profiles and options.handles_from_args)):
-            print("when -s flag is used, with either -p or -r, please specify _only one_ of -H, -R or -C on the "
-                  "commandline to indicate where to source handles to process")
-            exit(1)
-        elif options.fetch_relations_only and (options.handles_join_profiles or options.relations_join_profiles):
-            print("with -s and -q flags used, please don't specify -H or -R; relations-only fetching sources its "
-                  "handle from those present in the profiles table which aren't in the relations table")
-            exit(1)
-        elif options.handles_from_args and not args:
-            print("when -s and -C flags are used, please supply one or more handles on the commandline")
-            exit(1)
-        elif not options.handles_from_args and args:
-            print("with -s flag used, -C was not used, but args supplied on the commandline")
-            exit(1)
-        elif options.use_threads and options.dry_run:
-            print("with -s flag used, and both -t and -x used; cannot run in these two modes simultaneously")
-            exit(1)
-        elif options.conn_err_wait_time and not options.dont_discard_bc_wifi:
-            print("with -s flag used, -W was used but -w was not; -W value is unusable if not in -w mode")
-            exit(1)
-        elif options.conn_err_wait_time and options.conn_err_wait_time < 0:
-            print("with -s, -w and -W flags used, argument for -W is a negative number; please only use an argument "
-                  "of 0.0 or greater with -W flag")
-            exit(1)
-    elif options.fulltext_search:
-        _exclude_non_mode_flags("-f", "webspider",
-                                {"-C": options.handles_from_args, "-H": options.handles_join_profiles,
-                                 "-R": options.relations_join_profiles, "-p": options.fetch_profiles_only,
-                                 "-q": options.fetch_relations_only, "-r": options.fetch_profiles_and_relations,
-                                 "-t": options.use_threads, "-w": options.dont_discard_bc_wifi,
-                                 "-W": options.conn_err_wait_time, "-x": options.dry_run})
-
-        if options.width_cols < 0:
-            print("with -f flag used, argument for -c is a negative number; please only use an argument "
-                  "of 1 or greater with -c flag")
-            exit(1)
-        elif not options.fulltext_pos_query:
-            print("with -f flag used, -Q flag must be used to supply the search query to conduct the fulltext "
-                  "search with")
-            exit(1)
-    else:
-        print("neither -s or -f flag used; please specify one of either webspider mode or fulltext search mode")
-        exit(1)
-
-
-def log_cmdline_flags(options, logger_obj):
-    """
-    Logs the commandline flags specified.
-
-    :return:           None
-    :rtype:            types.NoneType
-    """
-    # Logging the commandline flags received.
-    if options.web_spider:
-        logger_obj.info("got -s flag, entering webspider mode")
-        if options.fetch_profiles_only:
-            logger_obj.info("got -p flag, entering profiles-only mode")
-        elif options.fetch_relations_only:
-            logger_obj.info("got -q flag, entering relations-only mode")
-        else:
-            logger_obj.info("got -r flag, entering profiles & relations mode")
-
-        if options.relations_join_profiles:
-            logger_obj.info("got -R flag, loading handles present in the relations table "
-                                         "but absent from the profiles tables")
-        elif options.handles_join_profiles:
-            logger_obj.info("got -H flag, loading handles present in the handles table "
-                                         "but absent from the profiles table")
-        elif options.fetch_relations_only:
-            logger_obj.info("got -q flag, loading handles present in the profiles table "
-                                         "but absent from the relations table")
-
-        if options.dry_run:
-            logger_obj.info("got -x flag, doing a dry run")
-
-        if options.dont_discard_bc_wifi:
-            logger_obj.info("got -w flag, saving handles for later if a generic connection error occurs")
-        if options.conn_err_wait_time:
-            logger_obj.info(f"got -W flag, when saving handles that were unfetchable due to a connection error, "
-                            f"will sleep {options.conn_err_wait_time} seconds each time")
-    elif options.fulltext_search:
-        logger_obj.info("got -s flag, entering fulltext search mode")
-        if options.width_cols:
-            logger_obj.info("got -c flag, when printing results will conform the output table to a screen width "
-                            f"of {options.width_cols}")
 
 
 if __name__ == "__main__":
