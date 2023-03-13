@@ -332,9 +332,11 @@ def execute_web_spider_mode(options, args, main_logger_obj):
 
 def execute_fulltext_search_mode(options, args, logger_obj):
     """
-    Execute the program's fulltext search mode, using the args argument as the
-    query terms. If args is longer than 1 term, the query terms are joined with OR
-    booleans.
+    Execute the program's fulltext search mode. Uses the content of
+    options.fulltext_pos_query as its search terms. If options.fulltext_neg_query is
+    set, uses it as accompanying negative search terms; ie. the results will be all
+    rows that match the expression in options.fulltext_pos_query but do *not* match
+    the expression in options.fulltext_neg_query.
 
     :param options:    The options object that is the first return value of
                        optparse.OptionParser.parse_args().
@@ -417,25 +419,61 @@ def execute_fulltext_search_mode(options, args, logger_obj):
 
 
 def execute_mark_handles_considered_or_not_mode(options, args, logger_obj):
+    """
+    Executes either the mark-handles-considered or the mark-handles-not-considered
+    mode. Draws a list of handles in @ form from stdin, and calls a method that
+    executes an UPDATE statement on the database's profiles table. (Executing the
+    mark-handles-considered mode with a specific list of handles, and then executing
+    the mark-handles-not-considered mode with the same handles will restore the
+    profiles table to its original state.)
+
+    :param options:    The options object that is the first return value of
+                       optparse.OptionParser.parse_args().
+    :type options:     optparse.Values
+    :param args:       The commandline arguments to the program, which are used
+                       as query terms to the fulltext search. If there's more than
+                       one, query terms are joined with OR booleans.
+    :type args:        tuple
+    :param logger_obj: The Logger object to log events to.
+    :type logger_obj:  logger.Logger
+    :return:           False if no results were found, True otherwise.
+    :rtype:            bool
+    """
     considered = int(options.mark_handles_considered_eq_1)
 
     handles = list()
 
+    # Validating data from stdin; errors out if a line doesn't validate
+    # according to Data_Store.validate_handle() (which is applying
+    # re.compile("^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z0-9]+$")). Keeps a
+    # count of lines so it can detect if stdin was zero-length, and error out in
+    # that case as well.
+
+    line_count = 0
     for stdin_line in sys.stdin:
+        line_count += 1
         stdin_data = stdin_line.rstrip("\n")
         if not Data_Store.validate_handle(stdin_data):
             print(f"with -m or -M flag used, got an argument on the commandline which isn't a handle: {stdin_data}")
+            exit(1)
         handles.append(stdin_data)
 
+    if line_count == 0:
+        print(f"with -m or -M flag used, got immediate EOF on stdin; nothing to do")
+        exit(1)
+
+    # Instancing a Main_Processor object, and calling the update method.
     main_processor_obj = Main_Processor(options, args, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
 
-    match main_processor_obj.update_profiles_set_considered(handles, considered):
+    rows_affected = main_processor_obj.update_profiles_set_considered(handles, considered)
+
+    match rows_affected:
         case 0:
             print("No rows affected.")
         case 1:
             print("1 row affected.")
-        case rows:
-            print(f"{rows} rows affected.")
+        case _:
+            print(f"{rows_affected} rows affected.")
 
 
 def query_output_prereqs(options, results, terminal_width_cols):

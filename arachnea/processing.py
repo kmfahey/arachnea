@@ -633,6 +633,16 @@ class Data_Store(object):
 
     @classmethod
     def validate_handle(self, handle):
+        """
+        Validates whether the handle argument matches the pattern for a valid mastodon
+        handle. Returns True if so, False otherwise.
+
+        :param handle: The string to validate whether it matches the pattern for a
+                       mastodon handle or not.
+        :type handle:  str
+        :return:       True if the handle is a valid mastodon handle, False otherwise.
+        :rtype:        bool
+        """
         return bool(self.handle_re.match(handle))
 
     def update_profiles_set_considered(self, handles, considered):
@@ -649,19 +659,33 @@ class Data_Store(object):
         :return:                The number of rows affected by the UPDATE statement.
         :rtype:                 int
         """
+        # Validating the considered argument.
         if considered not in (0.0, 1.0, 0, 1, False, True):
             raise Internal_Exception("the 'considered' argument must be 0, 1, False, or True")
         considered = int(considered)
         iter_count = 0
+
+        # Validating the handles argument.
         for handle in handles:
             if not self.handle_re.match(handle):
                 raise Internal_Exception(f"the 'handles' argument must consist of a sequence of strs that match the "
                                          f"regex {self.handle_re.pattern}; element #{iter_count} was '{handle}'")
             iter_count += 1
+
+        # Building the SQL statement.
         handles_list_sql = "({handles_list})".format(handles_list=', '.join(f"'{handle}'" for handle in handles))
+
+        # Using CONCAT to assemble the username and instance column values into
+        # a handle string and then IN to test it for membership in a list of all
+        # the handles (which can number 100 or more). Less complex than testing
+        # username=X and instance=Y or username=A and instance=B or ... etc. for
+        # all handles.
         update_sql = f"""UPDATE profiles SET considered = {considered}
                          WHERE CONCAT('@', username, '@', instance) IN {handles_list_sql};"""
+
         self.execute(update_sql)
+
+        # Returning the # of affected rows.
         return self.db_cursor.rowcount
 
     def _handle_select_generator(self, select_sql):
