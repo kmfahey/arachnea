@@ -1013,7 +1013,7 @@ class Instance:
         else:
             self.rate_limit_expires = 0.0
         if not (malfunctioning or suspended or unparseable):
-            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/")
+            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/", self.logger)
         else:
             self.robots_txt_file_obj = None
 
@@ -1131,7 +1131,7 @@ class Instance:
 
     def fetch_robots_txt(self):
         try:
-            robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/")
+            robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/", self.logger)
             robots_txt_file_obj.load_and_parse()
         except Internal_Exception:
             robots_txt_file_obj = None
@@ -1141,7 +1141,7 @@ class Instance:
         if self.malfunctioning or self.suspended or self.unparseable:
             raise Internal_Exception(f"instance {self.host} has status {self.status}; nothing there can be fetched")
         if self.robots_txt_file_obj is None:
-            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/")
+            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/", self.logger)
         if not self.robots_txt_file_obj.has_been_loaded():
             self.robots_txt_file_obj.load_and_parse()
         return self.robots_txt_file_obj.can_fetch(query_url)
@@ -1155,14 +1155,18 @@ class Robots_Txt_File:
     Represents a robots.txt file, implementing functionality to test whether a
     User-Agent + path combination is allowed or not.
     """
-    __slots__ = 'user_agent', 'url', 'robots_dict'
+    __slots__ = 'user_agent', 'url', 'robots_dict', 'logger'
 
     user_agent_re = re.compile("^(?=User-Agent: )", re.I | re.M)
     disallow_re = re.compile("^Disallow: ", re.I)
     allow_re = re.compile("^Allow: ", re.I)
 
+    @property
+    def host(self):
+        return urllib.parse.urlparse(self.url).netloc
+
     #FIXME add crawl-delay support, somehow
-    def __init__(self, user_agent, url):
+    def __init__(self, user_agent, url, logger):
         """
         Instances a Robots_Txt_File object.
 
@@ -1174,9 +1178,7 @@ class Robots_Txt_File:
         """
         self.user_agent = user_agent
         self.url = url
-        # Parsing robots.txt to a dict-of-dicts-of-sets. The outer dict keys are
-        # User-Agents, the inner dict keys are either "Allow" or "Disallow", and
-        # the sets are sets of robots.txt path patterns.
+        self.logger = logger
         self.robots_dict = None
 
     def load_and_parse(self):
@@ -1294,11 +1296,28 @@ class Robots_Txt_File:
     def _read_robots_txt(self, robots_txt_url):
         # Retrieve the robots.txt file, extract the content and return it.
         try:
+            self.logger.info(f"retrieving robots.txt for {self.host}")
             response = requests.get(robots_txt_url)
-        except (requests.exceptions.SSLError, requests.exceptions.TooManyRedirects, requests.exceptions.ConnectTimeout,
-                requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, IOError):
+        except requests.exceptions.SSLError:
+            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: SSL error ")
+            return ''
+        except requests.exceptions.TooManyRedirects:
+            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: too many redirects")
+            return ''
+        except requests.exceptions.ConnectTimeout:
+            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: connection timeout")
+            return ''
+        except requests.exceptions.ReadTimeout:
+            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: read timeout")
+            return ''
+        except requests.exceptions.ConnectionError:
+            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: connection error")
+            return ''
+        except IOError:
+            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: python IOError")
             return ''
         if response.status_code != 200:
+            self.logger.info(f"retrieving https://{self.host}/robots.txt failed: status code {response.status_code}")
             return ''
         robots_txt_content = response.content.decode('utf-8')
         return robots_txt_content
@@ -1312,16 +1331,30 @@ class Robots_Txt_File:
         # Breaks the robots.txt file content on "^User-Agent: " and iterate
         # across the blocks starting at the second substring.
         user_agent_blocks = self.user_agent_re.split(robots_txt_content)
+        self.logger.info(f"parsing robots.txt for {self.host}")
         for user_agent_block in user_agent_blocks[1:]:
             user_agents, disallow_lines, allow_lines = set(), set(), set()
             index = 0
             robot_lines = user_agent_block.split("\n")
             if not len(robot_lines):
+                self.logger.info(f"robots.txt for {self.host} is zero-length")
                 return robots_dict
-            while self.user_agent_re.match(robot_lines[index]):
-                robot_line = robot_lines[index]
-                user_agents.add(robot_line[robot_line.index(':')+1:].strip())
-                index += 1
+            try:
+                while self.user_agent_re.match(robot_lines[index]):
+                    robot_line = robot_lines[index]
+                    user_agents.add(robot_line[robot_line.index(':')+1:].strip())
+                    index += 1
+            except IndexError:
+                # This is really a can't-happen error. `if not len(robot_lines)`
+                # *should* mean that a zero-length robot_lines has already been
+                # caught and handled. The robot_lines should be non-null at this
+                # point. But the program is still throwing IndexErrors at this
+                # point so it'll log & catch them until I have examples of what
+                # robots.txts are creating the error and can trace it.
+                self.logger.warn(f"parsing robots.txt for {self.host} failed with IndexError "
+                                 "despite checking for zero-length list")
+                return robots_dict
+
             while index < len(robot_lines):
                 robot_line = robot_lines[index]
                 if self.disallow_re.match(robot_line):
@@ -1332,4 +1365,5 @@ class Robots_Txt_File:
             directives_dict = {"Allow": allow_lines, "Disallow": disallow_lines}
             for user_agent in user_agents:
                 robots_dict[user_agent] = directives_dict
+        self.logger.info(f"robots.txt for {self.host} parsed")
         return robots_dict
