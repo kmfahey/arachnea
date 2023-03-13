@@ -247,11 +247,11 @@ class Main_Processor:
         :rtype:                bool
         """
         # Instancing the objects needed.
-        instances_dict = Instance.fetch_all_instances(self.data_store_obj, self.main_logger_obj)
+        instances_dict = Instance.fetch_all_instances(self.data_store_obj, self.logger_obj)
 
         handle_processor = Handle_Processor(Data_Store(self.db_host, self.db_user, self.db_password,
-                                                       self.db_database, self.main_logger_obj),
-                                            self.main_logger_obj, instances_dict, save_profiles=self.save_profiles,
+                                                       self.db_database, self.logger_obj),
+                                            self.logger_obj, instances_dict, save_profiles=self.save_profiles,
                                             save_relations=self.save_relations,
                                             dont_discard_bc_wifi=self.options.dont_discard_bc_wifi,
                                             conn_err_wait_time=self.options.conn_err_wait_time)

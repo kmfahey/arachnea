@@ -89,7 +89,8 @@ class Page_Fetcher:
         if host in self.instances_dict:
             instance = self.instances_dict[host]
         else:
-            self.instances_dict[host] = instance = Instance(host, self.logger_obj)
+            self.instances_dict[host] = instance = Instance(host, self.logger_obj,
+                                                            dont_discard_bc_wifi=self.dont_discard_bc_wifi)
 
         # There exists a record of this instance in the instances_dict. It is
         # almost certainly not contactable. Figuring out *how* and handle it.
@@ -102,7 +103,7 @@ class Page_Fetcher:
                     self.logger_obj.info(f"instance {host} on record as {instance.status}; "
                                      f"didn't load {url}; saving null bio to database")
                     page = Page(handle, url, self.logger_obj, instance, save_profiles=self.save_profiles,
-                                save_relations=self.save_relations)
+                                save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
                     page.save_page(self.data_store)
                     return page, Failed_Request(host,
                                                 malfunctioning=instance.malfunctioning,
@@ -139,9 +140,10 @@ class Page_Fetcher:
         if host in self.instances_dict:
             instance = self.instances_dict[host]
         else:
-            self.instances_dict[host] = instance = Instance(host, self.logger_obj)
+            self.instances_dict[host] = instance = Instance(host, self.logger_obj,
+                                                            dont_discard_bc_wifi=self.dont_discard_bc_wifi)
         page = Page(handle, url, self.logger_obj, instance, save_profiles=self.save_profiles,
-                    save_relations=self.save_relations)
+                    save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
         result = page.requests_fetch()
 
         # If the request failed because the page is dynamic (ie. has a
@@ -163,7 +165,8 @@ class Page_Fetcher:
                 # self.instances_dict.
                 if host not in self.instances_dict:
                     instance = Instance(host, self.logger_obj, rate_limited=True,
-                                        x_ratelimit_limit=result.x_ratelimit_limit)
+                                        x_ratelimit_limit=result.x_ratelimit_limit,
+                                        dont_discard_bc_wifi=self.dont_discard_bc_wifi)
                     self.instances_dict[host] = instance
                 else:
                     instance = self.instances_dict[host]
@@ -179,7 +182,8 @@ class Page_Fetcher:
                     instance = self.instances_dict[host]
                     instance.attempts += 1
                 else:
-                    instance = Instance(host, self.logger_obj, attempts=1)
+                    instance = Instance(host, self.logger_obj, attempts=1,
+                                        dont_discard_bc_wifi=self.dont_discard_bc_wifi)
                     self.instances_dict[host] = instance
 
                 # Logging the precise type malfunction it was.
@@ -284,7 +288,7 @@ class Page:
     __slots__ = ('handle', 'username', 'host', 'logger_obj', 'instance', 'url', 'document', 'is_dynamic', 'loaded',
                  'is_profile', 'is_following', 'is_followers', 'page_number', 'profile_no_public_posts',
                  'profile_posts_too_old', 'profile_bio_text', 'relations_list', 'unparseable', 'save_profiles',
-                 'save_relations')
+                 'save_relations', 'dont_discard_bc_wifi')
 
     # Regular expressions used in the retrieval and parsing of the page.
 
@@ -323,7 +327,8 @@ class Page:
     def relation_type(self):
         return 'following' if self.is_following else 'followers' if self.is_followers else None
 
-    def __init__(self, handle, url, logger_obj, instance, save_profiles=False, save_relations=False):
+    def __init__(self, handle, url, logger_obj, instance, save_profiles=False, save_relations=False,
+                 dont_discard_bc_wifi=False):
         """
         Instances the Page object.
 
@@ -350,6 +355,7 @@ class Page:
         self.save_relations = save_relations
         self.username = handle.username
         self.host = handle.host
+        self.dont_discard_bc_wifi = dont_discard_bc_wifi
 
         # Setting some defaults.
         self.document = None
@@ -391,13 +397,21 @@ class Page:
         :return:
 
         """
-        # A big try/except statement to handle a variet of different Exceptions
-        # differently.
-        if not self.instance.can_fetch(self.url):
+        try:
+            can_fetch = self.instance.can_fetch(self.url)
+        except requests.exceptions.ConnectionError:
+            # If the robots.txt couldn't be fetched due to a transient
+            # connection error, the program just assumes the retrieval is
+            # allowed. Odds are this retrieval will suffer a connection error
+            # too, in any event.
+            can_fetch = True
+        if not can_fetch:
             # The file can't be fetched because the site has a robots.txt and
             # the robots.txt disallows it.
             self.loaded = False
             return Failed_Request(self.host, robots_txt_disallowed=True)
+        # A big try/except statement to handle a variety of different Exceptions
+        # differently.
         try:
             http_response = requests.get(self.url, timeout=5.0)
         except requests.exceptions.SSLError:
@@ -955,7 +969,7 @@ class Instance:
     Represents a mastodon instance.
     """
     __slots__ = ('host', 'logger_obj', 'rate_limit_expires', 'attempts', 'malfunctioning', 'suspended', 'unparseable',
-                 'robots_txt_file_obj')
+                 'robots_txt_file_obj', 'dont_discard_bc_wifi')
 
     @property
     def rate_limit_expires_isoformat(self):
@@ -970,7 +984,7 @@ class Instance:
 
     # FIXME implement a 4th failure mode, 'blocked'
     def __init__(self, host, logger_obj, malfunctioning=False, suspended=False, unparseable=False, rate_limited=False,
-                       x_ratelimit_limit=None, attempts=0):
+                       x_ratelimit_limit=None, dont_discard_bc_wifi=False, attempts=0):
         """
         Instances a Instance object.
 
@@ -1012,8 +1026,10 @@ class Instance:
             self.set_rate_limit(x_ratelimit_limit)
         else:
             self.rate_limit_expires = 0.0
+        self.dont_discard_bc_wifi = dont_discard_bc_wifi
         if not (malfunctioning or suspended or unparseable):
-            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/", self.logger_obj)
+            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/",
+                                                       self.logger_obj, self.dont_discard_bc_wifi)
         else:
             self.robots_txt_file_obj = None
 
@@ -1055,8 +1071,9 @@ class Instance:
         for row in data_store.execute("SELECT instance, issue FROM bad_instances;"):
             host, issue = row
             instances_dict[host] = Instance(host, logger_obj, malfunctioning=(issue == 'malfunctioning'),
-                                                          suspended=(issue == 'suspended'),
-                                                          unparseable=(issue == 'unparseable'))
+                                                              suspended=(issue == 'suspended'),
+                                                              unparseable=(issue == 'unparseable'),
+                                            dont_discard_bc_wifi=self.dont_discard_bc_wifi)
         logger_obj.info(f"retrieved {len(instances_dict)} instances from bad_instances table")
         return instances_dict
 
@@ -1129,19 +1146,21 @@ class Instance:
         data_store.execute(f"INSERT INTO bad_instances (instance, issue) VALUES ('{self.host}', '{status}');")
         return True
 
-    def fetch_robots_txt(self):
-        try:
-            robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/", self.logger_obj)
-            robots_txt_file_obj.load_and_parse()
-        except Internal_Exception:
-            robots_txt_file_obj = None
-        self.robots_txt_file_obj = robots_txt_file_obj
+#    def fetch_robots_txt(self):
+#        try:
+#            robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/",
+#                                                  self.logger_obj, self.dont_discard_bc_wifi)
+#            robots_txt_file_obj.load_and_parse()
+#        except Internal_Exception:
+#            robots_txt_file_obj = None
+#        self.robots_txt_file_obj = robots_txt_file_obj
 
     def can_fetch(self, query_url):
         if self.malfunctioning or self.suspended or self.unparseable:
             raise Internal_Exception(f"instance {self.host} has status {self.status}; nothing there can be fetched")
         if self.robots_txt_file_obj is None:
-            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/", self.logger_obj)
+            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.host}/",
+                                                       self.logger_obj, self.dont_discard_bc_wifi)
         if not self.robots_txt_file_obj.has_been_loaded():
             self.robots_txt_file_obj.load_and_parse()
         return self.robots_txt_file_obj.can_fetch(query_url)
@@ -1155,7 +1174,7 @@ class Robots_Txt_File:
     Represents a robots.txt file, implementing functionality to test whether a
     User-Agent + path combination is allowed or not.
     """
-    __slots__ = 'user_agent', 'url', 'robots_dict', 'logger_obj'
+    __slots__ = 'user_agent', 'url', 'robots_dict', 'logger_obj', 'dont_discard_bc_wifi'
 
     user_agent_re = re.compile("^(?=User-Agent: )", re.I | re.M)
     disallow_re = re.compile("^Disallow: ", re.I)
@@ -1166,7 +1185,7 @@ class Robots_Txt_File:
         return urllib.parse.urlparse(self.url).netloc
 
     #FIXME add crawl-delay support, somehow
-    def __init__(self, user_agent, url, logger_obj):
+    def __init__(self, user_agent, url, logger_obj, dont_discard_bc_wifi=False):
         """
         Instances a Robots_Txt_File object.
 
@@ -1180,6 +1199,7 @@ class Robots_Txt_File:
         self.url = url
         self.logger_obj = logger_obj
         self.robots_dict = None
+        self.dont_discard_bc_wifi = dont_discard_bc_wifi
 
     def load_and_parse(self):
         """
@@ -1310,9 +1330,15 @@ class Robots_Txt_File:
         except requests.exceptions.ReadTimeout:
             self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: read timeout")
             return ''
-        except requests.exceptions.ConnectionError:
-            self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: connection error")
-            return ''
+        except requests.exceptions.ConnectionError as exception:
+            if self.dont_discard_bc_wifi:
+                self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: connection error; "
+                                     "but the wifi might've gone out; not treating this as a valid robots.txt "
+                                     "retrieval")
+                raise exception
+            else:
+                self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: connection error")
+                return ''
         except IOError:
             self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: python IOError")
             return ''
