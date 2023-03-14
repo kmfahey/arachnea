@@ -6,7 +6,8 @@ import shutil
 import collections
 import sys
 
-from arachnea.processing import Main_Processor, Data_Store
+from arachnea.processing import Main_Processor
+from arachnea.handles import Handle
 
 
 DB_HOST = 'localhost'
@@ -442,7 +443,7 @@ def execute_mark_handles_considered_or_not_mode(options, args, logger_obj):
     handles = list()
 
     # Validating data from stdin; errors out if a line doesn't validate
-    # according to Data_Store.validate_handle() (which is applying
+    # according to Handle.validate_handle() (which is applying
     # re.compile("^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z0-9]+$")). Keeps a
     # count of lines so it can detect if stdin was zero-length, and error out in
     # that case as well.
@@ -451,7 +452,7 @@ def execute_mark_handles_considered_or_not_mode(options, args, logger_obj):
     for stdin_line in sys.stdin:
         line_count += 1
         stdin_data = stdin_line.rstrip("\n")
-        if not Data_Store.validate_handle(stdin_data):
+        if not Handle.validate_handle(stdin_data):
             print(f"with -m or -M flag used, got an argument on the commandline which isn't a handle: {stdin_data}")
             exit(1)
         handles.append(stdin_data)

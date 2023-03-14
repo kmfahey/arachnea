@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import MySQLdb._exceptions
+import re
 
 
 class Handle:
@@ -8,6 +9,8 @@ class Handle:
     Represents a mastodon handle.
     """
     __slots__ = 'handle_id', 'username', 'host'
+
+    handle_re = re.compile(r"^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z0-9]+$")
 
     @property
     def handle(self):
@@ -38,11 +41,24 @@ class Handle:
                           instance.
         :type host:       str
         """
-        # FIXME should do input checking on args
         assert isinstance(handle_id, int) or handle_id is None
         self.handle_id = handle_id
         self.username = username
         self.host = host
+
+    @classmethod
+    def validate_handle(self, handle):
+        """
+        Validates whether the handle argument matches the pattern for a valid mastodon
+        handle. Returns True if so, False otherwise.
+
+        :param handle: The string to validate whether it matches the pattern for a
+                       mastodon handle or not.
+        :type handle:  str
+        :return:       True if the handle is a valid mastodon handle, False otherwise.
+        :rtype:        bool
+        """
+        return bool(self.handle_re.match(handle))
 
     def convert_to_deleted_user(self):
         """

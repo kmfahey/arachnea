@@ -518,8 +518,6 @@ class Data_Store(object):
     """
     __slots__ = 'db_host', 'db_user', 'db_password', 'db_database', 'db_connection', 'db_cursor', 'logger_obj'
 
-    handle_re = re.compile(r"^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z0-9]+$")
-
     def __init__(self, db_host, db_user, db_password, db_database, logger_obj):
         """
         Instances the Data_Store object.
@@ -629,20 +627,6 @@ class Data_Store(object):
                                AND considered = 0;"""
         return [(Handle(handle_id, username, instance), profile_bio_markdown)
                 for handle_id, username, instance, profile_bio_markdown in self.execute(search_sql)]
-
-    @classmethod
-    def validate_handle(self, handle):
-        """
-        Validates whether the handle argument matches the pattern for a valid mastodon
-        handle. Returns True if so, False otherwise.
-
-        :param handle: The string to validate whether it matches the pattern for a
-                       mastodon handle or not.
-        :type handle:  str
-        :return:       True if the handle is a valid mastodon handle, False otherwise.
-        :rtype:        bool
-        """
-        return bool(self.handle_re.match(handle))
 
     def update_profiles_set_considered(self, handles, considered):
         """
