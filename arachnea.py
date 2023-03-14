@@ -528,7 +528,7 @@ def query_output_prereqs(options, results, terminal_width_cols):
         exit(1)
     elif min_table_display_width > terminal_width_cols:
         print(f"output requires a minimum of {min_table_display_width} columns; current terminal width is only "
-              f"{terminal_width_cols}; please resize your terminal window to at least {terminal_width_cols} "
+              f"{terminal_width_cols}; please resize your terminal window to at least {min_table_display_width} "
               "and re-run the program")
         exit(1)
 

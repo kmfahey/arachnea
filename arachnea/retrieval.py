@@ -1176,9 +1176,9 @@ class Robots_Txt_File:
     """
     __slots__ = 'user_agent', 'url', 'robots_dict', 'logger_obj', 'dont_discard_bc_wifi'
 
-    user_agent_re = re.compile("^(?=User-Agent: )", re.I | re.M)
-    disallow_re = re.compile("^Disallow: ", re.I)
-    allow_re = re.compile("^Allow: ", re.I)
+    user_agent_re = re.compile("^User-agent: (.*)$", re.I)
+    allow_re = re.compile("^Allow: (.*)$", re.I)
+    disallow_re = re.compile("^Disallow: (.*)$", re.I)
 
     @property
     def host(self):
@@ -1349,47 +1349,47 @@ class Robots_Txt_File:
         return robots_txt_content
 
     def _parse_robots_txt(self, robots_txt_content):
-        # Parse the robots.txt content to a dict-of-dicts-of-sets. The outer
-        # dict keys are User-Agents, the inner dict keys are either "Allow" or
-        # "Disallow", and the sets are sets of robots.txt path patterns.
-        robots_dict = dict()
-
-        # Breaks the robots.txt file content on "^User-Agent: " and iterate
-        # across the blocks starting at the second substring.
-        user_agent_blocks = self.user_agent_re.split(robots_txt_content)
         self.logger_obj.info(f"parsing robots.txt for {self.host}")
-        for user_agent_block in user_agent_blocks[1:]:
-            user_agents, disallow_lines, allow_lines = set(), set(), set()
-            index = 0
-            robot_lines = user_agent_block.split("\n")
-            if not len(robot_lines):
-                self.logger_obj.info(f"robots.txt for {self.host} is zero-length")
-                return robots_dict
-            try:
-                while self.user_agent_re.match(robot_lines[index]):
-                    robot_line = robot_lines[index]
-                    user_agents.add(robot_line[robot_line.index(':')+1:].strip())
-                    index += 1
-            except IndexError:
-                # This is really a can't-happen error. `if not len(robot_lines)`
-                # *should* mean that a zero-length robot_lines has already been
-                # caught and handled. The robot_lines should be non-null at this
-                # point. But the program is still throwing IndexErrors at this
-                # point so it'll log & catch them until I have examples of what
-                # robots.txts are creating the error and can trace it.
-                self.logger_obj.warn(f"parsing robots.txt for {self.host} failed with IndexError "
-                                 "despite checking for zero-length list")
-                return robots_dict
+        index = 0
+        robots_dict = dict()
+        robots_lines = robots_txt_content.split("\n")
 
-            while index < len(robot_lines):
-                robot_line = robot_lines[index]
-                if self.disallow_re.match(robot_line):
-                    disallow_lines.add(robot_line[robot_line.index(':')+1:].strip())
-                elif self.allow_re.match(robot_line):
-                    allow_lines.add(robot_line[robot_line.index(':')+1:].strip())
+        if not len(robots_lines):
+            self.logger_obj.warn(f"robots.txt for {self.host} is zero-length")
+            return robots_dict
+
+        # Page past the top of the robots.txt file until the first User-agent
+        # line.
+        while index < len(robots_lines) and not self.user_agent_re.match(robots_lines[index]):
+            index += 1
+
+        while index < len(robots_lines):
+            block_dict = {"Allow": [], "Disallow": []}
+            user_agents = set()
+            # A block in a robots.txt file may begin with more than one
+            # User-agent line; in that case all the Allow & Disallow patterns
+            # that follow apply to every user-agent listed in the series of
+            # User-agent lines.
+            while ua_match := (index < len(robots_lines) and self.user_agent_re.match(robots_lines[index])):
+                user_agents.add(ua_match.group(1))
                 index += 1
-            directives_dict = {"Allow": allow_lines, "Disallow": disallow_lines}
+            # index var now points to the 1st non-UA line, or in the case of a
+            # badly-formed robots.txt file it may be equal to the length of the
+            # line list.
+            while index < len(robots_lines) and not self.user_agent_re.match(robots_lines[index]):
+                if allow_match := self.allow_re.match(robots_lines[index]):
+                    block_dict["Allow"].append(allow_match.group(1))
+                elif disallow_match := self.disallow_re.match(robots_lines[index]):
+                    block_dict["Disallow"].append(disallow_match.group(1))
+                index += 1
+            # index var now points to the 1st UA line (ie. it points to the
+            # beginning of the next UA statement), or its equal to the length of
+            # the lines list.
+
+            # For every user agent that was found, save the same dict of Allow
+            # and Disallow patterns to the robots_dict with the UA as a key.
             for user_agent in user_agents:
-                robots_dict[user_agent] = directives_dict
+                robots_dict[user_agent] = block_dict
+
         self.logger_obj.info(f"robots.txt for {self.host} parsed")
         return robots_dict
