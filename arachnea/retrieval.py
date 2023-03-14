@@ -73,8 +73,6 @@ class Page_Fetcher:
                                            before resuming the algorithm.
         :type conn_err_wait_time:          bool
         """
-        # FIXME a nonzero value for conn_err_wait_time and a False value
-        # for dont_discard_bc_wifi should result in an error
         self.data_store = data_store
         self.logger_obj = logger_obj
         self.instances_dict = instances_dict
@@ -200,7 +198,8 @@ class Page_Fetcher:
                     self.logger_obj.info(f"failed to load {url}, host malfunctioning: connection error "
                                      f"(error #{instance.attempts} for this host)")
                 else:
-                    self.logger_obj.info(f"failed to load {url}, host malfunctioning: got status code {result.status_code} "
+                    self.logger_obj.info(f"failed to load {url}, host malfunctioning: "
+                                         f"got status code {result.status_code} "
                                      f"(error #{instance.attempts} for this host)")
 
             elif result.user_deleted:
@@ -561,7 +560,8 @@ class Page:
                     # scrolling is done and the loop exits.
                     new_height = browser.execute_script("return document.body.scrollHeight")
                     if new_height == last_height:
-                        self.logger_obj.info(f"webdriver scrolled down to page height {last_height} and finished scrolling")
+                        self.logger_obj.info(f"webdriver scrolled down to page height {last_height} "
+                                             "and finished scrolling")
                         break
                     last_height = new_height
                     self.logger_obj.info(f"webdriver scrolled down to page height {last_height}")
@@ -736,7 +736,8 @@ class Page:
                     loaded_article_tag_count = len(tuple(filter(lambda tag_text: not tag_text,
                                                                 article_tag_text_by_data_id.values())))
                     empty_article_tags_count_diff = total_article_tags_count - loaded_article_tag_count
-                    self.logger_obj.info(f"pass #{pass_counter}: {empty_article_tags_count_diff} <article> tags text found")
+                    self.logger_obj.info(f"pass #{pass_counter}: {empty_article_tags_count_diff} "
+                                         "<article> tags text found")
                     pass_counter += 1
 
             except (selenium.common.exceptions.NoSuchElementException, selenium.common.exceptions.WebDriverException):
@@ -1343,7 +1344,8 @@ class Robots_Txt_File:
             self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: python IOError")
             return ''
         if response.status_code != 200:
-            self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: status code {response.status_code}")
+            self.logger_obj.info(f"retrieving https://{self.host}/robots.txt failed: "
+                                 f"status code {response.status_code}")
             return ''
         robots_txt_content = response.content.decode('utf-8')
         return robots_txt_content

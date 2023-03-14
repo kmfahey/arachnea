@@ -24,14 +24,15 @@ parser.add_option("-s", "--web-spider", action="store_true", default=False, dest
 parser.add_option("-f", "--fulltext-search", action="store_true", default=False, dest="fulltext_search",
                   help="operate in database fulltext search mode, accepting query terms on the commandline and "
                        "querying the profile table for profiles with matching bios, which are then displayed")
-parser.add_option("-m", "--mark-handles-considered", action="store_true", default=False, dest="mark_handles_considered_eq_1",
-                  help="operate in mark handles considered mode, accepting handles in @ form on standard input, "
-                       "and setting considered = 1 on each corresponding row in the profiles table; "
-                       "rows with considered = 1 don't show up in fulltext searches")
-parser.add_option("-M", "--mark-handles-not-considered", action="store_true", default=False, dest="mark_handles_considered_eq_0",
-                  help="operate in mark handles NOT considered mode, accepting handles in @ form on standard input, "
-                       "and setting considered = 0 on each corresponding row in the profiles table; "
-                       "a row must have considered = 0 to show up in fulltext searches")
+parser.add_option("-m", "--mark-handles-considered", action="store_true", default=False,
+                  dest="mark_handles_considered_eq_1", help="operate in mark handles considered mode, accepting "
+                       "handles in @ form on standard input, and setting considered = 1 on each corresponding row "
+                       "in the profiles table; rows with considered = 1 don't show up in fulltext searches")
+parser.add_option("-M", "--mark-handles-not-considered", action="store_true", default=False,
+                  dest="mark_handles_considered_eq_0", help="operate in mark handles NOT considered mode, "
+                       "accepting handles in @ form on standard input, and setting considered = 0 on each "
+                       "corresponding row in the profiles table; a row must have considered = 0 to show up in "
+                       "fulltext searches")
 
 ### WEB SPIDER OPTIONS ###
 parser.add_option("-C", "--handles-from-args", action="store_true", default=False, dest="handles_from_args",
@@ -291,7 +292,6 @@ def log_cmdline_flags(options, logger_obj):
                         "set considered = 0 on matching rows")
 
 
-
 def execute_web_spider_mode(options, args, main_logger_obj):
     """
     Execute the program's webspider mode. If processing handles from the
@@ -312,8 +312,6 @@ def execute_web_spider_mode(options, args, main_logger_obj):
     """
     save_profiles = (options.fetch_profiles_only or options.fetch_profiles_and_relations)
     save_relations = (options.fetch_relations_only or options.fetch_profiles_and_relations)
-
-    # FIXME add database-matching-rows-clearing mode
 
     # The three main cases are processing handles from the commandline,
     # processing handles from the database in a threaded fashion,
@@ -395,7 +393,7 @@ def execute_fulltext_search_mode(options, args, logger_obj):
 
     if output_3_column_width <= prq.output_width_cols:
         # It's possible to display the 3rd column, the bio samples.
-        # 
+        #
         # Trimming the list of profile bio texts to the maximum length afforded
         # by the display cols constraint and the amount of each line taken up by
         # the handles at forms and profile URL columns.
@@ -459,7 +457,7 @@ def execute_mark_handles_considered_or_not_mode(options, args, logger_obj):
         handles.append(stdin_data)
 
     if line_count == 0:
-        print(f"with -m or -M flag used, got immediate EOF on stdin; nothing to do")
+        print("with -m or -M flag used, got immediate EOF on stdin; nothing to do")
         exit(1)
 
     # Instancing a Main_Processor object, and calling the update method.
@@ -632,7 +630,6 @@ def print_query_output_2_col(handles_at_form_padded, handles_urls_padded, max_ha
         print('| ' + handle_at_form_padded + ' | ' + handle_url_padded + ' |')
 
     print(table_top_bottom_border)
-
 
 
 if __name__ == "__main__":

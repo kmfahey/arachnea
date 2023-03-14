@@ -288,8 +288,8 @@ class Handle_Processor(object):
     Implements a class for processing a list of handles and fetching the profile,
     relations, or both for each one depending on configuration.
     """
-    __slots__ = ('data_store', 'logger_obj', 'instances_dict', 'save_from_wifi', 'last_time_point', 'current_time_point',
-                 'save_profiles', 'save_relations', 'page_fetcher', 'dont_discard_bc_wifi',
+    __slots__ = ('data_store', 'logger_obj', 'instances_dict', 'save_from_wifi', 'last_time_point',
+                 'current_time_point', 'save_profiles', 'save_relations', 'page_fetcher', 'dont_discard_bc_wifi',
                  'conn_err_wait_time')
 
     def __init__(self, data_store, logger_obj, instances_dict, save_profiles=False, save_relations=False,
