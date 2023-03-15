@@ -1,5 +1,10 @@
 #!/usr/bin/python3
 
+# FIXME add a Successful_Request class, re-architect
+# Page_Fetcher.instantiate_and_fetch_page, Page.parse_profile_page,
+# Page.parse_relations_page, Page.requests_fetch, and Page.webdriver_fetch to
+# use Successful_Request complementarily to Failed_Request
+
 
 class Internal_Exception(Exception):
     """

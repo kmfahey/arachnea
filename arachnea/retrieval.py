@@ -128,9 +128,11 @@ class Page_Fetcher:
         elif (handle.username, handle.host) in self.deleted_users_dict:
             # FIXME: this step can be skipped if a JOIN against deleted_users is
             # added to the handles loading step
-            # FIXME should save a null bio
             self.logger_obj.info(f"user {handle.handle} known to be deleted; didn't load {url}")
-            return None, Failed_Request(handle.host, user_deleted=True)
+            page = Page(handle, url, self.logger_obj, instance, save_profiles=self.save_profiles,
+                        save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
+            page.save_page(self.data_store)
+            return page, Failed_Request(handle.host, user_deleted=True)
 
         # Possibilities for aborting transfer don't apply; proceeding with a
         # normal attempt to load the page.
