@@ -59,16 +59,6 @@ class Handle:
         """
         return bool(self.handle_re.match(handle))
 
-    def convert_to_deleted_user(self):
-        """
-        Instances a Deleted_User object from the state of this Handle object.
-
-        :return: A Deleted_User object with the same values for its handle_id, username
-                 and host state variables.
-        :rtype:  Deleted_User
-        """
-        return Deleted_User(handle_id=self.handle_id, username=self.username, host=self.host)
-
     def fetch_or_set_handle_id(self, data_store_obj):
         """
         If the Handle object was instanced from another source than a row in the
@@ -144,6 +134,16 @@ class Deleted_User(Handle):
             handle_id, username, host = row
             deleted_users_dict[username, host] = Deleted_User(handle_id=handle_id, username=username, host=host)
         return deleted_users_dict
+
+    @classmethod
+    def from_handle_obj(self, handle_obj):
+        """
+        Instances a Deleted_User object from the state of the Handle object argument.
+
+        :return: A Deleted_User object.
+        :rtype:  Deleted_User
+        """
+        return Deleted_User(handle_id=handle_obj.handle_id, username=handle_obj.username, host=handle_obj.host)
 
     def save_deleted_user(self, data_store_obj):
         """

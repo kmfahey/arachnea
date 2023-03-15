@@ -82,8 +82,8 @@ class Page_Fetcher:
         self.dont_discard_bc_wifi = dont_discard_bc_wifi
         self.conn_err_wait_time = conn_err_wait_time
 
-    def instantiate_and_fetch_page(self, handle, url):
-        host = handle.host
+    def instantiate_and_fetch_page(self, handle_obj, url):
+        host = handle_obj.host
         if host in self.instances_dict:
             instance = self.instances_dict[host]
         else:
@@ -100,7 +100,7 @@ class Page_Fetcher:
                     # data store. The empty Page for that profile is returned.
                     self.logger_obj.info(f"instance {host} on record as {instance.status}; "
                                      f"didn't load {url}; saving null bio to database")
-                    page = Page(handle, url, self.logger_obj, instance, save_profiles=self.save_profiles,
+                    page = Page(handle_obj, url, self.logger_obj, instance, save_profiles=self.save_profiles,
                                 save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
                     page.save_page(self.data_store_obj)
                     return page, Failed_Request(host,
@@ -125,14 +125,14 @@ class Page_Fetcher:
 
         # There exists a record of this user-instance combination in the
         # deleted_users_dict. Handling it.
-        elif (handle.username, handle.host) in self.deleted_users_dict:
+        elif (handle_obj.username, handle_obj.host) in self.deleted_users_dict:
             # FIXME: this step can be skipped if a JOIN against deleted_users is
             # added to the handles loading step
-            self.logger_obj.info(f"user {handle.handle} known to be deleted; didn't load {url}; saving null bio to database")
-            page = Page(handle, url, self.logger_obj, instance, save_profiles=self.save_profiles,
+            self.logger_obj.info(f"user {handle_obj.handle} known to be deleted; didn't load {url}; saving null bio to database")
+            page = Page(handle_obj, url, self.logger_obj, instance, save_profiles=self.save_profiles,
                         save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
             page.save_page(self.data_store_obj)
-            return page, Failed_Request(handle.host, user_deleted=True)
+            return page, Failed_Request(handle_obj.host, user_deleted=True)
 
         # Possibilities for aborting transfer don't apply; proceeding with a
         # normal attempt to load the page.
@@ -142,7 +142,7 @@ class Page_Fetcher:
         else:
             self.instances_dict[host] = instance = Instance(host, self.logger_obj,
                                                             dont_discard_bc_wifi=self.dont_discard_bc_wifi)
-        page = Page(handle, url, self.logger_obj, instance, save_profiles=self.save_profiles,
+        page = Page(handle_obj, url, self.logger_obj, instance, save_profiles=self.save_profiles,
                     save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
         result = page.requests_fetch()
 
@@ -208,9 +208,9 @@ class Page_Fetcher:
 
                 # The user has been deleted from the instance. Saving that fact
                 # to the data store.
-                deleted_user = handle.convert_to_deleted_user()
+                deleted_user = Deleted_User.from_handle_obj(handle_obj)
                 deleted_user.logger_obj = self.logger_obj
-                self.deleted_users_dict[handle.username, handle.host] = deleted_user
+                self.deleted_users_dict[handle_obj.username, handle_obj.host] = deleted_user
                 deleted_user.save_deleted_user(self.data_store_obj)
                 self.logger_obj.info(f"failed to load {url}: user deleted")
 
@@ -232,8 +232,8 @@ class Page_Fetcher:
                 if result.forwarding_address is True:
                     self.logger_obj.info(f"loaded {url}: forwarding page (could not recover handle)")
                 else:
-                    handle = result.forwarding_address
-                    username, host = handle.lstrip('@').split('@')
+                    handle_obj = result.forwarding_address
+                    username, host = handle_obj.lstrip('@').split('@')
                     handle_obj = Handle(username=username, host=host)
                     handle_obj.save_handle(self.data_store_obj)
                     self.logger_obj.info(f"loaded {url}: forwarding page; saved to handles table")
@@ -252,7 +252,7 @@ class Page_Fetcher:
                                 else 'following' if page.is_following
                                 else 'followers' if page.is_followers else '???')
 
-                self.logger_obj.info(f"handle {handle.handle}: fetching {what_fetched} returned connection error; "
+                self.logger_obj.info(f"handle {handle_obj.handle}: fetching {what_fetched} returned connection error; "
                                  "but the wifi might've gone out, saving for later")
 
                 # If the wifi goes out, it's possible for this program to chew
@@ -290,7 +290,7 @@ class Page:
     Represents a single page; handles retrieving the page and the ensuing errors
     itself.
     """
-    __slots__ = ('handle', 'username', 'host', 'logger_obj', 'instance', 'url', 'document', 'is_dynamic', 'loaded',
+    __slots__ = ('handle_obj', 'username', 'host', 'logger_obj', 'instance', 'url', 'document', 'is_dynamic', 'loaded',
                  'is_profile', 'is_following', 'is_followers', 'page_number', 'profile_no_public_posts',
                  'profile_posts_too_old', 'profile_bio_text', 'relations_list', 'unparseable', 'save_profiles',
                  'save_relations', 'dont_discard_bc_wifi')
@@ -332,13 +332,13 @@ class Page:
     def relation_type(self):
         return 'following' if self.is_following else 'followers' if self.is_followers else None
 
-    def __init__(self, handle, url, logger_obj, instance, save_profiles=False, save_relations=False,
+    def __init__(self, handle_obj, url, logger_obj, instance, save_profiles=False, save_relations=False,
                  dont_discard_bc_wifi=False):
         """
         Instances the Page object.
 
-        :param handle:         The handle of the profile the page belongs to.
-        :type handle:          Handle
+        :param handle_obj:         The handle of the profile the page belongs to.
+        :type handle_obj:          Handle
         :param url:            The URL of the page.
         :type url:             str
         :param logger_obj:         The Logger object to log events to.
@@ -352,14 +352,14 @@ class Page:
         :type save_relations:  bool
         """
         # Setting instance vars from the args and their attributes.
-        self.handle = handle
+        self.handle_obj = handle_obj
         self.url = url
         self.logger_obj = logger_obj
         self.instance = instance
         self.save_profiles = save_profiles
         self.save_relations = save_relations
-        self.username = handle.username
-        self.host = handle.host
+        self.username = handle_obj.username
+        self.host = handle_obj.host
         self.dont_discard_bc_wifi = dont_discard_bc_wifi
 
         # Setting some defaults.
@@ -763,8 +763,8 @@ class Page:
                     _, username, host = handle_str.split('@')
                 else:
                     continue
-                handle = Handle(username=username, host=host)
-                self.relations_list.append(handle)
+                handle_obj = Handle(username=username, host=host)
+                self.relations_list.append(handle_obj)
 
         # This is a static page, so the program does the static parsing, which
         # is straightforward.
@@ -868,14 +868,14 @@ class Page:
             #
             # FIXME should use an existing MySQLdb escape method for this
             profile_bio_text = self.profile_bio_text.replace("'", "\\'")
-            handle = self.handle
-            if not handle.handle_id:
-                handle.fetch_or_set_handle_id(data_store_obj)
+            handle_obj = self.handle_obj
+            if not handle_obj.handle_id:
+                handle_obj.fetch_or_set_handle_id(data_store_obj)
 
             # Checking if this profile already exists in the profiles table and
             # already has its profile saved.
             select_sql = f"""SELECT profile_handle_id, profile_bio_markdown FROM profiles
-                             WHERE profile_handle_id = {handle.handle_id};"""
+                             WHERE profile_handle_id = {handle_obj.handle_id};"""
             rows = data_store_obj.execute(select_sql)
             if rows:
                 ((handle_id, profile_bio_markdown),) = rows
@@ -887,7 +887,7 @@ class Page:
                     # bio text the program is going to save here is *not* null,
                     # then use an UPDATE statement to set the profile bio.
                     update_sql = f"""UPDATE profiles SET profile_bio_markdown = {profile_bio_text}
-                                     WHERE profile_handle_id = {handle.handle_id};"""
+                                     WHERE profile_handle_id = {handle_obj.handle_id};"""
                     data_store_obj.execute(update_sql)
                     return 1
             else:
@@ -895,8 +895,8 @@ class Page:
                 insert_sql = f"""INSERT INTO profiles (profile_handle_id, username, instance,
                                                        considered, profile_bio_markdown)
                                                   VALUES
-                                                      ({handle.handle_id}, '{handle.username}',
-                                                      '{handle.host}', 0, '{profile_bio_text}');"""
+                                                      ({handle_obj.handle_id}, '{handle_obj.username}',
+                                                      '{handle_obj.host}', 0, '{profile_bio_text}');"""
                 data_store_obj.execute(insert_sql)
                 return 1
         else:
@@ -905,13 +905,13 @@ class Page:
             if not len(self.relations_list):
                 return 0
             relation = 'following' if self.is_following else 'followers'
-            profile_handle = self.handle
+            profile_handle_obj = self.handle_obj
             # Setting the handle_id attribute if it's missing.
-            profile_handle.fetch_or_set_handle_id(data_store_obj)
+            profile_handle_obj.fetch_or_set_handle_id(data_store_obj)
 
             # Checking if this page has already been saved to the relations table.
             select_sql = f"""SELECT DISTINCT profile_handle_id FROM relations
-                             WHERE profile_handle_id = {profile_handle.handle_id} AND relation_type = '{relation}'
+                             WHERE profile_handle_id = {profile_handle_obj.handle_id} AND relation_type = '{relation}'
                                    AND relation_page_number = {self.page_number};"""
             rows = data_store_obj.execute(select_sql)
             if rows:
@@ -924,11 +924,11 @@ class Page:
             # parenthesized rows to insert.
             value_sql_list = list()
             insertion_count = 0
-            for relation_handle in self.relations_list:
-                relation_handle.fetch_or_set_handle_id(data_store_obj)
-                value_sql_list.append(f"""({profile_handle.handle_id}, '{self.username}', '{self.host}',
-                                           {relation_handle.handle_id}, '{relation}', {self.page_number},
-                                           '{relation_handle.username}', '{relation_handle.host}')""")
+            for relation_handle_obj in self.relations_list:
+                relation_handle_obj.fetch_or_set_handle_id(data_store_obj)
+                value_sql_list.append(f"""({profile_handle_obj.handle_id}, '{self.username}', '{self.host}',
+                                           {relation_handle_obj.handle_id}, '{relation}', {self.page_number},
+                                           '{relation_handle_obj.username}', '{relation_handle_obj.host}')""")
 
             # Building the complete INSERT INTO ... VALUES statement.
             insert_sql = """INSERT INTO relations (profile_handle_id, profile_username, profile_instance,
@@ -944,23 +944,23 @@ class Page:
                 # on the specific row that creates the IntegrityError while
                 # still saving all other rows.
                 insertion_count = 0
-                for relation_handle in self.relations_list:
-                    relation_handle.fetch_or_set_handle_id(data_store_obj)
+                for relation_handle_obj in self.relations_list:
+                    relation_handle_obj.fetch_or_set_handle_id(data_store_obj)
                     insert_sql = f"""INSERT INTO relations (profile_handle_id, profile_username, profile_instance,
                                                             relation_handle_id, relation_type, relation_page_number,
                                                             relation_username, relation_instance)
                                                         VALUES
-                                                            ({profile_handle.handle_id}, '{self.username}',
-                                                            '{self.host}', {relation_handle.handle_id}, '{relation}',
-                                                            {self.page_number}, '{relation_handle.username}',
-                                                            '{relation_handle.host}')"""
+                                                            ({profile_handle_obj.handle_id}, '{self.username}',
+                                                            '{self.host}', {relation_handle_obj.handle_id}, '{relation}',
+                                                            {self.page_number}, '{relation_handle_obj.username}',
+                                                            '{relation_handle_obj.host}')"""
                     try:
                         data_store_obj.execute(insert_sql)
                     except MySQLdb._exceptions.IntegrityError:
                         # Whatever is causing this error, at least the other
                         # rows got saved.
-                        self.logger_obj.info(f"got an SQL IntegrityError when inserting {relation_handle.handle} %s "
-                                         f"{profile_handle.handle} into table relations" % (
+                        self.logger_obj.info(f"got an SQL IntegrityError when inserting {relation_handle_obj.handle} %s "
+                                         f"{profile_handle_obj.handle} into table relations" % (
                                              'follower of' if relation == 'followers' else relation))
                     else:
                         insertion_count += 1
