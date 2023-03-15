@@ -114,8 +114,6 @@ class Deleted_User(Handle):
 
     @classmethod
     def fetch_all_deleted_users(self, data_store):
-        # FIXME if the Handle and Deleted_User classes are made hashable then
-        # the dict can be replaced with set.
         """
         Retrieves all records from the deleted_users table and returns them in a dict.
 
@@ -132,23 +130,21 @@ class Deleted_User(Handle):
         return deleted_users_dict
 
     def save_deleted_user(self, data_store):
-        # FIXME this code should check for the presence of the record in the
-        # database rather than relying on an IntegrityError
-        # FIXME should return True if successful, False if the record is already
-        # present
         """
         Saves this deleted user to the deleted_users table.
 
         :param data_store: The Data_Store object to use to contact the database.
         :type data_store:  Data_Store
-        :return:           None
-        :rtype:            types.NoneType
+        :return:           False if the deleted user data is already present in the deleted_users table, True otherwise.
+        :rtype:            bool
         """
+        if self.handle_id is None:
+            self.fetch_or_set_handle_id(data_store)
+        select_sql = f"SELECT * FROM deleted_users WHERE handle_id = {self.handle_id};"
+        if bool(len(data_store.execute(select_sql))):
+            return False
         insert_sql = f"""INSERT INTO deleted_users (handle_id, username, instance) VALUES
                          ({self.handle_id}, '{self.username}', '{self.host}');"""
-        try:
-            data_store.execute(insert_sql)
-        except MySQLdb._exceptions.IntegrityError:
-            self.logger_obj.info(f"got an SQL IntegrityError when inserting {self.handle} into table deleted_users")
-        else:
-            self.logger_obj.info(f"inserted {self.handle} into table deleted_users")
+        data_store.execute(insert_sql)
+        self.logger_obj.info(f"inserted {self.handle} into table deleted_users")
+        return True
