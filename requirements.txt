@@ -1,2 +1,6 @@
 bs4
 selenium
+python-decouple
+mysqlclient
+html2text
+requests

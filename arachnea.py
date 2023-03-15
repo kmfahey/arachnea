@@ -90,7 +90,7 @@ parser.add_option("-u", "--output-urls", action="store_true", default=False, des
 
 def main():
     """
-    "The main logic of the program. Parses the commandline arguments, validates the
+    The main logic of the program. Parses the commandline arguments, validates the
     flags specified, then executes either processing handles from the commandline,
     processing handles from the database using threads, or processing handles from
     the database without using threads, depending on the commandline flags.
@@ -106,7 +106,7 @@ def main():
     else:
         main_logger_obj = Main_Processor.instance_logger_obj("main", options.use_threads, no_output=True)
 
-    validate_cmdline_flags(options, args, main_logger_obj)
+    validate_cmdline_flags(options, args)
 
     log_cmdline_flags(options, main_logger_obj)
 
@@ -118,7 +118,7 @@ def main():
         execute_mark_handles_considered_or_not_mode(options, args, main_logger_obj)
 
 
-def validate_cmdline_flags(options, args, logger_obj):
+def validate_cmdline_flags(options, args):
     """
     Validates the commandline flags received. Checks for invalid combinations of
     flags. If an invalid combination is found, an error message is printed and the
@@ -127,8 +127,9 @@ def validate_cmdline_flags(options, args, logger_obj):
     :param options:    The options object that is the first return value of
                        optparse.OptionParser.parse_args().
     :type options:     optparse.Values
-    :param logger_obj: The Logger object to use to log events.
-    :type logger_obj:  logging.Logger
+    :param args:       The args tuple that is the second return value of
+                       optparse.OptionParser.parse_args().
+    :type:             tuple
     :return:           None
     :rtype:            types.NoneType
     """
@@ -184,7 +185,7 @@ def validate_cmdline_flags(options, args, logger_obj):
             exit(1)
         elif options.fetch_relations_only and (options.handles_join_profiles or options.relations_join_profiles):
             print("with -s and -q flags used, please don't specify -H or -R; relations-only fetching sources its "
-                  "handle from those present in the profiles table which aren't in the relations table")
+                  "handles from those present in the profiles table which aren't in the relations table")
             exit(1)
         elif options.handles_from_args and not args:
             print("when -s and -C flags are used, please supply one or more handles on the commandline")
@@ -306,8 +307,8 @@ def execute_web_spider_mode(options, args, main_logger_obj):
                        in length and consist of strings which are handles in
                        @user@instance form.
     :type args:        tuple
-    :param logger_obj: The Logger object to log events to.
-    :type logger_obj:  logging.Logger
+    :param main_logger_obj: The Logger object to log events to.
+    :type main_logger_obj:  logging.Logger
     :return:           None
     :rtype:            types.NoneType
     """
@@ -333,7 +334,7 @@ def execute_fulltext_search_mode(options, args, logger_obj):
     """
     Execute the program's fulltext search mode. Uses the content of
     options.fulltext_pos_query as its search terms. If options.fulltext_neg_query is
-    set, uses it as accompanying negative search terms; ie. the results will be all
+    set, uses it as accompanying negative search terms; i.e. the results will be all
     rows that match the expression in options.fulltext_pos_query but do *not* match
     the expression in options.fulltext_neg_query.
 
@@ -363,7 +364,7 @@ def execute_fulltext_search_mode(options, args, logger_obj):
 
     if options.output_handles:
         for handle_obj, _ in results:
-            print(handle_obj.handle)
+            print(handle_obj.handle_in_at_form)
         exit(0)
     elif options.output_urls:
         for handle_obj, _ in results:
@@ -506,7 +507,7 @@ def query_output_prereqs(options, results, terminal_width_cols):
     # texts. The bios have their newlines replaced with \n and their tabs
     # replaced with 4 spaces.
     bio_text_tr_d = {ord('\n'): '\\n', ord('\t'): '    '}
-    handles_at_form = [handle_obj.handle for handle_obj, _ in results]
+    handles_at_form = [handle_obj.handle_in_at_form for handle_obj, _ in results]
     handles_urls = [handle_obj.profile_url for handle_obj, _ in results]
     profiles_bio_texts = [profile_bio_text.translate(bio_text_tr_d) for _, profile_bio_text in results]
 
@@ -521,7 +522,7 @@ def query_output_prereqs(options, results, terminal_width_cols):
 
     # Testing if the table can even be displayed with display column
     # limitations, erroring out if it can't.
-    if options.width_cols > 0 and min_table_display_width > options.width_cols:
+    if 0 < options.width_cols < min_table_display_width:
         print(f"output requires a minimum of {min_table_display_width} columns; commandline -c arg specified a width "
               f"of only {options.width_cols}; cannot display output in compliance with that constraint")
         exit(1)
@@ -534,14 +535,14 @@ def query_output_prereqs(options, results, terminal_width_cols):
     # Setting the display column limit. If using the terminal width, adding a
     # slop factor of 5 cols for emoji and other characters that take up more
     # than 1 col.
-    if options.width_cols > 0 and options.width_cols < terminal_width_cols:
+    if 0 < options.width_cols < terminal_width_cols:
         output_width_cols = options.width_cols
     else:
         output_width_cols = terminal_width_cols - 5
 
     # Derives a list of handles in @ form that are right-padded to {max_handle_at_len}.
-    handles_at_form_padded = [handle_at_form.ljust(max_handle_at_len, ' ')
-                            for handle_at_form in handles_at_form]
+    handles_at_form_padded = [handle_in_at_form.ljust(max_handle_at_len, ' ')
+                            for handle_in_at_form in handles_at_form]
     # Derives a list of profile URLs that are right-padded to {max_handle_url_len}.
     handles_urls_padded = [handle_url.ljust(max_handle_url_len, ' ') for handle_url in handles_urls]
 
@@ -574,8 +575,8 @@ def print_query_output_3_col(handles_at_form_padded, handles_urls_padded, bio_te
     :type max_handle_at_len:       int
     :param max_handle_url_len:     Length of the longest URL in handles_urls_padded.
     :type max_handle_url_len:      int
-    :param output_width_cols:      The width in columns of the output to print.
-    :type output_width_cols:       int
+    :param max_len_for_snippets:   The maximum length a bio snippet can be.
+    :type max_len_for_snippets:    int
     :return:                       None
     :rtype:                        types.NoneType
     """
@@ -589,10 +590,10 @@ def print_query_output_3_col(handles_at_form_padded, handles_urls_padded, bio_te
     # Printing the rows of the ASCII art results table, having zip'd the
     # handles_at_form_padded, handles_urls_padded, and bio_texts_trim_padded
     # lists back together into result rows.
-    for handle_at_form_padded, handle_url_padded, bio_text_trim_padded in zip(handles_at_form_padded,
+    for handle_in_at_form_padded, handle_url_padded, bio_text_trim_padded in zip(handles_at_form_padded,
                                                                               handles_urls_padded,
                                                                               bio_texts_trim_padded):
-        print('| ' + handle_at_form_padded + ' | ' + handle_url_padded + ' | ' + bio_text_trim_padded + ' |')
+        print('| ' + handle_in_at_form_padded + ' | ' + handle_url_padded + ' | ' + bio_text_trim_padded + ' |')
 
     print(table_top_bottom_border)
 
@@ -627,8 +628,8 @@ def print_query_output_2_col(handles_at_form_padded, handles_urls_padded, max_ha
     # Printing the rows of the ASCII art results table, having zip'd the
     # handles_at_form_padded and handles_urls_padded lists back together into
     # result rows.
-    for handle_at_form_padded, handle_url_padded in zip(handles_at_form_padded, handles_urls_padded):
-        print('| ' + handle_at_form_padded + ' | ' + handle_url_padded + ' |')
+    for handle_in_at_form_padded, handle_url_padded in zip(handles_at_form_padded, handles_urls_padded):
+        print('| ' + handle_in_at_form_padded + ' | ' + handle_url_padded + ' |')
 
     print(table_top_bottom_border)
 

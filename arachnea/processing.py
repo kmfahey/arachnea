@@ -49,7 +49,7 @@ class Main_Processor:
                                          self.db_database, self.logger_obj)
 
     @classmethod
-    def instance_logger_obj(self, name, use_threads=False, no_output=False):
+    def instance_logger_obj(cls, name, use_threads=False, no_output=False):
         """
         Instances a logging.Logger object and configures it appropriately.
 
@@ -57,6 +57,11 @@ class Main_Processor:
         :type name:         str
         :param use_threads: If the program is in threaded mode or not.
         :type use_threads:  bool, optional
+        :param no_output:   If True, configure the Logger object not to print,
+                            if False it prints to stdout.
+        :type:              bool
+        :return:            A logger.Logger object.
+        :rtype:             logger.Logger
         """
         logger_obj = logging.getLogger(name=name)
         logger_obj.setLevel(logging.INFO)
@@ -350,35 +355,37 @@ class Handle_Processor(object):
                                 comprised of Handle objects, or a generator that yields
                                 Handle objects.
         :type handle_iterable:  tuple, list, set, or types.GeneratorType
+        :param data_store_obj:  The Data_Store object to contact the database with.
+        :type:                  Data_Store
         :return:                None
         :rtype:                 types.NoneType
         """
         skipped_handles = list()
 
-        for handle in handle_iterable:
-            # Get a handle_id, which inserts this handle into the handles table
+        for handle_obj in handle_iterable:
+            # Get a handle_id, which inserts this handle_obj into the handles table
             # as a side effect.
-            if not handle.handle_id:
-                handle.fetch_or_set_handle_id(data_store_obj)
+            if not handle_obj.handle_id:
+                handle_obj.fetch_or_set_handle_id(data_store_obj)
 
-            profile_url = handle.profile_url
+            profile_url = handle_obj.profile_url
             result = results = None
             try:
                 if self.save_profiles and not self.save_relations:
                     # Retrieves the profile page and saves its bio text to the
                     # database if possible.
-                    result = self.retrieve_profile(handle, profile_url)
+                    result = self.retrieve_profile(handle_obj, profile_url)
                 else:
                     # Retrieves the profile page if possible, uses it to find
                     # the profile's following/followers pages, retrieves those
                     # pages in full if possible and saves them to the database.
-                    results = self.retrieve_relations_from_profile(handle, profile_url)
+                    results = self.retrieve_relations_from_profile(handle_obj, profile_url)
             except Internal_Exception:
                 continue
 
             if result is not None and isinstance(result, Failed_Request):
                 if result.ratelimited or result.connection_error:
-                    skipped_handles.append(handle)
+                    skipped_handles.append(handle_obj)
             elif results is not None and any(isinstance(result, Failed_Request) for result in results):
                 if any(isinstance(result, int) for result in results):
                     # So within the retrieve_relations_from_profile() call, one
@@ -386,15 +393,15 @@ class Handle_Processor(object):
                     # situation is too complex to reach any conclusions from so
                     # the program just passes.
                     #
-                    # This *might* result in dropping a handle when it could
+                    # This *might* result in dropping a handle_obj when it could
                     # have been saved to skipped_handles; but half its content
-                    # was saved correctly, so re-processing the handle down the
+                    # was saved correctly, so re-processing the handle_obj down the
                     # line would create IntegrityErrors when trying to save its
                     # content. This is a rare enough occurrence that dropping
-                    # the occasional handle isn't a big deal.
+                    # the occasional handle_obj isn't a big deal.
                     pass
                 elif any(result.ratelimited or result.connection_error for result in results):
-                    skipped_handles.append(handle)
+                    skipped_handles.append(handle_obj)
 
         # Repeatedly iterates over skipped_handles until it's empty.
         while len(skipped_handles):
@@ -407,8 +414,8 @@ class Handle_Processor(object):
             successful_requests = 0
 
             for index in range(len(skipped_handles) - 1, 0, -1):
-                handle = skipped_handles[index]
-                result = self.retrieve_relations_from_profile(handle, profile_url)
+                handle_obj = skipped_handles[index]
+                result = self.retrieve_relations_from_profile(handle_obj, handle_obj.profile_url)
 
                 # On a second pass, connection errors aren't tolerated, even
                 # with dont_discard_bc_wifi True. Connection errors can happen
@@ -478,14 +485,14 @@ class Handle_Processor(object):
         Retrieves a following/followers page from the given URL, and uses it to fetch
         all the following/followers handles accessible via that page.
 
-        :param handle:           A Handle object to use to define the Page object with.
-        :type handle:            Page
-        :param profile_page_url: The following/followers URL to retrieve.
-        :type profile_page_url:  str
-        :return:                 If the request succeeded, then the number of
-                                 following/followers handles retrieved; if it
-                                 failed, a Failed_Request object.
-        :rtype:                  int or Failed_Request
+        :param handle:                  A Handle object to use to define the Page object with.
+        :type handle:                   Page
+        :param first_relation_page_url: The following/followers URL to retrieve.
+        :type first_relation_page_url:  str
+        :return:                        If the request succeeded, then the number of
+                                        following/followers handles retrieved; if it
+                                        failed, a Failed_Request object.
+        :rtype:                         int or Failed_Request
         """
         first_relation_page, result = self.page_fetcher.instantiate_and_fetch_page(handle, first_relation_page_url)
 

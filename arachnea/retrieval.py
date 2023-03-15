@@ -40,8 +40,8 @@ class Page_Fetcher:
     * If it fails, handles a variety of failed requests in different ways
     * If it succeeds, yields the Page object.
     """
-    __slots__ = ('instances_dict', 'data_store_obj', 'logger_obj', 'deleted_users_dict', 'save_profiles', 'save_relations',
-                 'dont_discard_bc_wifi', 'conn_err_wait_time')
+    __slots__ = ('instances_dict', 'data_store_obj', 'logger_obj', 'deleted_users_dict', 'save_profiles',
+                 'save_relations', 'dont_discard_bc_wifi', 'conn_err_wait_time')
 
     def __init__(self, data_store_obj, logger_obj, instances_dict, save_profiles=False, save_relations=False,
                        dont_discard_bc_wifi=False, conn_err_wait_time=0.0):
@@ -128,7 +128,8 @@ class Page_Fetcher:
         elif (handle_obj.username, handle_obj.host) in self.deleted_users_dict:
             # FIXME: this step can be skipped if a JOIN against deleted_users is
             # added to the handles loading step
-            self.logger_obj.info(f"user {handle_obj.handle} known to be deleted; didn't load {url}; saving null bio to database")
+            self.logger_obj.info(f"user {handle_obj.handle_at_form} known to be deleted; didn't load {url}; "
+                                 "saving null bio to database")
             page = Page(handle_obj, url, self.logger_obj, instance, save_profiles=self.save_profiles,
                         save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
             page.save_page(self.data_store_obj)
@@ -252,8 +253,8 @@ class Page_Fetcher:
                                 else 'following' if page.is_following
                                 else 'followers' if page.is_followers else '???')
 
-                self.logger_obj.info(f"handle {handle_obj.handle}: fetching {what_fetched} returned connection error; "
-                                 "but the wifi might've gone out, saving for later")
+                self.logger_obj.info(f"handle {handle_obj.handle_at_form}: fetching {what_fetched} returned "
+                                     "connection error; but the wifi might've gone out, saving for later")
 
                 # If the wifi goes out, it's possible for this program to chew
                 # through hundreds of passes of the main loop before it's
@@ -490,11 +491,6 @@ class Page:
                     # relations. This call was made in error. Return False.
                     return False
 
-        # This is only reachable if the preceding if/then/else chain ended in
-        # its else clause and the page was parsed. So the document was returned
-        # and is in line with the mode. Return True.
-        return True
-
     def webdriver_fetch(self):
         """
         Tries to fetch self.url using selenium.webdriver.firefox.
@@ -696,7 +692,7 @@ class Page:
                                                                                 selenium.webdriver.common.by.By.XPATH,
                                                                                 "//article")]
                 article_tag_text_by_data_id = dict.fromkeys(data_ids)
-                total_article_tags_count = loaded_article_tag_count = len(article_tag_text_by_data_id)
+                total_article_tags_count = len(article_tag_text_by_data_id)
 
                 # Beginning the process of scrolling around the document.
                 self.logger_obj.info(f"using selenium.webdriver to page over dynamic {self.relation_type} page forcing "
@@ -923,7 +919,6 @@ class Page:
             # Building the INSERT INTO ... VALUES statement's sequence of
             # parenthesized rows to insert.
             value_sql_list = list()
-            insertion_count = 0
             for relation_handle_obj in self.relations_list:
                 relation_handle_obj.fetch_or_set_handle_id(data_store_obj)
                 value_sql_list.append(f"""({profile_handle_obj.handle_id}, '{self.username}', '{self.host}',
@@ -951,17 +946,19 @@ class Page:
                                                             relation_username, relation_instance)
                                                         VALUES
                                                             ({profile_handle_obj.handle_id}, '{self.username}',
-                                                            '{self.host}', {relation_handle_obj.handle_id}, '{relation}',
-                                                            {self.page_number}, '{relation_handle_obj.username}',
+                                                            '{self.host}', {relation_handle_obj.handle_id},
+                                                            '{relation}', {self.page_number},
+                                                            '{relation_handle_obj.username}',
                                                             '{relation_handle_obj.host}')"""
                     try:
                         data_store_obj.execute(insert_sql)
                     except MySQLdb._exceptions.IntegrityError:
                         # Whatever is causing this error, at least the other
                         # rows got saved.
-                        self.logger_obj.info(f"got an SQL IntegrityError when inserting {relation_handle_obj.handle} %s "
-                                         f"{profile_handle_obj.handle} into table relations" % (
-                                             'follower of' if relation == 'followers' else relation))
+                        self.logger_obj.info(f"got an SQL IntegrityError when inserting "
+                                                f"{relation_handle_obj.handle_at_form} %s "
+                                                f"{profile_handle_obj.handle} into table relations" % (
+                                                'follower of' if relation == 'followers' else relation))
                     else:
                         insertion_count += 1
             else:
@@ -1062,7 +1059,7 @@ class Instance:
                          f"at {self.rate_limit_expires_isoformat}")
 
     @classmethod
-    def fetch_all_instances(self, data_store_obj, logger_obj):
+    def fetch_all_instances(cls, data_store_obj, logger_obj):
         """
         Loads all lines from the bad_instances table, converts them to Instance objects,
         and returns a dict mapping hostnames to Instance objects.
@@ -1078,14 +1075,14 @@ class Instance:
         for row in data_store_obj.execute("SELECT instance, issue FROM bad_instances;"):
             host, issue = row
             instances_dict[host] = Instance(host, logger_obj, malfunctioning=(issue == 'malfunctioning'),
-                                                              suspended=(issue == 'suspended'),
-                                                              unparseable=(issue == 'unparseable'),
-                                            dont_discard_bc_wifi=self.dont_discard_bc_wifi)
+                                            suspended=(issue == 'suspended'),
+                                            unparseable=(issue == 'unparseable'),
+                                            dont_discard_bc_wifi=cls.dont_discard_bc_wifi)
         logger_obj.info(f"retrieved {len(instances_dict)} instances from bad_instances table")
         return instances_dict
 
     @classmethod
-    def save_instances(self, instances_dict, data_store_obj, logger_obj):
+    def save_instances(cls, instances_dict, data_store_obj, logger_obj):
         """
         Accepts a dict mapping hostnames to Instance objects, and commits every novel
         one to the database. (Class method.)
@@ -1100,7 +1097,7 @@ class Instance:
         :rtype:                types.NoneType
         """
         # FIXME should detect changed instance state between database and memory
-        existing_instances_dict = self.fetch_all_instances(data_store_obj, logger_obj)
+        existing_instances_dict = cls.fetch_all_instances(data_store_obj, logger_obj)
         instances_to_insert = dict()
         # instances_to_insert dict is built by (effectively) subtracting
         # existing_instances_dict from instances_dict.
@@ -1307,7 +1304,7 @@ class Robots_Txt_File:
             return True
 
     @classmethod
-    def _glob_match(self, pattern, path):
+    def _glob_match(cls, pattern, path):
         if '*' not in pattern and '$' not in pattern:
             return path.startswith(pattern)
         else:

@@ -46,7 +46,7 @@ class Handle:
         self.host = host
 
     @classmethod
-    def validate_handle(self, handle):
+    def validate_handle(cls, handle):
         """
         Validates whether the handle argument matches the pattern for a valid mastodon
         handle. Returns True if so, False otherwise.
@@ -57,7 +57,7 @@ class Handle:
         :return:       True if the handle is a valid mastodon handle, False otherwise.
         :rtype:        bool
         """
-        return bool(self.handle_re.match(handle))
+        return bool(cls.handle_re.match(handle))
 
     def fetch_or_set_handle_id(self, data_store_obj):
         """
@@ -119,7 +119,7 @@ class Deleted_User(Handle):
     __slots__ = 'logger_obj',
 
     @classmethod
-    def fetch_all_deleted_users(self, data_store_obj):
+    def fetch_all_deleted_users(cls, data_store_obj):
         """
         Retrieves all records from the deleted_users table and returns them in a dict.
 
@@ -136,7 +136,7 @@ class Deleted_User(Handle):
         return deleted_users_dict
 
     @classmethod
-    def from_handle_obj(self, handle_obj):
+    def from_handle_obj(cls, handle_obj):
         """
         Instances a Deleted_User object from the state of the Handle object argument.
 
