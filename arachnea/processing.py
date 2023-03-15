@@ -83,8 +83,8 @@ class Main_Processor:
         Executes the main logic of the program if the program is processing handles
         from its commandline arguments.
 
-        :return:               False if this is a dry run, True otherwise.
-        :rtype:                bool
+        :return: False if this is a dry run, True otherwise.
+        :rtype:  bool
         """
         # Intializing the needed objects.
         handle_objs_from_args = list()
@@ -129,8 +129,8 @@ class Main_Processor:
         Executes the main logic of the program if the program is processing handles
         from the database using threaded execution.
 
-        :return:               False if this is a dry run, True otherwise.
-        :rtype:                bool
+        :return: False if this is a dry run, True otherwise.
+        :rtype:  bool
         """
 
         parallelism_objs = self.set_up_parallelism()
@@ -173,10 +173,10 @@ class Main_Processor:
         threads) will need to set up threads with parallel execution on parallel data
         sets.
 
-        :return:               A dict containing a list of Data Store objects, a list
-                               of Handle Processor objects, and a list of lists of
-                               Handle objects, or an empty dict if this is a dry run.
-        :rtype:                dict
+        :return: A dict containing a list of Data Store objects, a list of Handle
+                 Processor objects, and a list of lists of Handle objects, or an empty
+                 dict if this is a dry run.
+        :rtype:  dict
         """
 
         # SETTING UP PARALLELISM
@@ -249,8 +249,8 @@ class Main_Processor:
         Executes the main logic of the program if the program is processing handles
         from the database without using threads.
 
-        :return:               False if this is a dry run, True otherwise.
-        :rtype:                bool
+        :return: False if this is a dry run, True otherwise.
+        :rtype:  bool
         """
         # Instancing the objects needed.
         instances_dict = Instance.fetch_all_instances(self.data_store_obj, self.logger_obj)
@@ -440,8 +440,8 @@ class Handle_Processor(object):
         Retrieves a profile from the given URL and attempts to save its bio to the
         database.
 
-        :param handle_obj:           A Handle object to use to define the Page object with.
-        :type handle_obj:            Page
+        :param handle_obj:       A Handle object to use to define the Page object with.
+        :type handle_obj:        Page
         :param profile_page_url: The profile URL to retrieve.
         :type profile_page_url:  str
         :return:                 If the request succeeded, then the length of the
@@ -464,8 +464,8 @@ class Handle_Processor(object):
         Retrieves a profile from the given URL, uses it to find the user's
         following/followers pages, and retrieves those in full.
 
-        :param handle_obj:           A Handle object to use to define the Page object with.
-        :type handle_obj:            Page
+        :param handle_obj:       A Handle object to use to define the Page object with.
+        :type handle_obj:        Page
         :param profile_page_url: The profile URL to retrieve.
         :type profile_page_url:  str
         :return:                 If the request succeeded, then the number of
@@ -486,8 +486,8 @@ class Handle_Processor(object):
         Retrieves a following/followers page from the given URL, and uses it to fetch
         all the following/followers handles accessible via that page.
 
-        :param handle_obj:                  A Handle object to use to define the Page object with.
-        :type handle_obj:                   Page
+        :param handle_obj:              A Handle object to use to define the Page object with.
+        :type handle_obj:               Page
         :param first_relation_page_url: The following/followers URL to retrieve.
         :type first_relation_page_url:  str
         :return:                        If the request succeeded, then the number of
@@ -641,14 +641,14 @@ class Data_Store(object):
         Updates the profiles table, setting considered = {considered argument} where the
         handle_in_at_form is one of the handles in the handles argument.
 
-        :param handles_in_at_form:         A sequence of strs, each of which is a mastodon handle_in_at_form
-                                in @ form.
-        :type handles_in_at_form:          tuple, list, set, map, filter, or types.GeneratorType
-        :param considered:      The new value to set the `considered` BOOLEAN column to;
-                                either 0, 1, False, or True.
-        :type considered:       int or bool
-        :return:                The number of rows affected by the UPDATE statement.
-        :rtype:                 int
+        :param handles_in_at_form: A sequence of strs, each of which is a mastodon
+                                   handle in @ form.
+        :type handles_in_at_form:  tuple, list, set, map, filter, or types.GeneratorType
+        :param considered:         The new value to set the `considered` BOOLEAN column
+                                   to; either 0, 1, False, or True.
+        :type considered:          int or bool
+        :return:                   The number of rows affected by the UPDATE statement.
+        :rtype:                    int
         """
         # Validating the considered argument.
         if considered not in (0.0, 1.0, 0, 1, False, True):

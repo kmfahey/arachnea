@@ -339,15 +339,15 @@ class Page:
         """
         Instances the Page object.
 
-        :param handle_obj:         The handle object of the profile the page belongs to.
-        :type handle_obj:          Handle
+        :param handle_obj:     The handle object of the profile the page belongs to.
+        :type handle_obj:      Handle
         :param url:            The URL of the page.
         :type url:             str
-        :param logger_obj:         The Logger object to log events to.
-        :type logger_obj:          logging.Logger
-        :param instance_obj:       The Instance object associated with the instance this Page's
+        :param logger_obj:     The Logger object to log events to.
+        :type logger_obj:      logging.Logger
+        :param instance_obj:   The Instance object associated with the instance this Page's
                                url is located at.
-        :type instance_obj:        Instance
+        :type instance_obj:    Instance
         :param save_profiles:  If the program is in a profiles-saving mode.
         :type save_profiles:   bool
         :param save_relations: If the program is in a relations-saving mode.
@@ -399,10 +399,14 @@ class Page:
 
     def requests_fetch(self):
         """
-        Tries to fetch self.url using requests.get()
+        Tries to fetch self.url using requests.get().
 
-        :return:
-
+        :return: If the fetch was successful and it's a profile, the lenth of the
+                 bio; if it's a relations page, the number of relations. If it failed,
+                 then a Failed_Request object detailing the problem. If the fetch can't
+                 be done bc it's a profile when not in a profile-fetching mode, or a
+                 relations page when not in relations-fetching mode, False.
+        :rtype:  int or Failed_Request
         """
         try:
             can_fetch = self.instance_obj.can_fetch(self.url)
@@ -1000,8 +1004,8 @@ class Instance:
         :param attempts:          The number of unsuccessful attempts the program has
                                   made to contact this instance.
         :type attempts:           int, optional
-        :param instance_host:              The hostname of the instance (str).
-        :type instance_host:               str
+        :param instance_host:     The hostname of the instance (str).
+        :type instance_host:      str
         :param logger_obj:        The Logger object to log events to.
         :type logger_obj:         logging.Logger
         :param malfunctioning:    Whether the instance is malfunctioning; ie.  returning
@@ -1122,7 +1126,7 @@ class Instance:
 
     def still_rate_limited(self):
         """
-        Returns true if the rate limit on this instance hasn't expired yet, false if it has.
+        Returns True if the rate limit on this instance hasn't expired yet, False if it has.
 
         :return: True or False
         :rtype:  bool
@@ -1169,6 +1173,16 @@ class Instance:
 #        self.robots_txt_file_obj = robots_txt_file_obj
 
     def can_fetch(self, query_url):
+        """
+        Returns True if the given URL is fetchable from the instance according to its
+        robots.txt, False if it's not.
+
+        :param query_url: An absolute URL including the instance, or a relative URL
+                          based at its document root.
+        :type query_url:  str
+        :return:          True if the URL may be fetched, False if not.
+        :rtype:           bool
+        """
         if self.malfunctioning or self.suspended or self.unparseable:
             raise Internal_Exception(f"instance {self.instance_host} has status {self.status};"
                                      f" nothing there can be fetched")

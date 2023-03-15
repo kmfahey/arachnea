@@ -36,9 +36,9 @@ class Failed_Request:
         :param forwarding_address:    If the profile had a forwarding address, indicating
                                       it was defunct.
         :type forwarding_address:     bool, optional
-        :param instance:                  The hostname of the instance that the failed request
+        :param instance:              The hostname of the instance that the failed request
                                       occurred with.
-        :type instance:                   str
+        :type instance:               str
         :param is_dynamic:            If the page had a <noscript> tag, indicating that
                                       JavaScript evaluation is required to view the page's
                                       content.

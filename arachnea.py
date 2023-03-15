@@ -299,18 +299,18 @@ def execute_web_spider_mode(options, args, main_logger_obj):
     Execute the program's webspider mode. If processing handles from the
     commandline, the args argument is used as the source of handles.
 
-    :param options:    The options object that is the first return value of
-                       optparse.OptionParser.parse_args().
-    :type options:     optparse.Values
-    :param args:       The commandline arguments to the program. If the program is
-                       processing handles from the commandline, must be nonzero
-                       in length and consist of strings which are handles in
-                       @user@instance form.
-    :type args:        tuple
-    :param main_logger_obj: The Logger object to log events to.
-    :type main_logger_obj:  logging.Logger
-    :return:           None
-    :rtype:            types.NoneType
+:param options:         The options object that is the first return value of
+                        optparse.OptionParser.parse_args().
+:type options:          optparse.Values
+:param args:            The commandline arguments to the program. If the program
+                        is processing handles from the commandline, must be
+                        nonzero in length and consist of strings which are
+                        handles in @user@instance form.
+:type args:             tuple
+:param main_logger_obj: The Logger object to log events to.
+:type main_logger_obj:  logging.Logger
+:return:                None
+:rtype:                 types.NoneType
     """
     save_profiles = (options.fetch_profiles_only or options.fetch_profiles_and_relations)
     save_relations = (options.fetch_relations_only or options.fetch_profiles_and_relations)

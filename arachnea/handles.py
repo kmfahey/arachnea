@@ -36,9 +36,9 @@ class Handle:
         :param username:  The part of the handle that represents the indicated user's
                           username.
         :type username:   str
-        :param instance:      The part of the handle that represents the indicated user's
+        :param instance:  The part of the handle that represents the indicated user's
                           instance.
-        :type instance:       str
+        :type instance:   str
         """
         assert isinstance(handle_id, int) or handle_id is None
         self.handle_id = handle_id
@@ -67,9 +67,9 @@ class Handle:
 
         :param data_store_obj: The Data_Store object to use to access the handles table.
         :type data_store_obj:  Data_Store
-        :return:           True if the handle_id value was newly set; False if the
-                           handle_id instance variable was already set.
-        :rtype:            bool
+        :return:               True if the handle_id value was newly set; False if the
+                               handle_id instance variable was already set.
+        :rtype:                bool
         """
         # If the handle_id is already set, do nothing & return failure.
         if self.handle_id:
@@ -126,9 +126,9 @@ class Deleted_User(Handle):
 
         :param data_store_obj: The Data_Store object to use to contact the database.
         :type data_store_obj:  Data_Store
-        :return:           A dict mapping 2-tuples of (username, instance) to Deleted_User
-                           objects.
-        :rtype:            dict
+        :return:               A dict mapping 2-tuples of (username, instance) to
+                               Deleted_User objects.
+        :rtype:                dict
         """
         deleted_users_dict = dict()
         for row in data_store_obj.execute("SELECT handle_id, username, instance FROM deleted_users;"):
@@ -154,8 +154,9 @@ class Deleted_User(Handle):
 
         :param data_store_obj: The Data_Store object to use to contact the database.
         :type data_store_obj:  Data_Store
-        :return:           False if the deleted user data is already present in the deleted_users table, True otherwise.
-        :rtype:            bool
+        :return:               False if the deleted user data is already present in the
+                               deleted_users table, True otherwise.
+        :rtype:                bool
         """
         if self.handle_id is None:
             self.fetch_or_set_handle_id(data_store_obj)
