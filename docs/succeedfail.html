@@ -9,7 +9,10 @@
 <font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>succeedfail</strong></big></big></font></td
 ><td align=right valign=bottom
 ><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/home/kmfahey/Workspace/arachnea_py/arachnea/arachnea/succeedfail.py">/home/kmfahey/Workspace/arachnea_py/arachnea/arachnea/succeedfail.py</a></font></td></tr></table>
-    <p></p>
+    <p><tt>#&nbsp;FIXME&nbsp;add&nbsp;a&nbsp;Successful_Request&nbsp;class,&nbsp;re-architect<br>
+#&nbsp;Page_Fetcher.instantiate_and_fetch_page,&nbsp;Page.parse_profile_page,<br>
+#&nbsp;Page.parse_relations_page,&nbsp;Page.requests_fetch,&nbsp;and&nbsp;Page.webdriver_fetch&nbsp;to<br>
+#&nbsp;use&nbsp;Successful_Request&nbsp;complementarily&nbsp;to&nbsp;<a href="#Failed_Request">Failed_Request</a></tt></p>
 <p>
 <table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
 <tr bgcolor="#ee77aa">
@@ -38,14 +41,14 @@
 <font color="#000000" face="helvetica, arial"><a name="Failed_Request">class <strong>Failed_Request</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
     
 <tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
-<td colspan=2><tt><a href="#Failed_Request">Failed_Request</a>(host,&nbsp;connection_error=False,&nbsp;forwarding_address='',&nbsp;is_dynamic=False,&nbsp;malfunctioning=False,&nbsp;no_public_posts=False,&nbsp;posts_too_old=False,&nbsp;ratelimited=False,&nbsp;ssl_error=False,&nbsp;status_code=0,&nbsp;suspended=False,&nbsp;timeout=False,&nbsp;too_many_redirects=False,&nbsp;unparseable=False,&nbsp;user_deleted=False,&nbsp;webdriver_error=False,&nbsp;x_ratelimit_limit=0,&nbsp;robots_txt_disallowed=False)<br>
+<td colspan=2><tt><a href="#Failed_Request">Failed_Request</a>(instance,&nbsp;connection_error=False,&nbsp;forwarding_address='',&nbsp;is_dynamic=False,&nbsp;malfunctioning=False,&nbsp;no_public_posts=False,&nbsp;posts_too_old=False,&nbsp;ratelimited=False,&nbsp;ssl_error=False,&nbsp;status_code=0,&nbsp;suspended=False,&nbsp;timeout=False,&nbsp;too_many_redirects=False,&nbsp;unparseable=False,&nbsp;user_deleted=False,&nbsp;webdriver_error=False,&nbsp;x_ratelimit_limit=0,&nbsp;robots_txt_disallowed=False)<br>
 &nbsp;<br>
 Represents&nbsp;the&nbsp;outcome&nbsp;of&nbsp;a&nbsp;failed&nbsp;HTTP&nbsp;request.&nbsp;Encapsulates&nbsp;details&nbsp;on<br>
 exactly&nbsp;how&nbsp;the&nbsp;request&nbsp;failed&nbsp;and&nbsp;for&nbsp;what&nbsp;reason.&nbsp;Used&nbsp;by&nbsp;Page_Fetcher's<br>
 various&nbsp;methods&nbsp;as&nbsp;a&nbsp;failure&nbsp;signal&nbsp;value.<br>&nbsp;</tt></td></tr>
 <tr><td>&nbsp;</td>
 <td width="100%">Methods defined here:<br>
-<dl><dt><a name="Failed_Request-__init__"><strong>__init__</strong></a>(self, host, connection_error=False, forwarding_address='', is_dynamic=False, malfunctioning=False, no_public_posts=False, posts_too_old=False, ratelimited=False, ssl_error=False, status_code=0, suspended=False, timeout=False, too_many_redirects=False, unparseable=False, user_deleted=False, webdriver_error=False, x_ratelimit_limit=0, robots_txt_disallowed=False)</dt><dd><tt>Instances&nbsp;a&nbsp;<a href="#Failed_Request">Failed_Request</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
+<dl><dt><a name="Failed_Request-__init__"><strong>__init__</strong></a>(self, instance, connection_error=False, forwarding_address='', is_dynamic=False, malfunctioning=False, no_public_posts=False, posts_too_old=False, ratelimited=False, ssl_error=False, status_code=0, suspended=False, timeout=False, too_many_redirects=False, unparseable=False, user_deleted=False, webdriver_error=False, x_ratelimit_limit=0, robots_txt_disallowed=False)</dt><dd><tt>Instances&nbsp;a&nbsp;<a href="#Failed_Request">Failed_Request</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
 &nbsp;<br>
 :param&nbsp;connection_error:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If&nbsp;there&nbsp;was&nbsp;a&nbsp;connection&nbsp;error&nbsp;when&nbsp;contacting&nbsp;the<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;instance.<br>
@@ -53,9 +56,9 @@ various&nbsp;methods&nbsp;as&nbsp;a&nbsp;failure&nbsp;signal&nbsp;value.<br>&nbs
 :param&nbsp;forwarding_address:&nbsp;&nbsp;&nbsp;&nbsp;If&nbsp;the&nbsp;profile&nbsp;had&nbsp;a&nbsp;forwarding&nbsp;address,&nbsp;indicating<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it&nbsp;was&nbsp;defunct.<br>
 :type&nbsp;forwarding_address:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool,&nbsp;optional<br>
-:param&nbsp;host:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;hostname&nbsp;of&nbsp;the&nbsp;instance&nbsp;that&nbsp;the&nbsp;failed&nbsp;request<br>
+:param&nbsp;instance:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;hostname&nbsp;of&nbsp;the&nbsp;instance&nbsp;that&nbsp;the&nbsp;failed&nbsp;request<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;occurred&nbsp;with.<br>
-:type&nbsp;host:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str<br>
+:type&nbsp;instance:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str<br>
 :param&nbsp;is_dynamic:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If&nbsp;the&nbsp;page&nbsp;had&nbsp;a&nbsp;&lt;noscript&gt;&nbsp;tag,&nbsp;indicating&nbsp;that<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;JavaScript&nbsp;evaluation&nbsp;is&nbsp;required&nbsp;to&nbsp;view&nbsp;the&nbsp;page's<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;content.<br>
@@ -114,7 +117,7 @@ Data descriptors defined here:<br>
 </dl>
 <dl><dt><strong>forwarding_address</strong></dt>
 </dl>
-<dl><dt><strong>host</strong></dt>
+<dl><dt><strong>instance</strong></dt>
 </dl>
 <dl><dt><strong>is_dynamic</strong></dt>
 </dl>

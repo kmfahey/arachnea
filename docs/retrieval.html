@@ -52,20 +52,20 @@
 <font color="#000000" face="helvetica, arial"><a name="Instance">class <strong>Instance</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
     
 <tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
-<td colspan=2><tt><a href="#Instance">Instance</a>(host,&nbsp;logger,&nbsp;malfunctioning=False,&nbsp;suspended=False,&nbsp;unparseable=False,&nbsp;rate_limited=False,&nbsp;x_ratelimit_limit=None,&nbsp;attempts=0)<br>
+<td colspan=2><tt><a href="#Instance">Instance</a>(instance_host,&nbsp;logger_obj,&nbsp;malfunctioning=False,&nbsp;suspended=False,&nbsp;unparseable=False,&nbsp;rate_limited=False,&nbsp;x_ratelimit_limit=None,&nbsp;dont_discard_bc_wifi=False,&nbsp;attempts=0)<br>
 &nbsp;<br>
 Represents&nbsp;a&nbsp;mastodon&nbsp;instance.<br>&nbsp;</tt></td></tr>
 <tr><td>&nbsp;</td>
 <td width="100%">Methods defined here:<br>
-<dl><dt><a name="Instance-__init__"><strong>__init__</strong></a>(self, host, logger, malfunctioning=False, suspended=False, unparseable=False, rate_limited=False, x_ratelimit_limit=None, attempts=0)</dt><dd><tt>Instances&nbsp;a&nbsp;<a href="#Instance">Instance</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
+<dl><dt><a name="Instance-__init__"><strong>__init__</strong></a>(self, instance_host, logger_obj, malfunctioning=False, suspended=False, unparseable=False, rate_limited=False, x_ratelimit_limit=None, dont_discard_bc_wifi=False, attempts=0)</dt><dd><tt>Instances&nbsp;a&nbsp;<a href="#Instance">Instance</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
 &nbsp;<br>
 :param&nbsp;attempts:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;number&nbsp;of&nbsp;unsuccessful&nbsp;attempts&nbsp;the&nbsp;program&nbsp;has<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;made&nbsp;to&nbsp;contact&nbsp;this&nbsp;instance.<br>
 :type&nbsp;attempts:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int,&nbsp;optional<br>
-:param&nbsp;host:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;hostname&nbsp;of&nbsp;the&nbsp;instance&nbsp;(str).<br>
-:type&nbsp;host:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str<br>
-:param&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
-:type&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
+:param&nbsp;instance_host:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;hostname&nbsp;of&nbsp;the&nbsp;instance&nbsp;(str).<br>
+:type&nbsp;instance_host:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str<br>
+:param&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
+:type&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
 :param&nbsp;malfunctioning:&nbsp;&nbsp;&nbsp;&nbsp;Whether&nbsp;the&nbsp;instance&nbsp;is&nbsp;malfunctioning;&nbsp;ie.&nbsp;&nbsp;returning<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;500-class&nbsp;error&nbsp;when&nbsp;contacted.<br>
 :type&nbsp;malfunctioning:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool,&nbsp;optional<br>
@@ -84,18 +84,23 @@ Represents&nbsp;a&nbsp;mastodon&nbsp;instance.<br>&nbsp;</tt></td></tr>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;instance.<br>
 :type&nbsp;x_ratelimit_limit:&nbsp;&nbsp;int&nbsp;or&nbsp;float,&nbsp;optional</tt></dd></dl>
 
-<dl><dt><a name="Instance-can_fetch"><strong>can_fetch</strong></a>(self, query_url)</dt></dl>
-
-<dl><dt><a name="Instance-fetch_robots_txt"><strong>fetch_robots_txt</strong></a>(self)</dt></dl>
-
-<dl><dt><a name="Instance-save_instance"><strong>save_instance</strong></a>(self, data_store)</dt><dd><tt>Saves&nbsp;this&nbsp;instance&nbsp;to&nbsp;the&nbsp;database.<br>
+<dl><dt><a name="Instance-can_fetch"><strong>can_fetch</strong></a>(self, query_url)</dt><dd><tt>Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;given&nbsp;URL&nbsp;is&nbsp;fetchable&nbsp;from&nbsp;the&nbsp;instance&nbsp;according&nbsp;to&nbsp;its<br>
+robots.txt,&nbsp;False&nbsp;if&nbsp;it's&nbsp;not.<br>
 &nbsp;<br>
-:param&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;connect&nbsp;to&nbsp;the&nbsp;database.<br>
-:type&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Data_Store<br>
+:param&nbsp;query_url:&nbsp;An&nbsp;absolute&nbsp;URL&nbsp;including&nbsp;the&nbsp;instance,&nbsp;or&nbsp;a&nbsp;relative&nbsp;URL<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;based&nbsp;at&nbsp;its&nbsp;document&nbsp;root.<br>
+:type&nbsp;query_url:&nbsp;&nbsp;str<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;if&nbsp;the&nbsp;URL&nbsp;may&nbsp;be&nbsp;fetched,&nbsp;False&nbsp;if&nbsp;not.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool</tt></dd></dl>
+
+<dl><dt><a name="Instance-save_instance"><strong>save_instance</strong></a>(self, data_store_obj)</dt><dd><tt>Saves&nbsp;this&nbsp;instance&nbsp;to&nbsp;the&nbsp;database.<br>
+&nbsp;<br>
+:param&nbsp;data_store_obj:&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;connect&nbsp;to&nbsp;the&nbsp;database.<br>
+:type&nbsp;data_store_obj:&nbsp;&nbsp;Data_Store<br>
 :return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;if&nbsp;the&nbsp;instance's&nbsp;malfunctioning,&nbsp;suspended,&nbsp;and<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unparseable&nbsp;instance&nbsp;vars&nbsp;are&nbsp;all&nbsp;False,&nbsp;or&nbsp;if&nbsp;there&nbsp;was<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;already&nbsp;a&nbsp;row&nbsp;in&nbsp;the&nbsp;bad_instances&nbsp;table&nbsp;with&nbsp;a&nbsp;value&nbsp;for<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;instance&nbsp;column&nbsp;matching&nbsp;the&nbsp;host&nbsp;instance&nbsp;var,&nbsp;True<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;instance&nbsp;column&nbsp;matching&nbsp;the&nbsp;instance&nbsp;attribute,&nbsp;True<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;otherwise.<br>
 :rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool</tt></dd></dl>
 
@@ -106,32 +111,32 @@ if&nbsp;supplied,&nbsp;otherwise&nbsp;to&nbsp;300.0.<br>
 :return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;None<br>
 :rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;types.NoneType</tt></dd></dl>
 
-<dl><dt><a name="Instance-still_rate_limited"><strong>still_rate_limited</strong></a>(self)</dt><dd><tt>Returns&nbsp;true&nbsp;if&nbsp;the&nbsp;rate&nbsp;limit&nbsp;on&nbsp;this&nbsp;host&nbsp;hasn't&nbsp;expired&nbsp;yet,&nbsp;false&nbsp;if&nbsp;it&nbsp;has.<br>
+<dl><dt><a name="Instance-still_rate_limited"><strong>still_rate_limited</strong></a>(self)</dt><dd><tt>Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;rate&nbsp;limit&nbsp;on&nbsp;this&nbsp;instance&nbsp;hasn't&nbsp;expired&nbsp;yet,&nbsp;False&nbsp;if&nbsp;it&nbsp;has.<br>
 &nbsp;<br>
 :return:&nbsp;True&nbsp;or&nbsp;False<br>
 :rtype:&nbsp;&nbsp;bool</tt></dd></dl>
 
 <hr>
 Class methods defined here:<br>
-<dl><dt><a name="Instance-fetch_all_instances"><strong>fetch_all_instances</strong></a>(data_store, logger)<font color="#909090"><font face="helvetica, arial"> from <a href="builtins.html#type">builtins.type</a></font></font></dt><dd><tt>Loads&nbsp;all&nbsp;lines&nbsp;from&nbsp;the&nbsp;bad_instances&nbsp;table,&nbsp;converts&nbsp;them&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects,<br>
+<dl><dt><a name="Instance-fetch_all_instances"><strong>fetch_all_instances</strong></a>(data_store_obj, logger_obj)<font color="#909090"><font face="helvetica, arial"> from <a href="builtins.html#type">builtins.type</a></font></font></dt><dd><tt>Loads&nbsp;all&nbsp;lines&nbsp;from&nbsp;the&nbsp;bad_instances&nbsp;table,&nbsp;converts&nbsp;them&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects,<br>
 and&nbsp;returns&nbsp;a&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects.<br>
 &nbsp;<br>
-:param&nbsp;data_store:&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;connect&nbsp;to&nbsp;the&nbsp;database.<br>
-:type&nbsp;data_store:&nbsp;&nbsp;Data_Store<br>
-:param&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
-:type&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
-:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;(strs)&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects.<br>
-:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dict</tt></dd></dl>
+:param&nbsp;data_store_obj:&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;connect&nbsp;to&nbsp;the&nbsp;database.<br>
+:type&nbsp;data_store_obj:&nbsp;&nbsp;Data_Store<br>
+:param&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
+:type&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;(strs)&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dict</tt></dd></dl>
 
-<dl><dt><a name="Instance-save_instances"><strong>save_instances</strong></a>(instances_dict, data_store, logger)<font color="#909090"><font face="helvetica, arial"> from <a href="builtins.html#type">builtins.type</a></font></font></dt><dd><tt>Accepts&nbsp;a&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects,&nbsp;and&nbsp;commits&nbsp;every&nbsp;novel<br>
+<dl><dt><a name="Instance-save_instances"><strong>save_instances</strong></a>(instances_dict, data_store_obj, logger_obj)<font color="#909090"><font face="helvetica, arial"> from <a href="builtins.html#type">builtins.type</a></font></font></dt><dd><tt>Accepts&nbsp;a&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects,&nbsp;and&nbsp;commits&nbsp;every&nbsp;novel<br>
 one&nbsp;to&nbsp;the&nbsp;database.&nbsp;(Class&nbsp;method.)<br>
 &nbsp;<br>
 :param&nbsp;instances_dict:&nbsp;A&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;(strs)&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects.<br>
 :type&nbsp;instances_dict:&nbsp;&nbsp;dict<br>
-:param&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;connect&nbsp;to&nbsp;the&nbsp;database.<br>
-:type&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Data_Store<br>
-:param&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
-:type&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
+:param&nbsp;data_store_obj:&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;connect&nbsp;to&nbsp;the&nbsp;database.<br>
+:type&nbsp;data_store_obj:&nbsp;&nbsp;Data_Store<br>
+:param&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
+:type&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
 :return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;None<br>
 :rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;types.NoneType</tt></dd></dl>
 
@@ -145,9 +150,11 @@ Readonly properties defined here:<br>
 Data descriptors defined here:<br>
 <dl><dt><strong>attempts</strong></dt>
 </dl>
-<dl><dt><strong>host</strong></dt>
+<dl><dt><strong>dont_discard_bc_wifi</strong></dt>
 </dl>
-<dl><dt><strong>logger</strong></dt>
+<dl><dt><strong>instance_host</strong></dt>
+</dl>
+<dl><dt><strong>logger_obj</strong></dt>
 </dl>
 <dl><dt><strong>malfunctioning</strong></dt>
 </dl>
@@ -166,23 +173,23 @@ Data descriptors defined here:<br>
 <font color="#000000" face="helvetica, arial"><a name="Page">class <strong>Page</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
     
 <tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
-<td colspan=2><tt><a href="#Page">Page</a>(handle,&nbsp;url,&nbsp;logger,&nbsp;instance,&nbsp;save_profiles=False,&nbsp;save_relations=False)<br>
+<td colspan=2><tt><a href="#Page">Page</a>(handle_obj,&nbsp;url,&nbsp;logger_obj,&nbsp;instance_obj,&nbsp;save_profiles=False,&nbsp;save_relations=False,&nbsp;dont_discard_bc_wifi=False)<br>
 &nbsp;<br>
 Represents&nbsp;a&nbsp;single&nbsp;page;&nbsp;handles&nbsp;retrieving&nbsp;the&nbsp;page&nbsp;and&nbsp;the&nbsp;ensuing&nbsp;errors<br>
 itself.<br>&nbsp;</tt></td></tr>
 <tr><td>&nbsp;</td>
 <td width="100%">Methods defined here:<br>
-<dl><dt><a name="Page-__init__"><strong>__init__</strong></a>(self, handle, url, logger, instance, save_profiles=False, save_relations=False)</dt><dd><tt>Instances&nbsp;the&nbsp;<a href="#Page">Page</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
+<dl><dt><a name="Page-__init__"><strong>__init__</strong></a>(self, handle_obj, url, logger_obj, instance_obj, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False)</dt><dd><tt>Instances&nbsp;the&nbsp;<a href="#Page">Page</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
 &nbsp;<br>
-:param&nbsp;handle:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;handle&nbsp;of&nbsp;the&nbsp;profile&nbsp;the&nbsp;page&nbsp;belongs&nbsp;to.<br>
-:type&nbsp;handle:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Handle<br>
+:param&nbsp;handle_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;handle&nbsp;<a href="builtins.html#object">object</a>&nbsp;of&nbsp;the&nbsp;profile&nbsp;the&nbsp;page&nbsp;belongs&nbsp;to.<br>
+:type&nbsp;handle_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Handle<br>
 :param&nbsp;url:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;URL&nbsp;of&nbsp;the&nbsp;page.<br>
 :type&nbsp;url:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str<br>
-:param&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
-:type&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logger.Logger<br>
-:param&nbsp;instance:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;<a href="#Instance">Instance</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;associated&nbsp;with&nbsp;the&nbsp;host&nbsp;this&nbsp;<a href="#Page">Page</a>'s<br>
+:param&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
+:type&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
+:param&nbsp;instance_obj:&nbsp;&nbsp;&nbsp;The&nbsp;<a href="#Instance">Instance</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;associated&nbsp;with&nbsp;the&nbsp;instance&nbsp;this&nbsp;<a href="#Page">Page</a>'s<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;url&nbsp;is&nbsp;located&nbsp;at.<br>
-:type&nbsp;instance:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Instance">Instance</a><br>
+:type&nbsp;instance_obj:&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Instance">Instance</a><br>
 :param&nbsp;save_profiles:&nbsp;&nbsp;If&nbsp;the&nbsp;program&nbsp;is&nbsp;in&nbsp;a&nbsp;profiles-saving&nbsp;mode.<br>
 :type&nbsp;save_profiles:&nbsp;&nbsp;&nbsp;bool<br>
 :param&nbsp;save_relations:&nbsp;If&nbsp;the&nbsp;program&nbsp;is&nbsp;in&nbsp;a&nbsp;relations-saving&nbsp;mode.<br>
@@ -227,18 +234,23 @@ True.<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;links&nbsp;collected.<br>
 :rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Failed_Request&nbsp;or&nbsp;int</tt></dd></dl>
 
-<dl><dt><a name="Page-requests_fetch"><strong>requests_fetch</strong></a>(self)</dt><dd><tt>Tries&nbsp;to&nbsp;fetch&nbsp;self.<strong>url</strong>&nbsp;using&nbsp;requests.get()<br>
+<dl><dt><a name="Page-requests_fetch"><strong>requests_fetch</strong></a>(self)</dt><dd><tt>Tries&nbsp;to&nbsp;fetch&nbsp;self.<strong>url</strong>&nbsp;using&nbsp;requests.get().<br>
 &nbsp;<br>
-:return:</tt></dd></dl>
+:return:&nbsp;If&nbsp;the&nbsp;fetch&nbsp;was&nbsp;successful&nbsp;and&nbsp;it's&nbsp;a&nbsp;profile,&nbsp;the&nbsp;lenth&nbsp;of&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bio;&nbsp;if&nbsp;it's&nbsp;a&nbsp;relations&nbsp;page,&nbsp;the&nbsp;number&nbsp;of&nbsp;relations.&nbsp;If&nbsp;it&nbsp;failed,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then&nbsp;a&nbsp;Failed_Request&nbsp;<a href="builtins.html#object">object</a>&nbsp;detailing&nbsp;the&nbsp;problem.&nbsp;If&nbsp;the&nbsp;fetch&nbsp;can't<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;be&nbsp;done&nbsp;bc&nbsp;it's&nbsp;a&nbsp;profile&nbsp;when&nbsp;not&nbsp;in&nbsp;a&nbsp;profile-fetching&nbsp;mode,&nbsp;or&nbsp;a<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;relations&nbsp;page&nbsp;when&nbsp;not&nbsp;in&nbsp;relations-fetching&nbsp;mode,&nbsp;False.<br>
+:rtype:&nbsp;&nbsp;int&nbsp;or&nbsp;Failed_Request</tt></dd></dl>
 
-<dl><dt><a name="Page-save_page"><strong>save_page</strong></a>(self, data_store)</dt><dd><tt>Saves&nbsp;the&nbsp;page's&nbsp;content&nbsp;to&nbsp;the&nbsp;data&nbsp;store.&nbsp;If&nbsp;this&nbsp;is&nbsp;a&nbsp;profile&nbsp;page,&nbsp;saves&nbsp;the<br>
+<dl><dt><a name="Page-save_page"><strong>save_page</strong></a>(self, data_store_obj)</dt><dd><tt>Saves&nbsp;the&nbsp;page's&nbsp;content&nbsp;to&nbsp;the&nbsp;data&nbsp;store.&nbsp;If&nbsp;this&nbsp;is&nbsp;a&nbsp;profile&nbsp;page,&nbsp;saves&nbsp;the<br>
 profile.&nbsp;If&nbsp;this&nbsp;is&nbsp;a&nbsp;relations&nbsp;page,&nbsp;save&nbsp;the&nbsp;collected&nbsp;following/followers<br>
 handles.<br>
 &nbsp;<br>
-:param&nbsp;data_store:&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;contact&nbsp;the&nbsp;database.<br>
-:type&nbsp;data_store:&nbsp;&nbsp;Data_Store<br>
-:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;number&nbsp;of&nbsp;rows&nbsp;affected&nbsp;by&nbsp;the&nbsp;query.<br>
-:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int</tt></dd></dl>
+:param&nbsp;data_store_obj:&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;contact&nbsp;the&nbsp;database.<br>
+:type&nbsp;data_store_obj:&nbsp;&nbsp;Data_Store<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;number&nbsp;of&nbsp;rows&nbsp;affected&nbsp;by&nbsp;the&nbsp;query.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int</tt></dd></dl>
 
 <dl><dt><a name="Page-webdriver_fetch"><strong>webdriver_fetch</strong></a>(self)</dt><dd><tt>Tries&nbsp;to&nbsp;fetch&nbsp;self.<strong>url</strong>&nbsp;using&nbsp;selenium.webdriver.firefox.<br>
 &nbsp;<br>
@@ -257,11 +269,13 @@ Readonly properties defined here:<br>
 Data descriptors defined here:<br>
 <dl><dt><strong>document</strong></dt>
 </dl>
-<dl><dt><strong>handle</strong></dt>
+<dl><dt><strong>dont_discard_bc_wifi</strong></dt>
 </dl>
-<dl><dt><strong>host</strong></dt>
+<dl><dt><strong>handle_obj</strong></dt>
 </dl>
 <dl><dt><strong>instance</strong></dt>
+</dl>
+<dl><dt><strong>instance_obj</strong></dt>
 </dl>
 <dl><dt><strong>is_dynamic</strong></dt>
 </dl>
@@ -275,7 +289,7 @@ Data descriptors defined here:<br>
 </dl>
 <dl><dt><strong>loaded</strong></dt>
 </dl>
-<dl><dt><strong>logger</strong></dt>
+<dl><dt><strong>logger_obj</strong></dt>
 </dl>
 <dl><dt><strong>page_number</strong></dt>
 </dl>
@@ -320,7 +334,7 @@ Data and other attributes defined here:<br>
 <font color="#000000" face="helvetica, arial"><a name="Page_Fetcher">class <strong>Page_Fetcher</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
     
 <tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
-<td colspan=2><tt><a href="#Page_Fetcher">Page_Fetcher</a>(data_store,&nbsp;logger,&nbsp;instances_dict,&nbsp;save_profiles=False,&nbsp;save_relations=False,&nbsp;dont_discard_bc_wifi=False,&nbsp;conn_err_wait_time=0.0)<br>
+<td colspan=2><tt><a href="#Page_Fetcher">Page_Fetcher</a>(data_store_obj,&nbsp;logger_obj,&nbsp;instances_dict,&nbsp;save_profiles=False,&nbsp;save_relations=False,&nbsp;dont_discard_bc_wifi=False,&nbsp;conn_err_wait_time=0.0)<br>
 &nbsp;<br>
 An&nbsp;originator&nbsp;of&nbsp;<a href="#Page">Page</a>&nbsp;objects&nbsp;that&nbsp;executes&nbsp;this&nbsp;workflow:<br>
 &nbsp;<br>
@@ -332,13 +346,13 @@ An&nbsp;originator&nbsp;of&nbsp;<a href="#Page">Page</a>&nbsp;objects&nbsp;that&
 *&nbsp;If&nbsp;it&nbsp;succeeds,&nbsp;yields&nbsp;the&nbsp;<a href="#Page">Page</a>&nbsp;<a href="builtins.html#object">object</a>.<br>&nbsp;</tt></td></tr>
 <tr><td>&nbsp;</td>
 <td width="100%">Methods defined here:<br>
-<dl><dt><a name="Page_Fetcher-__init__"><strong>__init__</strong></a>(self, data_store, logger, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False, conn_err_wait_time=0.0)</dt><dd><tt>Instances&nbsp;the&nbsp;<a href="#Page_Fetcher">Page_Fetcher</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
+<dl><dt><a name="Page_Fetcher-__init__"><strong>__init__</strong></a>(self, data_store_obj, logger_obj, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False, conn_err_wait_time=0.0)</dt><dd><tt>Instances&nbsp;the&nbsp;<a href="#Page_Fetcher">Page_Fetcher</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
 &nbsp;<br>
-:param&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;when&nbsp;saving&nbsp;a<br>
+:param&nbsp;data_store_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;when&nbsp;saving&nbsp;a<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Page">Page</a>&nbsp;or&nbsp;Deleted_User&nbsp;<a href="builtins.html#object">object</a>.<br>
-:type&nbsp;data_store:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Data_Store<br>
-:param&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events.<br>
-:type&nbsp;logger:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logger.Logger<br>
+:type&nbsp;data_store_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Data_Store<br>
+:param&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events.<br>
+:type&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
 :param&nbsp;instances_dict:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;that&nbsp;is&nbsp;the&nbsp;store&nbsp;of&nbsp;known&nbsp;instance&nbsp;and&nbsp;their<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;statuses.<br>
@@ -359,13 +373,13 @@ An&nbsp;originator&nbsp;of&nbsp;<a href="#Page">Page</a>&nbsp;objects&nbsp;that&
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;before&nbsp;resuming&nbsp;the&nbsp;algorithm.<br>
 :type&nbsp;conn_err_wait_time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool</tt></dd></dl>
 
-<dl><dt><a name="Page_Fetcher-instantiate_and_fetch_page"><strong>instantiate_and_fetch_page</strong></a>(self, handle, url)</dt></dl>
+<dl><dt><a name="Page_Fetcher-instantiate_and_fetch_page"><strong>instantiate_and_fetch_page</strong></a>(self, handle_obj, url)</dt></dl>
 
 <hr>
 Data descriptors defined here:<br>
 <dl><dt><strong>conn_err_wait_time</strong></dt>
 </dl>
-<dl><dt><strong>data_store</strong></dt>
+<dl><dt><strong>data_store_obj</strong></dt>
 </dl>
 <dl><dt><strong>deleted_users_dict</strong></dt>
 </dl>
@@ -373,7 +387,7 @@ Data descriptors defined here:<br>
 </dl>
 <dl><dt><strong>instances_dict</strong></dt>
 </dl>
-<dl><dt><strong>logger</strong></dt>
+<dl><dt><strong>logger_obj</strong></dt>
 </dl>
 <dl><dt><strong>save_profiles</strong></dt>
 </dl>
@@ -386,13 +400,13 @@ Data descriptors defined here:<br>
 <font color="#000000" face="helvetica, arial"><a name="Robots_Txt_File">class <strong>Robots_Txt_File</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
     
 <tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
-<td colspan=2><tt><a href="#Robots_Txt_File">Robots_Txt_File</a>(user_agent,&nbsp;url)<br>
+<td colspan=2><tt><a href="#Robots_Txt_File">Robots_Txt_File</a>(user_agent,&nbsp;url,&nbsp;logger_obj,&nbsp;dont_discard_bc_wifi=False)<br>
 &nbsp;<br>
 Represents&nbsp;a&nbsp;robots.txt&nbsp;file,&nbsp;implementing&nbsp;functionality&nbsp;to&nbsp;test&nbsp;whether&nbsp;a<br>
 User-Agent&nbsp;+&nbsp;path&nbsp;combination&nbsp;is&nbsp;allowed&nbsp;or&nbsp;not.<br>&nbsp;</tt></td></tr>
 <tr><td>&nbsp;</td>
 <td width="100%">Methods defined here:<br>
-<dl><dt><a name="Robots_Txt_File-__init__"><strong>__init__</strong></a>(self, user_agent, url)</dt><dd><tt>Instances&nbsp;a&nbsp;<a href="#Robots_Txt_File">Robots_Txt_File</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
+<dl><dt><a name="Robots_Txt_File-__init__"><strong>__init__</strong></a>(self, user_agent, url, logger_obj, dont_discard_bc_wifi=False)</dt><dd><tt>Instances&nbsp;a&nbsp;<a href="#Robots_Txt_File">Robots_Txt_File</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
 &nbsp;<br>
 :param&nbsp;user_agent:&nbsp;The&nbsp;User-Agent&nbsp;string&nbsp;to&nbsp;test&nbsp;against&nbsp;the&nbsp;robots.txt<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;constraints.&nbsp;Should&nbsp;be&nbsp;cut&nbsp;off&nbsp;at&nbsp;the&nbsp;first&nbsp;space&nbsp;or&nbsp;slash.<br>
@@ -420,7 +434,15 @@ False&nbsp;otherwise.<br>
 :rtype:&nbsp;&nbsp;types.NoneType</tt></dd></dl>
 
 <hr>
+Readonly properties defined here:<br>
+<dl><dt><strong>instance</strong></dt>
+</dl>
+<hr>
 Data descriptors defined here:<br>
+<dl><dt><strong>dont_discard_bc_wifi</strong></dt>
+</dl>
+<dl><dt><strong>logger_obj</strong></dt>
+</dl>
 <dl><dt><strong>robots_dict</strong></dt>
 </dl>
 <dl><dt><strong>url</strong></dt>
@@ -429,11 +451,11 @@ Data descriptors defined here:<br>
 </dl>
 <hr>
 Data and other attributes defined here:<br>
-<dl><dt><strong>allow_re</strong> = re.compile('^Allow: ', re.IGNORECASE)</dl>
+<dl><dt><strong>allow_re</strong> = re.compile('^Allow: (.*)$', re.IGNORECASE)</dl>
 
-<dl><dt><strong>disallow_re</strong> = re.compile('^Disallow: ', re.IGNORECASE)</dl>
+<dl><dt><strong>disallow_re</strong> = re.compile('^Disallow: (.*)$', re.IGNORECASE)</dl>
 
-<dl><dt><strong>user_agent_re</strong> = re.compile('^(?=User-Agent: )', re.IGNORECASE|re.MULTILINE)</dl>
+<dl><dt><strong>user_agent_re</strong> = re.compile('^User-agent: (.*)$', re.IGNORECASE)</dl>
 
 </td></tr></table></td></tr></table><p>
 <table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
