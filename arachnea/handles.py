@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-import MySQLdb._exceptions
 import re
 
 
@@ -70,14 +69,14 @@ class Handle:
         """
         return Deleted_User(handle_id=self.handle_id, username=self.username, host=self.host)
 
-    def fetch_or_set_handle_id(self, data_store):
+    def fetch_or_set_handle_id(self, data_store_obj):
         """
         If the Handle object was instanced from another source than a row in the
         MySQL handles table, set the handle_id from the table, inserting the data if
         necessary.
 
-        :param data_store: The Data_Store object to use to access the handles table.
-        :type data_store:  Data_Store
+        :param data_store_obj: The Data_Store object to use to access the handles table.
+        :type data_store_obj:  Data_Store
         :return:           True if the handle_id value was newly set; False if the
                            handle_id instance variable was already set.
         :rtype:            bool
@@ -88,21 +87,38 @@ class Handle:
 
         # Fetch the extant handle_id value from the table if it so happens this
         # username/host part is already in the handles table.
-        fetch_handle_id_sql = (f"""SELECT handle_id FROM handles WHERE username = '{self.username}'
-                                                                 AND instance = '{self.host}';""")
-        data_store.db_cursor.execute(fetch_handle_id_sql)
-        rows = data_store.db_cursor.fetchall()
+        fetch_handle_id_sql = f"""SELECT handle_id FROM handles WHERE username = '{self.username}'
+                                                                AND instance = '{self.host}';"""
+        rows = data_store_obj.execute(fetch_handle_id_sql)
 
-        # If it wasn't present, insert the username/host pair into the table,
-        # and repeats the fetch query.
         if not len(rows):
-            insert_handle_sql = f"INSERT INTO handles (username, instance) VALUES ('{self.username}', '{self.host}');"
-            data_store.db_cursor.execute(insert_handle_sql)
-            data_store.db_cursor.fetchall()
-            data_store.db_cursor.execute(fetch_handle_id_sql)
-            rows = data_store.db_cursor.fetchall()
+            self.save_handle(data_store_obj)
+
+            rows = data_store_obj.execute(fetch_handle_id_sql)
+
         ((handle_id,),) = rows
         self.handle_id = handle_id
+        return True
+
+    def save_handle(self, data_store_obj):
+        """
+        Saves the handle to the handles table of the database. Returns False if this
+        username and instance combination was already present in the handles table, True
+        otherwise.
+
+        :param data_store_obj: The Data_Store object to use to access the handles table.
+        :type data_store_obj:  Data_Store
+        :return:           False if the handle was already in the database, True
+                           otherwise.
+        :rtype:            bool
+        """
+        fetch_handle_id_sql = f"""SELECT handle_id FROM handles WHERE username = '{self.username}'
+                                                                AND instance = '{self.host}';"""
+        rows = data_store_obj.execute(fetch_handle_id_sql)
+        if len(rows):
+            return False
+
+        data_store_obj.execute(f"INSERT INTO handles (username, instance) VALUES ('{self.username}', '{self.host}');")
         return True
 
 
@@ -113,38 +129,38 @@ class Deleted_User(Handle):
     __slots__ = 'logger_obj',
 
     @classmethod
-    def fetch_all_deleted_users(self, data_store):
+    def fetch_all_deleted_users(self, data_store_obj):
         """
         Retrieves all records from the deleted_users table and returns them in a dict.
 
-        :param data_store: The Data_Store object to use to contact the database.
-        :type data_store:  Data_Store
+        :param data_store_obj: The Data_Store object to use to contact the database.
+        :type data_store_obj:  Data_Store
         :return:           A dict mapping 2-tuples of (username, host) to Deleted_User
                            objects.
         :rtype:            dict
         """
         deleted_users_dict = dict()
-        for row in data_store.execute("SELECT handle_id, username, instance FROM deleted_users;"):
+        for row in data_store_obj.execute("SELECT handle_id, username, instance FROM deleted_users;"):
             handle_id, username, host = row
             deleted_users_dict[username, host] = Deleted_User(handle_id=handle_id, username=username, host=host)
         return deleted_users_dict
 
-    def save_deleted_user(self, data_store):
+    def save_deleted_user(self, data_store_obj):
         """
         Saves this deleted user to the deleted_users table.
 
-        :param data_store: The Data_Store object to use to contact the database.
-        :type data_store:  Data_Store
+        :param data_store_obj: The Data_Store object to use to contact the database.
+        :type data_store_obj:  Data_Store
         :return:           False if the deleted user data is already present in the deleted_users table, True otherwise.
         :rtype:            bool
         """
         if self.handle_id is None:
-            self.fetch_or_set_handle_id(data_store)
+            self.fetch_or_set_handle_id(data_store_obj)
         select_sql = f"SELECT * FROM deleted_users WHERE handle_id = {self.handle_id};"
-        if bool(len(data_store.execute(select_sql))):
+        if bool(len(data_store_obj.execute(select_sql))):
             return False
         insert_sql = f"""INSERT INTO deleted_users (handle_id, username, instance) VALUES
                          ({self.handle_id}, '{self.username}', '{self.host}');"""
-        data_store.execute(insert_sql)
+        data_store_obj.execute(insert_sql)
         self.logger_obj.info(f"inserted {self.handle} into table deleted_users")
         return True

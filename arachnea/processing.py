@@ -288,20 +288,20 @@ class Handle_Processor(object):
     Implements a class for processing a list of handles and fetching the profile,
     relations, or both for each one depending on configuration.
     """
-    __slots__ = ('data_store', 'logger_obj', 'instances_dict', 'save_from_wifi', 'last_time_point',
+    __slots__ = ('data_store_obj', 'logger_obj', 'instances_dict', 'save_from_wifi', 'last_time_point',
                  'current_time_point', 'save_profiles', 'save_relations', 'page_fetcher', 'dont_discard_bc_wifi',
                  'conn_err_wait_time')
 
-    def __init__(self, data_store, logger_obj, instances_dict, save_profiles=False, save_relations=False,
+    def __init__(self, data_store_obj, logger_obj, instances_dict, save_profiles=False, save_relations=False,
                        dont_discard_bc_wifi=False, conn_err_wait_time=0.0):
         """
         Initializes the Handle_Processor object.
 
-        :param data_store:           The Data_Store object to use to contact the
+        :param data_store_obj:       The Data_Store object to use to contact the
                                      database.
-        :type data_store:            Data_Store
-        :param logger_obj:               The Logger object to use to log events.
-        :type logger_obj:                logging.Logger
+        :type data_store_obj:        Data_Store
+        :param logger_obj:           The Logger object to use to log events.
+        :type logger_obj:            logging.Logger
         :param instances_dict:       A dict associating hostnames to Instance objects,
                                      used to identify problematic instances (or ones the
                                      program has been ratelimited from) and avoid
@@ -323,7 +323,7 @@ class Handle_Processor(object):
                                      profiles while the WiFi is out.)
         :type conn_err_wait_time:    float
         """
-        self.data_store = data_store
+        self.data_store_obj = data_store_obj
         self.logger_obj = logger_obj
         self.instances_dict = instances_dict
         self.save_profiles = save_profiles
@@ -337,7 +337,7 @@ class Handle_Processor(object):
         # were specified on the commandline and passed to this object on
         # instantiation; now they're being passed down to Page_Fetcher where
         # they'll actually be used.
-        self.page_fetcher = Page_Fetcher(data_store, self.logger_obj, instances_dict, save_profiles=save_profiles,
+        self.page_fetcher = Page_Fetcher(data_store_obj, self.logger_obj, instances_dict, save_profiles=save_profiles,
                                          save_relations=save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi,
                                          conn_err_wait_time=self.conn_err_wait_time)
 
@@ -447,7 +447,7 @@ class Handle_Processor(object):
         # succeeded and the page has a bio that can be saved.
         if profile_page is not None and isinstance(result, int) and self.save_profiles:
             self.logger_obj.info("saving bio to database")
-            profile_page.save_page(self.data_store)
+            profile_page.save_page(self.data_store_obj)
 
         return result
 
@@ -494,7 +494,7 @@ class Handle_Processor(object):
 
         # A dynamic following/followers page uses infinite scroll to convey all
         # the handles on a single page, so one save action is all that's needed.
-        first_relation_page.save_page(self.data_store)
+        first_relation_page.save_page(self.data_store_obj)
         if first_relation_page.is_dynamic:
             return result
 
@@ -506,7 +506,7 @@ class Handle_Processor(object):
             relation_page, result = self.page_fetcher.instantiate_and_fetch_page(handle, relation_page_url)
             if isinstance(result, Failed_Request):
                 return result
-            relation_page.save_page(self.data_store)
+            relation_page.save_page(self.data_store_obj)
             total_result += result
 
         return total_result

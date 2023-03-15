@@ -40,19 +40,19 @@ class Page_Fetcher:
     * If it fails, handles a variety of failed requests in different ways
     * If it succeeds, yields the Page object.
     """
-    __slots__ = ('instances_dict', 'data_store', 'logger_obj', 'deleted_users_dict', 'save_profiles', 'save_relations',
+    __slots__ = ('instances_dict', 'data_store_obj', 'logger_obj', 'deleted_users_dict', 'save_profiles', 'save_relations',
                  'dont_discard_bc_wifi', 'conn_err_wait_time')
 
-    def __init__(self, data_store, logger_obj, instances_dict, save_profiles=False, save_relations=False,
+    def __init__(self, data_store_obj, logger_obj, instances_dict, save_profiles=False, save_relations=False,
                        dont_discard_bc_wifi=False, conn_err_wait_time=0.0):
         """
         Instances the Page_Fetcher object.
 
-        :param data_store:                 The Data_Store object to use when saving a
+        :param data_store_obj:             The Data_Store object to use when saving a
                                            Page or Deleted_User object.
-        :type data_store:                  Data_Store
-        :param logger_obj:                     The Logger object to use to log events.
-        :type logger_obj:                      logging.Logger
+        :type data_store_obj:              Data_Store
+        :param logger_obj:                 The Logger object to use to log events.
+        :type logger_obj:                  logging.Logger
         :param instances_dict:             A dict mapping hostnames to Instance objects
                                            that is the store of known instance and their
                                            statuses.
@@ -73,10 +73,10 @@ class Page_Fetcher:
                                            before resuming the algorithm.
         :type conn_err_wait_time:          bool
         """
-        self.data_store = data_store
+        self.data_store_obj = data_store_obj
         self.logger_obj = logger_obj
         self.instances_dict = instances_dict
-        self.deleted_users_dict = Deleted_User.fetch_all_deleted_users(self.data_store)
+        self.deleted_users_dict = Deleted_User.fetch_all_deleted_users(self.data_store_obj)
         self.save_profiles = save_profiles
         self.save_relations = save_relations
         self.dont_discard_bc_wifi = dont_discard_bc_wifi
@@ -102,7 +102,7 @@ class Page_Fetcher:
                                      f"didn't load {url}; saving null bio to database")
                     page = Page(handle, url, self.logger_obj, instance, save_profiles=self.save_profiles,
                                 save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
-                    page.save_page(self.data_store)
+                    page.save_page(self.data_store_obj)
                     return page, Failed_Request(host,
                                                 malfunctioning=instance.malfunctioning,
                                                 unparseable=instance.unparseable,
@@ -131,7 +131,7 @@ class Page_Fetcher:
             self.logger_obj.info(f"user {handle.handle} known to be deleted; didn't load {url}; saving null bio to database")
             page = Page(handle, url, self.logger_obj, instance, save_profiles=self.save_profiles,
                         save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
-            page.save_page(self.data_store)
+            page.save_page(self.data_store_obj)
             return page, Failed_Request(handle.host, user_deleted=True)
 
         # Possibilities for aborting transfer don't apply; proceeding with a
@@ -211,7 +211,7 @@ class Page_Fetcher:
                 deleted_user = handle.convert_to_deleted_user()
                 deleted_user.logger_obj = self.logger_obj
                 self.deleted_users_dict[handle.username, handle.host] = deleted_user
-                deleted_user.save_deleted_user(self.data_store)
+                deleted_user.save_deleted_user(self.data_store_obj)
                 self.logger_obj.info(f"failed to load {url}: user deleted")
 
             # Several other kinds of error that only need to be logged.
@@ -232,7 +232,11 @@ class Page_Fetcher:
                 if result.forwarding_address is True:
                     self.logger_obj.info(f"loaded {url}: forwarding page (could not recover handle)")
                 else:
-                    self.logger_obj.info(f"loaded {url}: forwarding page")
+                    handle = result.forwarding_address
+                    username, host = handle.lstrip('@').split('@')
+                    handle_obj = Handle(username=username, host=host)
+                    handle_obj.save_handle(self.data_store_obj)
+                    self.logger_obj.info(f"loaded {url}: forwarding page; saved to handles table")
             else:
                 self.logger_obj.info(f"loading {url}: unanticipated error {repr(result)}")
             # END *first* big conditional
@@ -263,7 +267,7 @@ class Page_Fetcher:
                     time.sleep(self.conn_err_wait_time)
 
             else:
-                page.save_page(self.data_store)
+                page.save_page(self.data_store_obj)
 
             return None, result
 
@@ -842,16 +846,16 @@ class Page:
         else:
             return []
 
-    def save_page(self, data_store):
+    def save_page(self, data_store_obj):
         """
         Saves the page's content to the data store. If this is a profile page, saves the
         profile. If this is a relations page, save the collected following/followers
         handles.
 
-        :param data_store: The Data_Store object to use to contact the database.
-        :type data_store:  Data_Store
-        :return:           The number of rows affected by the query.
-        :rtype:            int
+        :param data_store_obj: The Data_Store object to use to contact the database.
+        :type data_store_obj:  Data_Store
+        :return:               The number of rows affected by the query.
+        :rtype:                int
         """
         if self.is_profile:
 
@@ -866,13 +870,13 @@ class Page:
             profile_bio_text = self.profile_bio_text.replace("'", "\\'")
             handle = self.handle
             if not handle.handle_id:
-                handle.fetch_or_set_handle_id(data_store)
+                handle.fetch_or_set_handle_id(data_store_obj)
 
             # Checking if this profile already exists in the profiles table and
             # already has its profile saved.
             select_sql = f"""SELECT profile_handle_id, profile_bio_markdown FROM profiles
                              WHERE profile_handle_id = {handle.handle_id};"""
-            rows = data_store.execute(select_sql)
+            rows = data_store_obj.execute(select_sql)
             if rows:
                 ((handle_id, profile_bio_markdown),) = rows
                 if profile_bio_markdown:
@@ -884,7 +888,7 @@ class Page:
                     # then use an UPDATE statement to set the profile bio.
                     update_sql = f"""UPDATE profiles SET profile_bio_markdown = {profile_bio_text}
                                      WHERE profile_handle_id = {handle.handle_id};"""
-                    data_store.execute(update_sql)
+                    data_store_obj.execute(update_sql)
                     return 1
             else:
                 # Otherwise use an INSERT statement like usual.
@@ -893,7 +897,7 @@ class Page:
                                                   VALUES
                                                       ({handle.handle_id}, '{handle.username}',
                                                       '{handle.host}', 0, '{profile_bio_text}');"""
-                data_store.execute(insert_sql)
+                data_store_obj.execute(insert_sql)
                 return 1
         else:
 
@@ -903,13 +907,13 @@ class Page:
             relation = 'following' if self.is_following else 'followers'
             profile_handle = self.handle
             # Setting the handle_id attribute if it's missing.
-            profile_handle.fetch_or_set_handle_id(data_store)
+            profile_handle.fetch_or_set_handle_id(data_store_obj)
 
             # Checking if this page has already been saved to the relations table.
             select_sql = f"""SELECT DISTINCT profile_handle_id FROM relations
                              WHERE profile_handle_id = {profile_handle.handle_id} AND relation_type = '{relation}'
                                    AND relation_page_number = {self.page_number};"""
-            rows = data_store.execute(select_sql)
+            rows = data_store_obj.execute(select_sql)
             if rows:
                 # If so, return 0.
                 self.logger_obj.info(f"page {self.page_number} of {relation} for "
@@ -921,7 +925,7 @@ class Page:
             value_sql_list = list()
             insertion_count = 0
             for relation_handle in self.relations_list:
-                relation_handle.fetch_or_set_handle_id(data_store)
+                relation_handle.fetch_or_set_handle_id(data_store_obj)
                 value_sql_list.append(f"""({profile_handle.handle_id}, '{self.username}', '{self.host}',
                                            {relation_handle.handle_id}, '{relation}', {self.page_number},
                                            '{relation_handle.username}', '{relation_handle.host}')""")
@@ -933,7 +937,7 @@ class Page:
                                               VALUES
                                                   %s;""" % ', '.join(value_sql_list)
             try:
-                data_store.execute(insert_sql)
+                data_store_obj.execute(insert_sql)
             except MySQLdb._exceptions.IntegrityError:
                 # If inserting the whole page at once raises an IntegrityError,
                 # then fall back on inserting each row individually and failing
@@ -941,7 +945,7 @@ class Page:
                 # still saving all other rows.
                 insertion_count = 0
                 for relation_handle in self.relations_list:
-                    relation_handle.fetch_or_set_handle_id(data_store)
+                    relation_handle.fetch_or_set_handle_id(data_store_obj)
                     insert_sql = f"""INSERT INTO relations (profile_handle_id, profile_username, profile_instance,
                                                             relation_handle_id, relation_type, relation_page_number,
                                                             relation_username, relation_instance)
@@ -951,7 +955,7 @@ class Page:
                                                             {self.page_number}, '{relation_handle.username}',
                                                             '{relation_handle.host}')"""
                     try:
-                        data_store.execute(insert_sql)
+                        data_store_obj.execute(insert_sql)
                     except MySQLdb._exceptions.IntegrityError:
                         # Whatever is causing this error, at least the other
                         # rows got saved.
@@ -1058,20 +1062,20 @@ class Instance:
                          f"at {self.rate_limit_expires_isoformat}")
 
     @classmethod
-    def fetch_all_instances(self, data_store, logger_obj):
+    def fetch_all_instances(self, data_store_obj, logger_obj):
         """
         Loads all lines from the bad_instances table, converts them to Instance objects,
         and returns a dict mapping hostnames to Instance objects.
 
-        :param data_store: The Data_Store object to use to connect to the database.
-        :type data_store:  Data_Store
-        :param logger_obj: The Logger object to use to log events to.
-        :type logger_obj:  logging.Logger
-        :return:           A dict mapping hostnames (strs) to Instance objects.
-        :rtype:            dict
+        :param data_store_obj: The Data_Store object to use to connect to the database.
+        :type data_store_obj:  Data_Store
+        :param logger_obj:     The Logger object to use to log events to.
+        :type logger_obj:      logging.Logger
+        :return:               A dict mapping hostnames (strs) to Instance objects.
+        :rtype:                dict
         """
         instances_dict = dict()
-        for row in data_store.execute("SELECT instance, issue FROM bad_instances;"):
+        for row in data_store_obj.execute("SELECT instance, issue FROM bad_instances;"):
             host, issue = row
             instances_dict[host] = Instance(host, logger_obj, malfunctioning=(issue == 'malfunctioning'),
                                                               suspended=(issue == 'suspended'),
@@ -1081,22 +1085,22 @@ class Instance:
         return instances_dict
 
     @classmethod
-    def save_instances(self, instances_dict, data_store, logger_obj):
+    def save_instances(self, instances_dict, data_store_obj, logger_obj):
         """
         Accepts a dict mapping hostnames to Instance objects, and commits every novel
         one to the database. (Class method.)
 
         :param instances_dict: A dict mapping hostnames (strs) to Instance objects.
         :type instances_dict:  dict
-        :param data_store:     The Data_Store object to use to connect to the database.
-        :type data_store:      Data_Store
+        :param data_store_obj: The Data_Store object to use to connect to the database.
+        :type data_store_obj:  Data_Store
         :param logger_obj:     The Logger object to use to log events to.
         :type logger_obj:      logging.Logger
         :return:               None
         :rtype:                types.NoneType
         """
         # FIXME should detect changed instance state between database and memory
-        existing_instances_dict = self.fetch_all_instances(data_store, logger_obj)
+        existing_instances_dict = self.fetch_all_instances(data_store_obj, logger_obj)
         instances_to_insert = dict()
         # instances_to_insert dict is built by (effectively) subtracting
         # existing_instances_dict from instances_dict.
@@ -1110,7 +1114,7 @@ class Instance:
         values_stmts = tuple(f"('{instance.host}','{instance.issue}')" for instance in instances_to_insert.values())
         insert_sql = "INSERT INTO bad_instances (instance, issue) VALUES %s;" % ', '.join(values_stmts)
         logger_obj.info(f"saving {len(instances_to_insert)} bad instances to bad_instances table")
-        data_store.execute(insert_sql)
+        data_store_obj.execute(insert_sql)
 
     def still_rate_limited(self):
         """
@@ -1121,12 +1125,12 @@ class Instance:
         """
         return time.time() < self.rate_limit_expires
 
-    def save_instance(self, data_store):
+    def save_instance(self, data_store_obj):
         """
         Saves this instance to the database.
 
-        :param data_store:     The Data_Store object to use to connect to the database.
-        :type data_store:      Data_Store
+        :param data_store_obj: The Data_Store object to use to connect to the database.
+        :type data_store_obj:  Data_Store
         :return:               False if the instance's malfunctioning, suspended, and
                                unparseable instance vars are all False, or if there was
                                already a row in the bad_instances table with a value for
@@ -1142,11 +1146,11 @@ class Instance:
         else:
             status = 'malfunctioning' if self.malfunctioning else 'suspended' if self.suspended else 'unparseable'
         # Checking if the instance is already present in the bad_instances table.
-        result = data_store.execute(f"SELECT instance, issue FROM bad_instances WHERE instance = '{self.host}';")
+        result = data_store_obj.execute(f"SELECT instance, issue FROM bad_instances WHERE instance = '{self.host}';")
         if result:
             return False
         self.logger_obj.info(f"saving bad instance {self.host} to bad_instances table")
-        data_store.execute(f"INSERT INTO bad_instances (instance, issue) VALUES ('{self.host}', '{status}');")
+        data_store_obj.execute(f"INSERT INTO bad_instances (instance, issue) VALUES ('{self.host}', '{status}');")
         return True
 
 #    def fetch_robots_txt(self):
