@@ -19,14 +19,14 @@ class Failed_Request:
     exactly how the request failed and for what reason. Used by Page_Fetcher's
     various methods as a failure signal value.
     """
-    __slots__ = ('host', 'status_code', 'ratelimited', 'user_deleted', 'malfunctioning', 'unparseable', 'suspended',
+    __slots__ = ('instance', 'status_code', 'ratelimited', 'user_deleted', 'malfunctioning', 'unparseable', 'suspended',
                  'ssl_error', 'too_many_redirects', 'timeout', 'connection_error', 'posts_too_old', 'no_public_posts',
                  'forwarding_address', 'is_dynamic', 'webdriver_error', 'x_ratelimit_limit', 'robots_txt_disallowed')
 
-    def __init__(self, host, connection_error=False, forwarding_address='', is_dynamic=False, malfunctioning=False,
-                       no_public_posts=False, posts_too_old=False, ratelimited=False, ssl_error=False, status_code=0,
-                       suspended=False, timeout=False, too_many_redirects=False, unparseable=False, user_deleted=False,
-                       webdriver_error=False, x_ratelimit_limit=0, robots_txt_disallowed=False):
+    def __init__(self, instance, connection_error=False, forwarding_address='', is_dynamic=False, malfunctioning=False,
+                 no_public_posts=False, posts_too_old=False, ratelimited=False, ssl_error=False, status_code=0,
+                 suspended=False, timeout=False, too_many_redirects=False, unparseable=False, user_deleted=False,
+                 webdriver_error=False, x_ratelimit_limit=0, robots_txt_disallowed=False):
         """
         Instances a Failed_Request object.
 
@@ -36,9 +36,9 @@ class Failed_Request:
         :param forwarding_address:    If the profile had a forwarding address, indicating
                                       it was defunct.
         :type forwarding_address:     bool, optional
-        :param host:                  The hostname of the instance that the failed request
+        :param instance:                  The hostname of the instance that the failed request
                                       occurred with.
-        :type host:                   str
+        :type instance:                   str
         :param is_dynamic:            If the page had a <noscript> tag, indicating that
                                       JavaScript evaluation is required to view the page's
                                       content.
@@ -92,7 +92,7 @@ class Failed_Request:
                         status_code != 0 and status_code != 200, too_many_redirects, unparseable, user_deleted,
                         webdriver_error, bool(x_ratelimit_limit)):
             raise Internal_Exception("Failed_Request instanced with no parameters set")
-        self.host = host
+        self.instance = instance
         self.status_code = status_code
         self.ratelimited = ratelimited
         self.user_deleted = user_deleted

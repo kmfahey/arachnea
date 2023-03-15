@@ -110,8 +110,8 @@ class Main_Processor:
             if match is None:
                 self.logger_obj.error(f"got argument {handle_str} that doesn't parse as a mastodon handle_obj; fatal error")
                 exit(1)
-            username, host = match.group(1, 2)
-            handle_obj = Handle(username=username, host=host)
+            username, instance = match.group(1, 2)
+            handle_obj = Handle(username=username, instance=instance)
             handle_obj.fetch_or_set_handle_id(self.data_store_obj)
             handle_objs_from_args.append(handle_obj)
 

@@ -7,25 +7,25 @@ class Handle:
     """
     Represents a mastodon handle.
     """
-    __slots__ = 'handle_id', 'username', 'host'
+    __slots__ = 'handle_id', 'username', 'instance'
 
     handle_re = re.compile(r"^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z0-9]+$")
 
     @property
     def handle_in_at_form(self):
         """
-        Returns the handle in @username@host form.
+        Returns the handle in @username@instance form.
         """
-        return f"@{self.username}@{self.host}"
+        return f"@{self.username}@{self.instance}"
 
     @property
     def profile_url(self):
         """
-        Returns the handle in https://host/@username form.
+        Returns the handle in https://instance/@username form.
         """
-        return f"https://{self.host}/@{self.username}"
+        return f"https://{self.instance}/@{self.username}"
 
-    def __init__(self, handle_id=None, username='', host=''):
+    def __init__(self, handle_id=None, username='', instance=''):
         """
         Instances the Handle object.
 
@@ -36,14 +36,14 @@ class Handle:
         :param username:  The part of the handle that represents the indicated user's
                           username.
         :type username:   str
-        :param host:      The part of the handle that represents the indicated user's
+        :param instance:      The part of the handle that represents the indicated user's
                           instance.
-        :type host:       str
+        :type instance:       str
         """
         assert isinstance(handle_id, int) or handle_id is None
         self.handle_id = handle_id
         self.username = username
-        self.host = host
+        self.instance = instance
 
     @classmethod
     def validate_handle(cls, handle):
@@ -76,9 +76,9 @@ class Handle:
             return False
 
         # Fetch the extant handle_id value from the table if it so happens this
-        # username/host part is already in the handles table.
+        # username/instance part is already in the handles table.
         fetch_handle_id_sql = f"""SELECT handle_id FROM handles WHERE username = '{self.username}'
-                                                                AND instance = '{self.host}';"""
+                                                                AND instance = '{self.instance}';"""
         rows = data_store_obj.execute(fetch_handle_id_sql)
 
         if not len(rows):
@@ -103,12 +103,12 @@ class Handle:
         :rtype:            bool
         """
         fetch_handle_id_sql = f"""SELECT handle_id FROM handles WHERE username = '{self.username}'
-                                                                AND instance = '{self.host}';"""
+                                                                AND instance = '{self.instance}';"""
         rows = data_store_obj.execute(fetch_handle_id_sql)
         if len(rows):
             return False
 
-        data_store_obj.execute(f"INSERT INTO handles (username, instance) VALUES ('{self.username}', '{self.host}');")
+        data_store_obj.execute(f"INSERT INTO handles (username, instance) VALUES ('{self.username}', '{self.instance}');")
         return True
 
 
@@ -125,14 +125,14 @@ class Deleted_User(Handle):
 
         :param data_store_obj: The Data_Store object to use to contact the database.
         :type data_store_obj:  Data_Store
-        :return:           A dict mapping 2-tuples of (username, host) to Deleted_User
+        :return:           A dict mapping 2-tuples of (username, instance) to Deleted_User
                            objects.
         :rtype:            dict
         """
         deleted_users_dict = dict()
         for row in data_store_obj.execute("SELECT handle_id, username, instance FROM deleted_users;"):
-            handle_id, username, host = row
-            deleted_users_dict[username, host] = Deleted_User(handle_id=handle_id, username=username, host=host)
+            handle_id, username, instance = row
+            deleted_users_dict[username, instance] = Deleted_User(handle_id=handle_id, username=username, instance=instance)
         return deleted_users_dict
 
     @classmethod
@@ -143,7 +143,7 @@ class Deleted_User(Handle):
         :return: A Deleted_User object.
         :rtype:  Deleted_User
         """
-        return Deleted_User(handle_id=handle_obj.handle_id, username=handle_obj.username, host=handle_obj.host)
+        return Deleted_User(handle_id=handle_obj.handle_id, username=handle_obj.username, instance=handle_obj.instance_obj)
 
     def save_deleted_user(self, data_store_obj):
         """
@@ -160,7 +160,7 @@ class Deleted_User(Handle):
         if bool(len(data_store_obj.execute(select_sql))):
             return False
         insert_sql = f"""INSERT INTO deleted_users (handle_id, username, instance) VALUES
-                         ({self.handle_id}, '{self.username}', '{self.host}');"""
+                         ({self.handle_id}, '{self.username}', '{self.instance}');"""
         data_store_obj.execute(insert_sql)
         self.logger_obj.info(f"inserted {self.handle_in_at_form} into table deleted_users")
         return True
