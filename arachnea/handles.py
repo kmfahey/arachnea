@@ -108,7 +108,8 @@ class Handle:
         if len(rows):
             return False
 
-        data_store_obj.execute(f"INSERT INTO handles (username, instance) VALUES ('{self.username}', '{self.instance}');")
+        data_store_obj.execute(f"""INSERT INTO handles (username, instance)
+                                   VALUES ('{self.username}', '{self.instance}');""")
         return True
 
 
@@ -132,7 +133,8 @@ class Deleted_User(Handle):
         deleted_users_dict = dict()
         for row in data_store_obj.execute("SELECT handle_id, username, instance FROM deleted_users;"):
             handle_id, username, instance = row
-            deleted_users_dict[username, instance] = Deleted_User(handle_id=handle_id, username=username, instance=instance)
+            deleted_users_dict[username, instance] = Deleted_User(handle_id=handle_id, username=username,
+                                                                  instance=instance)
         return deleted_users_dict
 
     @classmethod
@@ -143,7 +145,8 @@ class Deleted_User(Handle):
         :return: A Deleted_User object.
         :rtype:  Deleted_User
         """
-        return Deleted_User(handle_id=handle_obj.handle_id, username=handle_obj.username, instance=handle_obj.instance_obj)
+        return Deleted_User(handle_id=handle_obj.handle_id, username=handle_obj.username,
+                            instance=handle_obj.instance_obj)
 
     def save_deleted_user(self, data_store_obj):
         """

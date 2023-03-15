@@ -108,7 +108,8 @@ class Main_Processor:
         for handle_str in self.args:
             match = handle_re.match(handle_str)
             if match is None:
-                self.logger_obj.error(f"got argument {handle_str} that doesn't parse as a mastodon handle_obj; fatal error")
+                self.logger_obj.error(f"got argument {handle_str} that doesn't parse as a mastodon handle_obj; "
+                                      "fatal error")
                 exit(1)
             username, instance = match.group(1, 2)
             handle_obj = Handle(username=username, instance=instance)
@@ -658,13 +659,15 @@ class Data_Store(object):
         # Validating the handles argument.
         for handle_in_at_form in handles_in_at_form:
             if not Handle.validate_handle(handle_in_at_form):
-                raise Internal_Exception(f"the 'handles' argument must consist of a sequence of strs that match the "
-                                         f"regex {Handle.handle_re.pattern}; element #{iter_count} was '{handle_in_at_form}'")
+                raise Internal_Exception(f"the 'handles' argument must consist of a sequence of strs "
+                                         f"that match the regex {Handle.handle_re.pattern}; "
+                                         f"element #{iter_count} was '{handle_in_at_form}'")
             iter_count += 1
 
         # Building the SQL statement.
         handles_list_sql = "({handles_list})".format(handles_list=', '.join(f"'{handle_in_at_form}'"
-                                                                            for handle_in_at_form in handles_in_at_form))
+                                                                            for handle_in_at_form
+                                                                            in handles_in_at_form))
 
         # Using CONCAT to assemble the username and instance column values into
         # a handle_in_at_form string and then IN to test it for membership in a list of all

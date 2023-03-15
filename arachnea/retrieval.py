@@ -110,7 +110,8 @@ class Page_Fetcher:
                 else:
                     # If in a relations-saving mode, no Page is generated or
                     # saved.
-                    self.logger_obj.info(f"instance_obj {instance} on record as {instance_obj.status}; didn't load {url}")
+                    self.logger_obj.info(f"instance_obj {instance} on record as {instance_obj.status}; "
+                                         f"didn't load {url}")
                     return None, Failed_Request(instance,
                                                 malfunctioning=instance_obj.malfunctioning,
                                                 unparseable=instance_obj.unparseable,
@@ -291,8 +292,8 @@ class Page:
     Represents a single page; handles retrieving the page and the ensuing errors
     itself.
     """
-    __slots__ = ('handle_obj', 'username', 'instance', 'logger_obj', 'instance_obj', 'url', 'document', 'is_dynamic', 'loaded',
-                 'is_profile', 'is_following', 'is_followers', 'page_number', 'profile_no_public_posts',
+    __slots__ = ('handle_obj', 'username', 'instance', 'logger_obj', 'instance_obj', 'url', 'document', 'is_dynamic',
+                 'loaded', 'is_profile', 'is_following', 'is_followers', 'page_number', 'profile_no_public_posts',
                  'profile_posts_too_old', 'profile_bio_text', 'relations_list', 'unparseable', 'save_profiles',
                  'save_relations', 'dont_discard_bc_wifi')
 
@@ -509,6 +510,9 @@ class Page:
             # the robots.txt disallows it.
             self.loaded = False
             return Failed_Request(self.instance, robots_txt_disallowed=True)
+
+        browser = None
+
         try:
             # Instancing the headless puppet firefox instance.
             options = selenium.webdriver.firefox.options.Options()
@@ -581,7 +585,8 @@ class Page:
             return Failed_Request(self.instance, webdriver_error=True)
         finally:
             self.logger_obj.info("closing out webdriver Firefox instance")
-            browser.quit()
+            if browser is not None:
+                browser.quit()
             del browser
 
     def parse_profile_page(self):
@@ -987,8 +992,8 @@ class Instance:
                 else 'ingoodstanding'
 
     # FIXME implement a 4th failure mode, 'blocked'
-    def __init__(self, instance_host, logger_obj, malfunctioning=False, suspended=False, unparseable=False, rate_limited=False,
-                 x_ratelimit_limit=None, dont_discard_bc_wifi=False, attempts=0):
+    def __init__(self, instance_host, logger_obj, malfunctioning=False, suspended=False, unparseable=False,
+                 rate_limited=False, x_ratelimit_limit=None, dont_discard_bc_wifi=False, attempts=0):
         """
         Instances a Instance object.
 
@@ -1145,11 +1150,13 @@ class Instance:
         else:
             status = 'malfunctioning' if self.malfunctioning else 'suspended' if self.suspended else 'unparseable'
         # Checking if the instance is already present in the bad_instances table.
-        result = data_store_obj.execute(f"SELECT instance, issue FROM bad_instances WHERE instance = '{self.instance_host}';")
+        result = data_store_obj.execute(f"""SELECT instance, issue FROM bad_instances
+                                            WHERE instance = '{self.instance_host}';""")
         if result:
             return False
         self.logger_obj.info(f"saving bad instance {self.instance_host} to bad_instances table")
-        data_store_obj.execute(f"INSERT INTO bad_instances (instance, issue) VALUES ('{self.instance_host}', '{status}');")
+        data_store_obj.execute(f"""INSERT INTO bad_instances (instance, issue)
+                                   VALUES ('{self.instance_host}', '{status}');""")
         return True
 
 #    def fetch_robots_txt(self):
@@ -1163,7 +1170,8 @@ class Instance:
 
     def can_fetch(self, query_url):
         if self.malfunctioning or self.suspended or self.unparseable:
-            raise Internal_Exception(f"instance {self.instance_host} has status {self.status}; nothing there can be fetched")
+            raise Internal_Exception(f"instance {self.instance_host} has status {self.status};"
+                                     f" nothing there can be fetched")
         if self.robots_txt_file_obj is None:
             self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.instance_host}/",
                                                        self.logger_obj, self.dont_discard_bc_wifi)
