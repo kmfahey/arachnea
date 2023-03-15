@@ -650,9 +650,9 @@ class Data_Store(object):
 
         # Validating the handles argument.
         for handle in handles:
-            if not self.handle_re.match(handle):
+            if not Handle.validate_handle(handle):
                 raise Internal_Exception(f"the 'handles' argument must consist of a sequence of strs that match the "
-                                         f"regex {self.handle_re.pattern}; element #{iter_count} was '{handle}'")
+                                         f"regex {Handle.handle_re.pattern}; element #{iter_count} was '{handle}'")
             iter_count += 1
 
         # Building the SQL statement.
