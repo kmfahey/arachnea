@@ -81,7 +81,12 @@ class Failed_Request:
                                       robots.txt didn't allow it.
         :type robots_txt_disallowed:  bool, optional
         """
-        # FIXME should raise an error if *none* of the optional args are specified
+        # raises an error if *none* of the optional args are specified
+        if True not in (connection_error, bool(forwarding_address), is_dynamic, malfunctioning, no_public_posts,
+                        posts_too_old, ratelimited, robots_txt_disallowed, ssl_error, status_code in (0, 200),
+                        suspended, timeout, too_many_redirects, unparseable, user_deleted, webdriver_error,
+                        bool(x_ratelimit_limit)):
+            raise Internal_Error("Failed_Request instanced with no parameters set")
         self.host = host
         self.status_code = status_code
         self.ratelimited = ratelimited
