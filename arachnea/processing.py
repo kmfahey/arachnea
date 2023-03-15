@@ -103,17 +103,17 @@ class Main_Processor:
                                             conn_err_wait_time=self.options.conn_err_wait_time)
 
         # Iterating across the non-flag arguments, treating each one
-        # as a handle (in @user@instance form) and prepping the
+        # as a handle_obj (in @user@instance form) and prepping the
         # Handle_Processor.process_handle_iterable iterable argument.
         for handle_str in self.args:
             match = handle_re.match(handle_str)
             if match is None:
-                self.logger_obj.error(f"got argument {handle_str} that doesn't parse as a mastodon handle; fatal error")
+                self.logger_obj.error(f"got argument {handle_str} that doesn't parse as a mastodon handle_obj; fatal error")
                 exit(1)
             username, host = match.group(1, 2)
-            handle = Handle(username=username, host=host)
-            handle.fetch_or_set_handle_id(self.data_store_obj)
-            handle_objs_from_args.append(handle)
+            handle_obj = Handle(username=username, host=host)
+            handle_obj.fetch_or_set_handle_id(self.data_store_obj)
+            handle_objs_from_args.append(handle_obj)
 
         # If this is a dry run, stop here.
         if self.options.dry_run:
@@ -434,13 +434,13 @@ class Handle_Processor(object):
                                  "giving up on salvage process.")
                 exit(0)
 
-    def retrieve_profile(self, handle, profile_page_url):
+    def retrieve_profile(self, handle_obj, profile_page_url):
         """
         Retrieves a profile from the given URL and attempts to save its bio to the
         database.
 
-        :param handle:           A Handle object to use to define the Page object with.
-        :type handle:            Page
+        :param handle_obj:           A Handle object to use to define the Page object with.
+        :type handle_obj:            Page
         :param profile_page_url: The profile URL to retrieve.
         :type profile_page_url:  str
         :return:                 If the request succeeded, then the length of the
@@ -448,7 +448,7 @@ class Handle_Processor(object):
                                  Failed_Request object.
         :rtype:                  int or Failed_Request
         """
-        profile_page, result = self.page_fetcher.instantiate_and_fetch_page(handle, profile_page_url)
+        profile_page, result = self.page_fetcher.instantiate_and_fetch_page(handle_obj, profile_page_url)
 
         # If the page isn't None and the result is an integer then the fetch
         # succeeded and the page has a bio that can be saved.
@@ -458,13 +458,13 @@ class Handle_Processor(object):
 
         return result
 
-    def retrieve_relations_from_profile(self, handle, profile_page_url):
+    def retrieve_relations_from_profile(self, handle_obj, profile_page_url):
         """
         Retrieves a profile from the given URL, uses it to find the user's
         following/followers pages, and retrieves those in full.
 
-        :param handle:           A Handle object to use to define the Page object with.
-        :type handle:            Page
+        :param handle_obj:           A Handle object to use to define the Page object with.
+        :type handle_obj:            Page
         :param profile_page_url: The profile URL to retrieve.
         :type profile_page_url:  str
         :return:                 If the request succeeded, then the number of
@@ -472,21 +472,21 @@ class Handle_Processor(object):
                                  failed, a Failed_Request object.
         :rtype:                  int or Failed_Request
         """
-        profile_page, result = self.page_fetcher.instantiate_and_fetch_page(handle, profile_page_url)
+        profile_page, result = self.page_fetcher.instantiate_and_fetch_page(handle_obj, profile_page_url)
         if isinstance(result, Failed_Request):
             return result, result
         first_following_page_url, first_followers_page_url = profile_page.generate_initial_relation_page_urls()
-        result1 = self.retrieve_relations(handle, first_following_page_url)
-        result2 = self.retrieve_relations(handle, first_followers_page_url)
+        result1 = self.retrieve_relations(handle_obj, first_following_page_url)
+        result2 = self.retrieve_relations(handle_obj, first_followers_page_url)
         return result1, result2
 
-    def retrieve_relations(self, handle, first_relation_page_url):
+    def retrieve_relations(self, handle_obj, first_relation_page_url):
         """
         Retrieves a following/followers page from the given URL, and uses it to fetch
         all the following/followers handles accessible via that page.
 
-        :param handle:                  A Handle object to use to define the Page object with.
-        :type handle:                   Page
+        :param handle_obj:                  A Handle object to use to define the Page object with.
+        :type handle_obj:                   Page
         :param first_relation_page_url: The following/followers URL to retrieve.
         :type first_relation_page_url:  str
         :return:                        If the request succeeded, then the number of
@@ -494,7 +494,7 @@ class Handle_Processor(object):
                                         failed, a Failed_Request object.
         :rtype:                         int or Failed_Request
         """
-        first_relation_page, result = self.page_fetcher.instantiate_and_fetch_page(handle, first_relation_page_url)
+        first_relation_page, result = self.page_fetcher.instantiate_and_fetch_page(handle_obj, first_relation_page_url)
 
         if isinstance(result, Failed_Request):
             return result
@@ -510,7 +510,7 @@ class Handle_Processor(object):
         # stored.
         total_result = 0
         for relation_page_url in first_relation_page.generate_all_relation_page_urls():
-            relation_page, result = self.page_fetcher.instantiate_and_fetch_page(handle, relation_page_url)
+            relation_page, result = self.page_fetcher.instantiate_and_fetch_page(handle_obj, relation_page_url)
             if isinstance(result, Failed_Request):
                 return result
             relation_page.save_page(self.data_store_obj)
@@ -635,14 +635,14 @@ class Data_Store(object):
         return [(Handle(handle_id, username, instance), profile_bio_markdown)
                 for handle_id, username, instance, profile_bio_markdown in self.execute(search_sql)]
 
-    def update_profiles_set_considered(self, handles, considered):
+    def update_profiles_set_considered(self, handles_in_at_form, considered):
         """
         Updates the profiles table, setting considered = {considered argument} where the
-        handle is one of the handles in the handles argument.
+        handle_in_at_form is one of the handles in the handles argument.
 
-        :param handles:         A sequence of strs, each of which is a mastodon handle
+        :param handles_in_at_form:         A sequence of strs, each of which is a mastodon handle_in_at_form
                                 in @ form.
-        :type handles:          tuple, list, set, map, filter, or types.GeneratorType
+        :type handles_in_at_form:          tuple, list, set, map, filter, or types.GeneratorType
         :param considered:      The new value to set the `considered` BOOLEAN column to;
                                 either 0, 1, False, or True.
         :type considered:       int or bool
@@ -656,17 +656,18 @@ class Data_Store(object):
         iter_count = 0
 
         # Validating the handles argument.
-        for handle in handles:
-            if not Handle.validate_handle(handle):
+        for handle_in_at_form in handles_in_at_form:
+            if not Handle.validate_handle(handle_in_at_form):
                 raise Internal_Exception(f"the 'handles' argument must consist of a sequence of strs that match the "
-                                         f"regex {Handle.handle_re.pattern}; element #{iter_count} was '{handle}'")
+                                         f"regex {Handle.handle_re.pattern}; element #{iter_count} was '{handle_in_at_form}'")
             iter_count += 1
 
         # Building the SQL statement.
-        handles_list_sql = "({handles_list})".format(handles_list=', '.join(f"'{handle}'" for handle in handles))
+        handles_list_sql = "({handles_list})".format(handles_list=', '.join(f"'{handle_in_at_form}'"
+                                                                            for handle_in_at_form in handles_in_at_form))
 
         # Using CONCAT to assemble the username and instance column values into
-        # a handle string and then IN to test it for membership in a list of all
+        # a handle_in_at_form string and then IN to test it for membership in a list of all
         # the handles (which can number 100 or more). Less complex than testing
         # username=X and instance=Y or username=A and instance=B or ... etc. for
         # all handles.

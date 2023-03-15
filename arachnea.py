@@ -590,10 +590,10 @@ def print_query_output_3_col(handles_at_form_padded, handles_urls_padded, bio_te
     # Printing the rows of the ASCII art results table, having zip'd the
     # handles_at_form_padded, handles_urls_padded, and bio_texts_trim_padded
     # lists back together into result rows.
-    for handle_in_at_form_padded, handle_url_padded, bio_text_trim_padded in zip(handles_at_form_padded,
+    for handle_padded, handle_url_padded, bio_text_trim_padded in zip(handles_at_form_padded,
                                                                               handles_urls_padded,
                                                                               bio_texts_trim_padded):
-        print('| ' + handle_in_at_form_padded + ' | ' + handle_url_padded + ' | ' + bio_text_trim_padded + ' |')
+        print('| ' + handle_padded + ' | ' + handle_url_padded + ' | ' + bio_text_trim_padded + ' |')
 
     print(table_top_bottom_border)
 
@@ -628,8 +628,8 @@ def print_query_output_2_col(handles_at_form_padded, handles_urls_padded, max_ha
     # Printing the rows of the ASCII art results table, having zip'd the
     # handles_at_form_padded and handles_urls_padded lists back together into
     # result rows.
-    for handle_in_at_form_padded, handle_url_padded in zip(handles_at_form_padded, handles_urls_padded):
-        print('| ' + handle_in_at_form_padded + ' | ' + handle_url_padded + ' |')
+    for handle_padded, handle_url_padded in zip(handles_at_form_padded, handles_urls_padded):
+        print('| ' + handle_padded + ' | ' + handle_url_padded + ' |')
 
     print(table_top_bottom_border)
 

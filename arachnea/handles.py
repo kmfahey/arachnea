@@ -12,7 +12,7 @@ class Handle:
     handle_re = re.compile(r"^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z0-9]+$")
 
     @property
-    def handle(self):
+    def handle_in_at_form(self):
         """
         Returns the handle in @username@host form.
         """
@@ -162,5 +162,5 @@ class Deleted_User(Handle):
         insert_sql = f"""INSERT INTO deleted_users (handle_id, username, instance) VALUES
                          ({self.handle_id}, '{self.username}', '{self.host}');"""
         data_store_obj.execute(insert_sql)
-        self.logger_obj.info(f"inserted {self.handle} into table deleted_users")
+        self.logger_obj.info(f"inserted {self.handle_in_at_form} into table deleted_users")
         return True

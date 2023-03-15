@@ -128,7 +128,7 @@ class Page_Fetcher:
         elif (handle_obj.username, handle_obj.host) in self.deleted_users_dict:
             # FIXME: this step can be skipped if a JOIN against deleted_users is
             # added to the handles loading step
-            self.logger_obj.info(f"user {handle_obj.handle_at_form} known to be deleted; didn't load {url}; "
+            self.logger_obj.info(f"user {handle_obj.handle_in_at_form} known to be deleted; didn't load {url}; "
                                  "saving null bio to database")
             page = Page(handle_obj, url, self.logger_obj, instance, save_profiles=self.save_profiles,
                         save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
@@ -253,7 +253,7 @@ class Page_Fetcher:
                                 else 'following' if page.is_following
                                 else 'followers' if page.is_followers else '???')
 
-                self.logger_obj.info(f"handle {handle_obj.handle_at_form}: fetching {what_fetched} returned "
+                self.logger_obj.info(f"handle {handle_obj.handle_in_at_form}: fetching {what_fetched} returned "
                                      "connection error; but the wifi might've gone out, saving for later")
 
                 # If the wifi goes out, it's possible for this program to chew
@@ -338,7 +338,7 @@ class Page:
         """
         Instances the Page object.
 
-        :param handle_obj:         The handle of the profile the page belongs to.
+        :param handle_obj:         The handle object of the profile the page belongs to.
         :type handle_obj:          Handle
         :param url:            The URL of the page.
         :type url:             str
@@ -956,8 +956,8 @@ class Page:
                         # Whatever is causing this error, at least the other
                         # rows got saved.
                         self.logger_obj.info(f"got an SQL IntegrityError when inserting "
-                                                f"{relation_handle_obj.handle_at_form} %s "
-                                                f"{profile_handle_obj.handle} into table relations" % (
+                                                f"{relation_handle_obj.handle_in_at_form} %s "
+                                                f"{profile_handle_obj.handle_in_at_form} into table relations" % (
                                                 'follower of' if relation == 'followers' else relation))
                     else:
                         insertion_count += 1
