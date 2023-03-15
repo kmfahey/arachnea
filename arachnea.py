@@ -6,7 +6,7 @@ import shutil
 import collections
 import sys
 
-from arachnea.processing import Main_Processor
+from arachnea.processing import MainProcessor
 from arachnea.handles import Handle
 
 
@@ -102,9 +102,9 @@ def main():
 
     # Instance the main Logger. This is the only Logger needed unless threaded mode is used.
     if options.web_spider:
-        main_logger_obj = Main_Processor.instance_logger_obj("main", options.use_threads)
+        main_logger_obj = MainProcessor.instance_logger_obj("main", options.use_threads)
     else:
-        main_logger_obj = Main_Processor.instance_logger_obj("main", options.use_threads, no_output=True)
+        main_logger_obj = MainProcessor.instance_logger_obj("main", options.use_threads, no_output=True)
 
     validate_cmdline_flags(options, args)
 
@@ -319,8 +319,8 @@ def execute_web_spider_mode(options, args, main_logger_obj):
     # processing handles from the database in a threaded fashion,
     # and processing handles from the database in a single-tasking fashion.
 
-    main_processor_obj = Main_Processor(options, args, main_logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE,
-                                        save_profiles, save_relations)
+    main_processor_obj = MainProcessor(options, args, main_logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE,
+                                       save_profiles, save_relations)
 
     if options.handles_from_args:
         main_processor_obj.process_handles_from_args()
@@ -350,7 +350,7 @@ def execute_fulltext_search_mode(options, args, logger_obj):
     :return:           False if no results were found, True otherwise.
     :rtype:            bool
     """
-    main_processor_obj = Main_Processor(options, args, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
+    main_processor_obj = MainProcessor(options, args, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
 
     # Fetching the current columns of the terminal to use as a maximum width for
     # the output table to be constrained to.
@@ -463,7 +463,7 @@ def execute_mark_handles_considered_or_not_mode(options, args, logger_obj):
         exit(1)
 
     # Instancing a Main_Processor object, and calling the update method.
-    main_processor_obj = Main_Processor(options, args, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
+    main_processor_obj = MainProcessor(options, args, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
 
     rows_affected = main_processor_obj.update_profiles_set_considered(handles, considered)
 

@@ -6,12 +6,12 @@ import re
 import sys
 import threading
 
-from arachnea.retrieval import Instance, Page_Fetcher
+from arachnea.retrieval import Instance, PageFetcher
 from arachnea.handles import Handle
-from arachnea.succeedfail import Failed_Request, Internal_Exception
+from arachnea.succeedfail import FailedRequest, InternalException
 
 
-class Main_Processor:
+class MainProcessor:
     """
     Encapsulates the state and methods needed to run the main processing job of the program.
     """
@@ -45,8 +45,8 @@ class Main_Processor:
         self.db_user = db_user
         self.db_password = db_password
         self.db_database = db_database
-        self.data_store_obj = Data_Store(self.db_host, self.db_user, self.db_password,
-                                         self.db_database, self.logger_obj)
+        self.data_store_obj = DataStore(self.db_host, self.db_user, self.db_password,
+                                        self.db_database, self.logger_obj)
 
     @classmethod
     def instance_logger_obj(cls, name, use_threads=False, no_output=False):
@@ -95,12 +95,12 @@ class Main_Processor:
         # conn_err_wait_time args are passed to the Handle_Processor init, which
         # uses them to instance its captive Page_Fetcher object, which actually uses
         # them.
-        handle_processor = Handle_Processor(Data_Store(self.db_host, self.db_user, self.db_password,
-                                                       self.db_database, self.logger_obj),
-                                            self.logger_obj, instances_dict, save_profiles=self.save_profiles,
-                                            save_relations=self.save_relations,
-                                            dont_discard_bc_wifi=self.options.dont_discard_bc_wifi,
-                                            conn_err_wait_time=self.options.conn_err_wait_time)
+        handle_processor = HandleProcessor(DataStore(self.db_host, self.db_user, self.db_password,
+                                                     self.db_database, self.logger_obj),
+                                           self.logger_obj, instances_dict, save_profiles=self.save_profiles,
+                                           save_relations=self.save_relations,
+                                           dont_discard_bc_wifi=self.options.dont_discard_bc_wifi,
+                                           conn_err_wait_time=self.options.conn_err_wait_time)
 
         # Iterating across the non-flag arguments, treating each one
         # as a handle_obj (in @user@instance form) and prepping the
@@ -193,8 +193,8 @@ class Main_Processor:
         for index in range(0, self.options.use_threads):
             threads_logger_obj = self.instance_logger_obj(f"thread#{index}", True)
             logger_objs.append(threads_logger_obj)
-            data_store_objs.append(Data_Store(self.db_host, self.db_user, self.db_password,
-                                              self.db_database, threads_logger_obj))
+            data_store_objs.append(DataStore(self.db_host, self.db_user, self.db_password,
+                                             self.db_database, threads_logger_obj))
             handles_lists.append(list())
 
         # The instances_dict is shared between threads. This is especially
@@ -209,11 +209,11 @@ class Main_Processor:
         instances_dict = Instance.fetch_all_instances(self.data_store_obj, self.logger_obj)
 
         for index in range(0, self.options.use_threads):
-            handle_processor_obj = Handle_Processor(data_store_objs[index], logger_objs[index], instances_dict,
-                                                    save_profiles=self.save_profiles,
-                                                    save_relations=self.save_relations,
-                                                    dont_discard_bc_wifi=self.options.dont_discard_bc_wifi,
-                                                    conn_err_wait_time=self.options.conn_err_wait_time)
+            handle_processor_obj = HandleProcessor(data_store_objs[index], logger_objs[index], instances_dict,
+                                                   save_profiles=self.save_profiles,
+                                                   save_relations=self.save_relations,
+                                                   dont_discard_bc_wifi=self.options.dont_discard_bc_wifi,
+                                                   conn_err_wait_time=self.options.conn_err_wait_time)
 
             handle_processor_objs.append(handle_processor_obj)
 
@@ -227,6 +227,9 @@ class Main_Processor:
             handles_generator = self.data_store_obj.users_in_handles_not_in_profiles()
         elif self.options.relations_join_profiles:
             handles_generator = self.data_store_obj.users_in_relations_not_in_profiles()
+        else:
+            raise InternalException("none of fetch_relations_only, handles_join_profiles, or relations_join_profiles "
+                                    "defined; don't know where to get handles from")
 
         # This setup repeatedly iterates across the handles_lists list, appending
         # a handle from the handles_generator to each list in turn, until the
@@ -255,12 +258,12 @@ class Main_Processor:
         # Instancing the objects needed.
         instances_dict = Instance.fetch_all_instances(self.data_store_obj, self.logger_obj)
 
-        handle_processor = Handle_Processor(Data_Store(self.db_host, self.db_user, self.db_password,
-                                                       self.db_database, self.logger_obj),
-                                            self.logger_obj, instances_dict, save_profiles=self.save_profiles,
-                                            save_relations=self.save_relations,
-                                            dont_discard_bc_wifi=self.options.dont_discard_bc_wifi,
-                                            conn_err_wait_time=self.options.conn_err_wait_time)
+        handle_processor = HandleProcessor(DataStore(self.db_host, self.db_user, self.db_password,
+                                                     self.db_database, self.logger_obj),
+                                           self.logger_obj, instances_dict, save_profiles=self.save_profiles,
+                                           save_relations=self.save_relations,
+                                           dont_discard_bc_wifi=self.options.dont_discard_bc_wifi,
+                                           conn_err_wait_time=self.options.conn_err_wait_time)
 
         # If this is a dry run, stop here.
         if self.options.dry_run:
@@ -273,6 +276,9 @@ class Main_Processor:
             handles_generator = self.data_store_obj.users_in_handles_not_in_profiles()
         elif self.options.relations_join_profiles:
             handles_generator = self.data_store_obj.users_in_relations_not_in_profiles()
+        else:
+            raise InternalException("none of fetch_relations_only, handles_join_profiles, or relations_join_profiles "
+                                    "defined; don't know where to get handles from")
 
         # Processing the handles. Main loop here.
         handle_processor.process_handle_iterable(handles_generator, self.data_store_obj)
@@ -289,7 +295,7 @@ class Main_Processor:
         return self.data_store_obj.update_profiles_set_considered(handles, considered)
 
 
-class Handle_Processor(object):
+class HandleProcessor(object):
     """
     Implements a class for processing a list of handles and fetching the profile,
     relations, or both for each one depending on configuration.
@@ -305,7 +311,7 @@ class Handle_Processor(object):
 
         :param data_store_obj:       The Data_Store object to use to contact the
                                      database.
-        :type data_store_obj:        Data_Store
+        :type data_store_obj:        DataStore
         :param logger_obj:           The Logger object to use to log events.
         :type logger_obj:            logging.Logger
         :param instances_dict:       A dict associating hostnames to Instance objects,
@@ -343,9 +349,9 @@ class Handle_Processor(object):
         # were specified on the commandline and passed to this object on
         # instantiation; now they're being passed down to Page_Fetcher where
         # they'll actually be used.
-        self.page_fetcher = Page_Fetcher(data_store_obj, self.logger_obj, instances_dict, save_profiles=save_profiles,
-                                         save_relations=save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi,
-                                         conn_err_wait_time=self.conn_err_wait_time)
+        self.page_fetcher = PageFetcher(data_store_obj, self.logger_obj, instances_dict, save_profiles=save_profiles,
+                                        save_relations=save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi,
+                                        conn_err_wait_time=self.conn_err_wait_time)
 
     def process_handle_iterable(self, handle_iterable, data_store_obj):
         """
@@ -381,13 +387,13 @@ class Handle_Processor(object):
                     # the profile's following/followers pages, retrieves those
                     # pages in full if possible and saves them to the database.
                     results = self.retrieve_relations_from_profile(handle_obj, profile_url)
-            except Internal_Exception:
+            except InternalException:
                 continue
 
-            if result is not None and isinstance(result, Failed_Request):
+            if result is not None and isinstance(result, FailedRequest):
                 if result.ratelimited or result.connection_error:
                     skipped_handles.append(handle_obj)
-            elif results is not None and any(isinstance(result, Failed_Request) for result in results):
+            elif results is not None and any(isinstance(result, FailedRequest) for result in results):
                 if any(isinstance(result, int) for result in results):
                     # So within the retrieve_relations_from_profile() call, one
                     # retrieve_relations() call succeeded and one failed. That
@@ -424,7 +430,7 @@ class Handle_Processor(object):
                 # connection errors aren't dropped, the program could end up
                 # aggressively hammering on the same disconnected hosts in an
                 # infinite loop.
-                if isinstance(result, Failed_Request):
+                if isinstance(result, FailedRequest):
                     continue
 
                 del skipped_handles[index]
@@ -447,7 +453,7 @@ class Handle_Processor(object):
         :return:                 If the request succeeded, then the length of the
                                  profile page's bio in characters; if it failed, a
                                  Failed_Request object.
-        :rtype:                  int or Failed_Request
+        :rtype:                  int or FailedRequest
         """
         profile_page, result = self.page_fetcher.instantiate_and_fetch_page(handle_obj, profile_page_url)
 
@@ -471,10 +477,10 @@ class Handle_Processor(object):
         :return:                 If the request succeeded, then the number of
                                  following/followers handles retrieved; if it
                                  failed, a Failed_Request object.
-        :rtype:                  int or Failed_Request
+        :rtype:                  int or FailedRequest
         """
         profile_page, result = self.page_fetcher.instantiate_and_fetch_page(handle_obj, profile_page_url)
-        if isinstance(result, Failed_Request):
+        if isinstance(result, FailedRequest):
             return result, result
         first_following_page_url, first_followers_page_url = profile_page.generate_initial_relation_page_urls()
         result1 = self.retrieve_relations(handle_obj, first_following_page_url)
@@ -493,11 +499,11 @@ class Handle_Processor(object):
         :return:                        If the request succeeded, then the number of
                                         following/followers handles retrieved; if it
                                         failed, a Failed_Request object.
-        :rtype:                         int or Failed_Request
+        :rtype:                         int or FailedRequest
         """
         first_relation_page, result = self.page_fetcher.instantiate_and_fetch_page(handle_obj, first_relation_page_url)
 
-        if isinstance(result, Failed_Request):
+        if isinstance(result, FailedRequest):
             return result
 
         # A dynamic following/followers page uses infinite scroll to convey all
@@ -512,7 +518,7 @@ class Handle_Processor(object):
         total_result = 0
         for relation_page_url in first_relation_page.generate_all_relation_page_urls():
             relation_page, result = self.page_fetcher.instantiate_and_fetch_page(handle_obj, relation_page_url)
-            if isinstance(result, Failed_Request):
+            if isinstance(result, FailedRequest):
                 return result
             relation_page.save_page(self.data_store_obj)
             total_result += result
@@ -520,7 +526,7 @@ class Handle_Processor(object):
         return total_result
 
 
-class Data_Store(object):
+class DataStore(object):
     """
     Intermediates a connection to the MySQL database.
     """
@@ -652,14 +658,14 @@ class Data_Store(object):
         """
         # Validating the considered argument.
         if considered not in (0.0, 1.0, 0, 1, False, True):
-            raise Internal_Exception("the 'considered' argument must be 0, 1, False, or True")
+            raise InternalException("the 'considered' argument must be 0, 1, False, or True")
         considered = int(considered)
         iter_count = 0
 
         # Validating the handles argument.
         for handle_in_at_form in handles_in_at_form:
             if not Handle.validate_handle(handle_in_at_form):
-                raise Internal_Exception(f"the 'handles' argument must consist of a sequence of strs "
+                raise InternalException(f"the 'handles' argument must consist of a sequence of strs "
                                          f"that match the regex {Handle.handle_re.pattern}; "
                                          f"element #{iter_count} was '{handle_in_at_form}'")
             iter_count += 1
@@ -696,7 +702,7 @@ class Data_Store(object):
         :rtype:            types.GeneratorType
         """
         if select_sql.split()[0].upper() != "SELECT":
-            raise Internal_Exception("Data_Store.execute_select_generator() method can only execute SELECT statements.")
+            raise InternalException("Data_Store.execute_select_generator() method can only execute SELECT statements.")
         self.db_cursor.execute(select_sql)
         row = self.db_cursor.fetchone()
         while row is not None:

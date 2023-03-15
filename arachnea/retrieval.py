@@ -15,8 +15,8 @@ import socket
 import time
 import urllib
 
-from arachnea.handles import Handle, Deleted_User
-from arachnea.succeedfail import Failed_Request, Internal_Exception
+from arachnea.handles import Handle, DeletedUser
+from arachnea.succeedfail import FailedRequest, InternalException
 
 
 # One of two places that a timeout of 5 seconds is set. The other place is at
@@ -29,7 +29,7 @@ socket.setdefaulttimeout(5)
 SCROLL_PAUSE_TIME = 1.0
 
 
-class Page_Fetcher:
+class PageFetcher:
     """
     An originator of Page objects that executes this workflow:
 
@@ -76,14 +76,14 @@ class Page_Fetcher:
         self.data_store_obj = data_store_obj
         self.logger_obj = logger_obj
         self.instances_dict = instances_dict
-        self.deleted_users_dict = Deleted_User.fetch_all_deleted_users(self.data_store_obj)
+        self.deleted_users_dict = DeletedUser.fetch_all_deleted_users(self.data_store_obj)
         self.save_profiles = save_profiles
         self.save_relations = save_relations
         self.dont_discard_bc_wifi = dont_discard_bc_wifi
         self.conn_err_wait_time = conn_err_wait_time
 
     def instantiate_and_fetch_page(self, handle_obj, url):
-        instance = handle_obj.instance_obj
+        instance = handle_obj.instance
         if instance in self.instances_dict:
             instance_obj = self.instances_dict[instance]
         else:
@@ -103,26 +103,26 @@ class Page_Fetcher:
                     page = Page(handle_obj, url, self.logger_obj, instance_obj, save_profiles=self.save_profiles,
                                 save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
                     page.save_page(self.data_store_obj)
-                    return page, Failed_Request(instance,
-                                                malfunctioning=instance_obj.malfunctioning,
-                                                unparseable=instance_obj.unparseable,
-                                                suspended=instance_obj.suspended)
+                    return page, FailedRequest(instance,
+                                               malfunctioning=instance_obj.malfunctioning,
+                                               unparseable=instance_obj.unparseable,
+                                               suspended=instance_obj.suspended)
                 else:
                     # If in a relations-saving mode, no Page is generated or
                     # saved.
                     self.logger_obj.info(f"instance_obj {instance} on record as {instance_obj.status}; "
                                          f"didn't load {url}")
-                    return None, Failed_Request(instance,
-                                                malfunctioning=instance_obj.malfunctioning,
-                                                unparseable=instance_obj.unparseable,
-                                                suspended=instance_obj.suspended)
+                    return None, FailedRequest(instance,
+                                               malfunctioning=instance_obj.malfunctioning,
+                                               unparseable=instance_obj.unparseable,
+                                               suspended=instance_obj.suspended)
             elif instance_obj.still_rate_limited():
 
                 # The other case for an unreachable instance_obj is if the program
                 # is rate-limited from it.
                 self.logger_obj.info(f"instance_obj {instance} still rate limited, expires at "
                                  f"{instance_obj.rate_limit_expires_isoformat}, didn't load {url}")
-                return None, Failed_Request(instance, ratelimited=True)
+                return None, FailedRequest(instance, ratelimited=True)
 
         # There exists a record of this user-instance_obj combination in the
         # deleted_users_dict. Handling it.
@@ -134,7 +134,7 @@ class Page_Fetcher:
             page = Page(handle_obj, url, self.logger_obj, instance_obj, save_profiles=self.save_profiles,
                         save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
             page.save_page(self.data_store_obj)
-            return page, Failed_Request(handle_obj.instance_obj, user_deleted=True)
+            return page, FailedRequest(handle_obj.instance_obj, user_deleted=True)
 
         # Possibilities for aborting transfer don't apply; proceeding with a
         # normal attempt to load the page.
@@ -150,12 +150,12 @@ class Page_Fetcher:
 
         # If the request failed because the page is dynamic (ie. has a
         # <noscript> tag), trying again using webdriver.
-        if isinstance(result, Failed_Request) and result.is_dynamic:
+        if isinstance(result, FailedRequest) and result.is_dynamic:
             self.logger_obj.info(f"loaded {url}: page has <noscript>; loading with webdriver")
             result = page.webdriver_fetch()
 
         # BEGIN *outer* big conditional
-        if isinstance(result, Failed_Request):
+        if isinstance(result, FailedRequest):
 
             # Beginning the elaborate process of testing for and handling every
             # possible error case. There's quite a few.
@@ -210,7 +210,7 @@ class Page_Fetcher:
 
                 # The user has been deleted from the instance_obj. Saving that fact
                 # to the data store.
-                deleted_user = Deleted_User.from_handle_obj(handle_obj)
+                deleted_user = DeletedUser.from_handle_obj(handle_obj)
                 deleted_user.logger_obj = self.logger_obj
                 self.deleted_users_dict[handle_obj.username, handle_obj.instance_obj] = deleted_user
                 deleted_user.save_deleted_user(self.data_store_obj)
@@ -394,7 +394,7 @@ class Page:
             else:
                 self.page_number = 0
         else:
-            raise Internal_Exception("unable to discern profile, following or follower page "
+            raise InternalException("unable to discern profile, following or follower page "
                                      f"from parsing URL {self.url} ")
 
     def requests_fetch(self):
@@ -406,7 +406,7 @@ class Page:
                  then a Failed_Request object detailing the problem. If the fetch can't
                  be done bc it's a profile when not in a profile-fetching mode, or a
                  relations page when not in relations-fetching mode, False.
-        :rtype:  int or Failed_Request
+        :rtype:  int or FailedRequest
         """
         try:
             can_fetch = self.instance_obj.can_fetch(self.url)
@@ -420,7 +420,7 @@ class Page:
             # The file can't be fetched because the site has a robots.txt and
             # the robots.txt disallows it.
             self.loaded = False
-            return Failed_Request(self.instance, robots_txt_disallowed=True)
+            return FailedRequest(self.instance, robots_txt_disallowed=True)
         # A big try/except statement to handle a variety of different Exceptions
         # differently.
         try:
@@ -428,19 +428,19 @@ class Page:
         except requests.exceptions.SSLError:
             # An error in the SSL handshake, or an expired cert.
             self.loaded = False
-            return Failed_Request(self.instance, malfunctioning=True, ssl_error=True)
+            return FailedRequest(self.instance, malfunctioning=True, ssl_error=True)
         except requests.exceptions.TooManyRedirects:
             # The instance put the program's client through too many redirects.
             self.loaded = False
-            return Failed_Request(self.instance, malfunctioning=True, too_many_redirects=True)
+            return FailedRequest(self.instance, malfunctioning=True, too_many_redirects=True)
         except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout):
             # The connection timed out.
             self.loaded = False
-            return Failed_Request(self.instance, malfunctioning=True, timeout=True)
+            return FailedRequest(self.instance, malfunctioning=True, timeout=True)
         except (requests.exceptions.ConnectionError, IOError):
             # There was a generic connection error.
             self.loaded = False
-            return Failed_Request(self.instance, malfunctioning=True, connection_error=True)
+            return FailedRequest(self.instance, malfunctioning=True, connection_error=True)
 
         # There's a requests.models.Response object, but now the program needs
         # to handle all the non-200 status codes.
@@ -452,25 +452,25 @@ class Page:
                 # bc that's how many seconds the program needs to wait before
                 # trying again.
                 self.loaded = False
-                return Failed_Request(self.instance, status_code=http_response.status_code, ratelimited=True,
-                                      x_ratelimit_limit=float(http_response.headers['x-ratelimit-limit']))
+                return FailedRequest(self.instance, status_code=http_response.status_code, ratelimited=True,
+                                     x_ratelimit_limit=float(http_response.headers['x-ratelimit-limit']))
             else:
                 self.loaded = False
-                return Failed_Request(self.instance, status_code=http_response.status_code, ratelimited=True)
+                return FailedRequest(self.instance, status_code=http_response.status_code, ratelimited=True)
         elif http_response.status_code in (401, 400, 403, 406) or http_response.status_code >= 500:
             # The instance emitted a status code that indicates it's not
             # handling requests correctly. The program classes it as malfunctioning.
             self.loaded = False
-            return Failed_Request(self.instance, status_code=http_response.status_code, malfunctioning=True)
+            return FailedRequest(self.instance, status_code=http_response.status_code, malfunctioning=True)
         elif http_response.status_code == 404 or http_response.status_code == 410:
             # The status code is 404 Not Found or 410 Gone. The user has been deleted.
             self.loaded = False
-            return Failed_Request(self.instance, status_code=http_response.status_code, user_deleted=True)
+            return FailedRequest(self.instance, status_code=http_response.status_code, user_deleted=True)
         elif http_response.status_code != 200:
             # Any other status code than 200; one the program wasn't expecting.
             # Saving it to the Failed_Request object for the caller to handle.
             self.loaded = False
-            return Failed_Request(self.instance, status_code=http_response.status_code)
+            return FailedRequest(self.instance, status_code=http_response.status_code)
         else:
             # An ostensibly valid page was returned. Parse it with BS and see if
             # it contains the data the program's looking for.
@@ -480,7 +480,7 @@ class Page:
                 # caller will need to try again with webdriver.
                 self.loaded = False
                 self.is_dynamic = True
-                return Failed_Request(self.instance, is_dynamic=True)
+                return FailedRequest(self.instance, is_dynamic=True)
             else:
                 # The page is static and parseable with static tools.
                 self.loaded = True
@@ -513,7 +513,7 @@ class Page:
             # The file can't be fetched because the site has a robots.txt and
             # the robots.txt disallows it.
             self.loaded = False
-            return Failed_Request(self.instance, robots_txt_disallowed=True)
+            return FailedRequest(self.instance, robots_txt_disallowed=True)
 
         browser = None
 
@@ -586,7 +586,7 @@ class Page:
             # selenium.webdriver failed fsr. There's no diagnosing this sort of
             # thing, so a Failed_Request is returned.
             self.logger_obj.info("webdriver experienced an internal error, failing")
-            return Failed_Request(self.instance, webdriver_error=True)
+            return FailedRequest(self.instance, webdriver_error=True)
         finally:
             self.logger_obj.info("closing out webdriver Firefox instance")
             if browser is not None:
@@ -602,7 +602,7 @@ class Page:
         :return: If the page is ruled out for some reason or the parsing failed, returns
                  a Failed_Request object. Otherwise returns the length of the bio in
                  acharacters fter the HTML has been converted to markdown.
-        :rtype:  Failed_Request or int
+        :rtype:  FailedRequest or int
         """
         # FIXME should draw its post age threshold from a global constant
         self.logger_obj.info(f"parsing profile at {self.url}")
@@ -634,9 +634,9 @@ class Page:
                 handle_at, handle_rest = forwarding_match.groups()
                 forwarding_handle = handle_at + handle_rest
                 # FIXME forwarding handles should be loaded into the data store.
-                return Failed_Request(self.instance, forwarding_address=forwarding_handle)
+                return FailedRequest(self.instance, forwarding_address=forwarding_handle)
             else:
-                return Failed_Request(self.instance, forwarding_address=True)
+                return FailedRequest(self.instance, forwarding_address=True)
 
         # Trying 2 known classes used to demarcate the bio by different versions
         # of Mastodon.
@@ -647,7 +647,7 @@ class Page:
         # If the profile div couldn't be found, return a Failed_Request.
         if profile_div_tag is None:
             self.unparseable = True
-            return Failed_Request(self.instance, unparseable=True)
+            return FailedRequest(self.instance, unparseable=True)
 
         # If this is a dynamic page, clear out some known clutter from the
         # profile bio div.
@@ -676,7 +676,7 @@ class Page:
         :return:        If the parsing process failed for any reason, a Failed_Request
                         object; otherwise the number of following or followers profile
                         links collected.
-        :rtype:         Failed_Request or int
+        :rtype:         FailedRequest or int
         """
         self.logger_obj.info(f"parsing {self.relation_type} at {self.url}")
 
@@ -754,7 +754,7 @@ class Page:
             except (selenium.common.exceptions.NoSuchElementException, selenium.common.exceptions.WebDriverException):
                 # selenium.webdriver failed fsr. There's no diagnosing this sort of
                 # thing, so a Failed_Request is returned.
-                return Failed_Request(self.instance, webdriver_error=True)
+                return FailedRequest(self.instance, webdriver_error=True)
 
             # Converting the dict of article tags' texts to a list of
             # following/followers handles.
@@ -1041,8 +1041,8 @@ class Instance:
             self.rate_limit_expires = 0.0
         self.dont_discard_bc_wifi = dont_discard_bc_wifi
         if not (malfunctioning or suspended or unparseable):
-            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.instance_host}/",
-                                                       self.logger_obj, self.dont_discard_bc_wifi)
+            self.robots_txt_file_obj = RobotsTxt("python-requests", f"https://{self.instance_host}/",
+                                                 self.logger_obj, self.dont_discard_bc_wifi)
         else:
             self.robots_txt_file_obj = None
 
@@ -1184,11 +1184,11 @@ class Instance:
         :rtype:           bool
         """
         if self.malfunctioning or self.suspended or self.unparseable:
-            raise Internal_Exception(f"instance {self.instance_host} has status {self.status};"
+            raise InternalException(f"instance {self.instance_host} has status {self.status};"
                                      f" nothing there can be fetched")
         if self.robots_txt_file_obj is None:
-            self.robots_txt_file_obj = Robots_Txt_File("python-requests", f"https://{self.instance_host}/",
-                                                       self.logger_obj, self.dont_discard_bc_wifi)
+            self.robots_txt_file_obj = RobotsTxt("python-requests", f"https://{self.instance_host}/",
+                                                 self.logger_obj, self.dont_discard_bc_wifi)
         if not self.robots_txt_file_obj.has_been_loaded():
             self.robots_txt_file_obj.load_and_parse()
         return self.robots_txt_file_obj.can_fetch(query_url)
@@ -1197,7 +1197,7 @@ class Instance:
 # This class adapted from robotstxt_to_df.py at
 # https://github.com/jcchouinard/SEO-Projects/ . Repository has no LICENSE file
 # so presuming open availability to reuse and adapt without limitations.
-class Robots_Txt_File:
+class RobotsTxt:
     """
     Represents a robots.txt file, implementing functionality to test whether a
     User-Agent + path combination is allowed or not.
@@ -1264,7 +1264,7 @@ class Robots_Txt_File:
         :rtype:  bool
         """
         if self.robots_dict is None:
-            raise Internal_Exception(f"{self._get_robots_txt_url()} hasn't been loaded; can't judge whether "
+            raise InternalException(f"{self._get_robots_txt_url()} hasn't been loaded; can't judge whether "
                                      f"{query_url} can be fetched")
         # There wasn't a robots.txt or an error occurred while attempting to
         # read it.

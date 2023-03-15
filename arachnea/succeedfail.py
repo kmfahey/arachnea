@@ -6,14 +6,14 @@
 # use Successful_Request complementarily to Failed_Request
 
 
-class Internal_Exception(Exception):
+class InternalException(Exception):
     """
     Thrown in the case of a coding error or other internal issue.
     """
     pass
 
 
-class Failed_Request:
+class FailedRequest:
     """
     Represents the outcome of a failed HTTP request. Encapsulates details on
     exactly how the request failed and for what reason. Used by Page_Fetcher's
@@ -91,7 +91,7 @@ class Failed_Request:
                         posts_too_old, ratelimited, robots_txt_disallowed, ssl_error, suspended, timeout,
                         status_code != 0 and status_code != 200, too_many_redirects, unparseable, user_deleted,
                         webdriver_error, bool(x_ratelimit_limit)):
-            raise Internal_Exception("Failed_Request instanced with no parameters set")
+            raise InternalException("Failed_Request instanced with no parameters set")
         self.instance = instance
         self.status_code = status_code
         self.ratelimited = ratelimited

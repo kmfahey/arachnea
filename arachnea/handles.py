@@ -113,7 +113,7 @@ class Handle:
         return True
 
 
-class Deleted_User(Handle):
+class DeletedUser(Handle):
     """
     Represents a user who has been deleted from their instance. Inherits from Handle.
     """
@@ -133,8 +133,8 @@ class Deleted_User(Handle):
         deleted_users_dict = dict()
         for row in data_store_obj.execute("SELECT handle_id, username, instance FROM deleted_users;"):
             handle_id, username, instance = row
-            deleted_users_dict[username, instance] = Deleted_User(handle_id=handle_id, username=username,
-                                                                  instance=instance)
+            deleted_users_dict[username, instance] = DeletedUser(handle_id=handle_id, username=username,
+                                                                 instance=instance)
         return deleted_users_dict
 
     @classmethod
@@ -143,10 +143,10 @@ class Deleted_User(Handle):
         Instances a Deleted_User object from the state of the Handle object argument.
 
         :return: A Deleted_User object.
-        :rtype:  Deleted_User
+        :rtype:  DeletedUser
         """
-        return Deleted_User(handle_id=handle_obj.handle_id, username=handle_obj.username,
-                            instance=handle_obj.instance_obj)
+        return DeletedUser(handle_id=handle_obj.handle_id, username=handle_obj.username,
+                           instance=handle_obj.instance_obj)
 
     def save_deleted_user(self, data_store_obj):
         """
