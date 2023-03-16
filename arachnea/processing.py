@@ -15,20 +15,17 @@ class MainProcessor:
     """
     Encapsulates the state and methods needed to run the main processing job of the program.
     """
-    __slots__ = ('options', 'args', 'logger_obj', 'data_store_obj', 'save_profiles', 'save_relations',
+    __slots__ = ('options', 'logger_obj', 'data_store_obj', 'save_profiles', 'save_relations',
                  'db_host', 'db_user', 'db_password', 'db_database')
 
-    def __init__(self, options, args, logger_obj, db_host, db_user, db_password, db_database,
+    def __init__(self, options, logger_obj, db_host, db_user, db_password, db_database,
                        save_profiles=False, save_relations=False):
         """
         Initializes the Main_Processor object.
 
-        :param options:        The options object that is the first return value of
-                               optparse.OptionParser.parse_args().
-        :type options:         optparse.Values
-        :param args:           The program's commandline arguments absent flags; the second
-                               return value of optparse.OptionParser.parse_args().
-        :type args:            tuple
+        :param options:        The argparse.Namespace object that is the return value of
+                               argparse.OptionParser.parse_args().
+        :type options:         argparse.Namespace
         :param logger_obj:     The Logger object to use to log events.
         :type logger_obj:      logging.Logger
         :param save_profiles:  If the program is in a saving-profiles mode.
@@ -37,7 +34,6 @@ class MainProcessor:
         :type save_relations:  bool
         """
         self.options = options
-        self.args = args
         self.logger_obj = logger_obj
         self.save_profiles = save_profiles
         self.save_relations = save_relations
@@ -105,14 +101,7 @@ class MainProcessor:
         # Iterating across the non-flag arguments, treating each one
         # as a handle_obj (in @user@instance form) and prepping the
         # Handle_Processor.process_handle_iterable iterable argument.
-        for handle_str in self.args:
-            match = handle_re.match(handle_str)
-            if match is None:
-                self.logger_obj.error(f"got argument {handle_str} that doesn't parse as a mastodon handle_obj; "
-                                      "fatal error")
-                exit(1)
-            username, instance = match.group(1, 2)
-            handle_obj = Handle(username=username, instance=instance)
+        for handle_obj in self.options.handles:
             handle_obj.fetch_or_set_handle_id(self.data_store_obj)
             handle_objs_from_args.append(handle_obj)
 

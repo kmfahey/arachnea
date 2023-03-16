@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import decouple
-import optparse
+import argparse
 import shutil
 import collections
 import sys
@@ -17,71 +17,102 @@ DB_DATABASE = 'arachnea'
 
 
 # Setting up the options accepted by the program on the commandline
-parser = optparse.OptionParser()
+parser = argparse.ArgumentParser("recursively retrieve profiles from the Mastodon network, store them in a database, "
+                                 "and make that data available via commandline queries")
 
-parser.add_option("-s", "--web-spider", action="store_true", default=False, dest="web_spider",
-                  help="operate in web spider mode, recursively scraping mastodon profiles for bios and "
-                       "following/followers profile links, which are chased and those bios are scraped in turn")
-parser.add_option("-f", "--fulltext-search", action="store_true", default=False, dest="fulltext_search",
-                  help="operate in database fulltext search mode, accepting query terms on the commandline and "
-                       "querying the profile table for profiles with matching bios, which are then displayed")
-parser.add_option("-m", "--mark-handles-considered", action="store_true", default=False,
-                  dest="mark_handles_considered_eq_1", help="operate in mark handles considered mode, accepting "
-                       "handles in @ form on standard input, and setting considered = 1 on each corresponding row "
-                       "in the profiles table; rows with considered = 1 don't show up in fulltext searches")
-parser.add_option("-M", "--mark-handles-not-considered", action="store_true", default=False,
-                  dest="mark_handles_considered_eq_0", help="operate in mark handles NOT considered mode, "
-                       "accepting handles in @ form on standard input, and setting considered = 0 on each "
-                       "corresponding row in the profiles table; a row must have considered = 0 to show up in "
-                       "fulltext searches")
+main_mode_args_group = parser.add_mutually_exclusive_group()
+
+main_mode_args_group.add_argument("-s", "--web-spider", action="store_true", default=False, dest="web_spider",
+                                  help="Operate in web spider mode, recursively scraping mastodon profiles for bios "
+                                       "and following/followers profile links, which are chased and those bios are "
+                                       "scraped in turn.")
+main_mode_args_group.add_argument("-f", "--fulltext-search", action="store_true", default=False, dest="fulltext_search",
+                                  help="Operate in database fulltext search mode, accepting query terms on the "
+                                       "commandline and querying the profile table for profiles with matching bios, "
+                                       "which are then displayed.")
+main_mode_args_group.add_argument("-m", "--mark-handles-considered", action="store_true", default=False,
+                                  dest="mark_handles_considered_eq_1",
+                                  help="Operate in mark handles considered mode, accepting handles in @ form on "
+                                       "standard input, and setting considered = 1 on each corresponding row in the "
+                                       "profiles table; rows with considered = 1 don't show up in fulltext searches.")
+main_mode_args_group.add_argument("-M", "--mark-handles-not-considered", action="store_true", default=False,
+                                  dest="mark_handles_considered_eq_0",
+                                  help="Operate in mark handles NOT considered mode, accepting handles in @ form on "
+                                       "standard input, and setting considered = 0 on each corresponding row in the "
+                                       "profiles table; a row must have considered = 0 to show up in fulltext "
+                                       "searches.")
 
 ### WEB SPIDER OPTIONS ###
-parser.add_option("-C", "--handles-from-args", action="store_true", default=False, dest="handles_from_args",
-                  help="in web spider mode, skip querying the database for handles, instead process only the handles "
-                       "specified on the commandline")
-parser.add_option("-H", "--handles-join-profiles", action="store_true", default=False, dest="handles_join_profiles",
-                  help="in web spider mode, when fetching profiles, utilize handles that are present in the "
-                       "`handles` table but are not present in the `profiles` table")
-parser.add_option("-R", "--relations-join-profiles", action="store_true", default=False, dest="relations_join_profiles",
-                  help="in web spider mode, when fetching profiles, utilize handles that are present in the "
-                       "`relations` table but are not present in the `profiles` table")
-parser.add_option("-p", "--fetch-profiles-only", action="store_true", default=False, dest="fetch_profiles_only",
-                  help="in web spider mode, fetch profiles only, disregard following & followers pages")
-parser.add_option("-q", "--fetch-relations-only", action="store_true", default=False, dest="fetch_relations_only",
-                  help="in web spider mode, fetch following & followers pages only, disregard profiles")
-parser.add_option("-r", "--fetch-profiles-and-relations", action="store_true", default=False,
-                  dest="fetch_profiles_and_relations", help="in web spider mode, fetch both profiles and following "
-                                                            "& followers pages")
+spider_handles_from_group = parser.add_mutually_exclusive_group()
 
-parser.add_option("-t", "--use-threads", action="store", default=0, type="int", dest="use_threads",
-                  help="in web spider mode, use the specified number of threads")
-parser.add_option("-w", "--dont-discard-bc-wifi", action="store_true", default=False, dest="dont_discard_bc_wifi",
-                  help="in web spider mode, when loading a page leads to a connection error, assume it's the wifi "
-                       "and don't store a null bio, rather save it for later and try again")
-parser.add_option("-W", "--conn-err-wait-time", action="store", default=0.0, type="float",
-                  dest="conn_err_wait_time", help="in web spider mode, when loading a page leads to a connection "
-                                                  "error, and the -w flag was specified, sleep the specified number "
-                                                  "of seconds before resuming the web spidering")
-parser.add_option("-x", "--dry-run", action="store_true", default=False, dest="dry_run",
-                  help="in web spider mode, don't fetch anything, just load data structures from the database "
-                       "and then exit")
+
+spider_handles_from_group.add_argument("-C", "--handles-from-args", action="store_true", default=False,
+                                       dest="handles_from_args",
+                                       help="In web spider mode, skip querying the database for handles, instead "
+                                            "process only the handles specified on the commandline.")
+spider_handles_from_group.add_argument("-H", "--handles-join-profiles", action="store_true", default=False,
+                                       dest="handles_join_profiles",
+                                       help="In web spider mode, when fetching profiles, utilize handles that are "
+                                            "present in the `handles` table but are not present in the `profiles` "
+                                            "table.")
+spider_handles_from_group.add_argument("-R", "--relations-join-profiles", action="store_true", default=False,
+                                       dest="relations_join_profiles",
+                                       help="In web spider mode, when fetching profiles, utilize handles that are "
+                                            "present in the `relations` table but are not present in the `profiles` "
+                                            "table.")
+
+spider_to_fetch_group = parser.add_mutually_exclusive_group()
+
+spider_to_fetch_group.add_argument("-p", "--fetch-profiles-only", action="store_true", default=False,
+                                   dest="fetch_profiles_only",
+                                   help="In web spider mode, fetch profiles only, disregard following & followers "
+                                        "pages.")
+spider_to_fetch_group.add_argument("-q", "--fetch-relations-only", action="store_true", default=False,
+                                   dest="fetch_relations_only",
+                                   help="In web spider mode, fetch following & followers pages only, disregard "
+                                        "profiles.")
+spider_to_fetch_group.add_argument("-r", "--fetch-profiles-and-relations", action="store_true", default=False,
+                                   dest="fetch_profiles_and_relations",
+                                   help="In web spider mode, fetch both profiles and following & followers pages.")
+
+parser.add_argument("handles", action="store", default=(), type=Handle, nargs="*",
+                    help="Zero or more handles, in @username@instance form.")
+
+parser.add_argument("-t", "--use-threads", action="store", default=0, type=int, dest="use_threads",
+                    help="In web spider mode, use the specified number of threads.")
+parser.add_argument("-w", "--dont-discard-bc-wifi", action="store_true", default=False, dest="dont_discard_bc_wifi",
+                    help="In web spider mode, when loading a page leads to a connection error, assume it's the wifi "
+                         "and don't store a null bio, rather save it for later and try again.")
+parser.add_argument("-W", "--conn-err-wait-time", action="store", default=0.0, type=float,
+                    dest="conn_err_wait_time", help="In web spider mode, when loading a page leads to a connection "
+                                                    "error, and the -w flag was specified, sleep the specified number "
+                                                    "of seconds before resuming the web spidering.")
+parser.add_argument("-x", "--dry-run", action="store_true", default=False, dest="dry_run",
+                    help="In web spider mode, don't fetch anything, just load data structures from the database "
+                         "and then exit.")
 ### END WEB SPIDER OPTIONS ###
 
 ### FULLTEXT SEARCH OPTIONS ###
-parser.add_option("-c", "--width-cols", action="store", default=0, type="int", dest="width_cols",
-                  help="in fulltext search mode, use this width in columns for displaying the table of search results")
-parser.add_option("-Q", "--fulltext-query", action="store", default='', type="str", dest="fulltext_pos_query",
-                  help="in fulltext search mode, match bios against this boolean expression to include them in the "
-                       "results; required if -f is used")
-parser.add_option("-N", "--fulltext-negative-query", action="store", default='', type="str", dest="fulltext_neg_query",
-                  help="in fulltext search mode, match bios against this boolean expression to exclude them from the "
-                       "results when they've matched the -Q expression")
-parser.add_option("-i", "--output-handles", action="store_true", default=False, dest="output_handles",
-                  help="in fulltext search mode, suppress normal output; just output matching handles in @ form, "
-                       "one per line")
-parser.add_option("-u", "--output-urls", action="store_true", default=False, dest="output_urls",
-                  help="in fulltext search mode, suppress normal output; just output the profile URLs of matching "
-                       "handles, one per line")
+parser.add_argument("-c", "--width-cols", action="store", default=0, type=int, dest="width_cols",
+                    help="In fulltext search mode, use this width in columns for displaying the table of search "
+                         "results.")
+parser.add_argument("-Q", "--fulltext-query", action="store", default='', type=str, nargs='+',
+                    dest="fulltext_pos_query",
+                    help="In fulltext search mode, match bios against these boolean expressions to include the "
+                         "profiles in the results; required if -f is used. Accepts 1 or more expressions: if 2 or more "
+                         "expressions are used, all expressions must match for the bio to be included in the "
+                         "results.")
+parser.add_argument("-N", "--fulltext-negative-query", action="store", default='', type=str, dest="fulltext_neg_query",
+                    help="In fulltext search mode, match bios against this boolean expression to exclude them from the "
+                         "results when they've matched the -Q expression(s). Accepts 1 or more expressions: if 2 or "
+                         "more expressions are used, a bio matching any one of the expressions is excluded from the "
+                         "results.")
+parser.add_argument("-i", "--output-handles", action="store_true", default=False, dest="output_handles",
+                    help="In fulltext search mode, suppress normal output; just output matching handles in @ form, "
+                         "one per line.")
+parser.add_argument("-u", "--output-urls", action="store_true", default=False, dest="output_urls",
+                    help="In fulltext search mode, suppress normal output; just output the profile URLs of matching "
+                         "handles, one per line.")
 ### END FULLTEXT SEARCH OPTIONS ###
 
 # N.B. The 'mark handles considered' and 'mark handles not considered' modes
@@ -98,7 +129,7 @@ def main():
     :return: None
     :rtype:  types.NoneType
     """
-    (options, args) = parser.parse_args()
+    options = parser.parse_args()
 
     # Instance the main Logger. This is the only Logger needed unless threaded mode is used.
     if options.web_spider:
@@ -106,33 +137,33 @@ def main():
     else:
         main_logger_obj = MainProcessor.instance_logger_obj("main", options.use_threads, no_output=True)
 
-    validate_cmdline_flags(options, args)
+    validate_cmdline_flags(options)
 
     log_cmdline_flags(options, main_logger_obj)
 
     if options.web_spider:
-        execute_web_spider_mode(options, args, main_logger_obj)
+        execute_web_spider_mode(options, main_logger_obj)
     elif options.fulltext_search:
-        execute_fulltext_search_mode(options, args, main_logger_obj)
+        execute_fulltext_search_mode(options, main_logger_obj)
     elif options.mark_handles_considered_eq_1 or options.mark_handles_considered_eq_0:
-        execute_mark_handles_considered_or_not_mode(options, args, main_logger_obj)
+        execute_mark_handles_considered_or_not_mode(options, main_logger_obj)
 
 
-def validate_cmdline_flags(options, args):
+def validate_cmdline_flags(options):
     """
     Validates the commandline flags received. Checks for invalid combinations of
     flags. If an invalid combination is found, an error message is printed and the
     program exits with status 1.
 
-    :param options:    The options object that is the first return value of
-                       optparse.OptionParser.parse_args().
-    :type options:     optparse.Values
-    :param args:       The args tuple that is the second return value of
-                       optparse.OptionParser.parse_args().
-    :type:             tuple
+    :param options:    The argparse.Namespace object that is the return value of
+                       argparse.OptionParser.parse_args().
+    :type options:     argparse.Namespace
     :return:           None
     :rtype:            types.NoneType
     """
+    # Shorthand private function that automatically iterates through a dict
+    # of all the flags that don't apply in this mode, and errors out wiht an
+    # appropriate message if any one of them was used.
     def _exclude_non_mode_flags(mode_flag, mode_name, illeg_args):
         # Private function that iterates over dict of illegal arguments.
         for flag, arg_value in illeg_args.items():
@@ -150,7 +181,10 @@ def validate_cmdline_flags(options, args):
 
     # Argument integrity check; catching illegal combinations of commandline
     # arguments and emitting the appropriate error messages.
+
+    # Argument parsing for webspider mode (-s flag).
     if options.web_spider:
+        # Checking for any of the flags that don't apply in this mode.
         _exclude_non_mode_flags("-s", "fulltext search",
                                 {"-c": options.width_cols, "-Q": options.fulltext_pos_query,
                                  "-N": options.fulltext_neg_query, "-i": options.output_handles,
@@ -187,11 +221,11 @@ def validate_cmdline_flags(options, args):
             print("with -s and -q flags used, please don't specify -H or -R; relations-only fetching sources its "
                   "handles from those present in the profiles table which aren't in the relations table")
             exit(1)
-        elif options.handles_from_args and not args:
+        elif options.handles_from_args and len(options.handles) == 0:
             print("when -s and -C flags are used, please supply one or more handles on the commandline")
             exit(1)
-        elif not options.handles_from_args and args:
-            print("with -s flag used, -C was not used, but args supplied on the commandline")
+        elif not options.handles_from_args and len(options.handles) != 0:
+            print("with -s flag used, -C was not used, but handles supplied on the commandline")
             exit(1)
         elif options.use_threads and options.dry_run:
             print("with -s flag used, and both -t and -x used; cannot run in these two modes simultaneously")
@@ -203,6 +237,7 @@ def validate_cmdline_flags(options, args):
             print("with -s flag used, and -w and -W flags used, argument for -W is a negative number; please only "
                   "use an argument of 0.0 or greater with -W flag")
             exit(1)
+    # Argument parsing for fulltext search mode (-f flag).
     elif options.fulltext_search:
         _exclude_non_mode_flags("-f", "webspider",
                                 {"-C": options.handles_from_args, "-H": options.handles_join_profiles,
@@ -226,7 +261,12 @@ def validate_cmdline_flags(options, args):
             print("with -f flag used, using -c flag with either -i or -u flags is nonsensical, can't control "
                   "the width of the output table while also not printing it")
             exit(1)
+        elif len(options.handles) != 0:
+            print("with -f flag used, handles supplied on the commandline")
+            exit(1)
+    # Argument parsing for either handle marking mode (-m flag or -M flag).
     elif options.mark_handles_considered_eq_0 or options.mark_handles_considered_eq_1:
+        # Checking for any of the flags that don't apply in this mode.
         illegal_flags_d = {"-c": options.width_cols, "-Q": options.fulltext_pos_query, "-N": options.fulltext_neg_query,
                            "-i": options.output_handles, "-u": options.output_urls, "-C": options.handles_from_args,
                            "-H": options.handles_join_profiles, "-R": options.relations_join_profiles,
@@ -236,8 +276,20 @@ def validate_cmdline_flags(options, args):
 
         if options.mark_handles_considered_eq_0:
             _exclude_non_mode_flags("-m", "mark handles considered", illegal_flags_d)
+            if len(options.handles) != 0:
+                print("with -m flag used, handles supplied on the commandline")
+                exit(1)
         else:
             _exclude_non_mode_flags("-M", "mark handles not considered", illegal_flags_d)
+            if len(options.handles) != 0:
+                print("with -M flag used, handles supplied on the commandline")
+                exit(1)
+    # None of the mode flags were used, which is itself an error; the program
+    # can't run without one of those flags to indicate which mode to run in. It
+    # doesn't have a default.
+    else:
+        print("none of the flags -s, -f, -m or -M used; please indicate a mode to run in")
+        exit(1)
 
 
 def log_cmdline_flags(options, logger_obj):
@@ -294,23 +346,17 @@ def log_cmdline_flags(options, logger_obj):
                         "set considered = 0 on matching rows")
 
 
-def execute_web_spider_mode(options, args, main_logger_obj):
+def execute_web_spider_mode(options, main_logger_obj):
     """
-    Execute the program's webspider mode. If processing handles from the
-    commandline, the args argument is used as the source of handles.
+    Execute the program's webspider mode.
 
-:param options:         The options object that is the first return value of
-                        optparse.OptionParser.parse_args().
-:type options:          optparse.Values
-:param args:            The commandline arguments to the program. If the program
-                        is processing handles from the commandline, must be
-                        nonzero in length and consist of strings which are
-                        handles in @user@instance form.
-:type args:             tuple
-:param main_logger_obj: The Logger object to log events to.
-:type main_logger_obj:  logging.Logger
-:return:                None
-:rtype:                 types.NoneType
+    :param options:         The argparse.Namespace object that is the return value of
+                            argparse.OptionParser.parse_args().
+    :type options:          argparse.Namespace
+    :param main_logger_obj: The Logger object to log events to.
+    :type main_logger_obj:  logging.Logger
+    :return:                None
+    :rtype:                 types.NoneType
     """
     save_profiles = (options.fetch_profiles_only or options.fetch_profiles_and_relations)
     save_relations = (options.fetch_relations_only or options.fetch_profiles_and_relations)
@@ -319,7 +365,7 @@ def execute_web_spider_mode(options, args, main_logger_obj):
     # processing handles from the database in a threaded fashion,
     # and processing handles from the database in a single-tasking fashion.
 
-    main_processor_obj = MainProcessor(options, args, main_logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE,
+    main_processor_obj = MainProcessor(options, main_logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE,
                                        save_profiles, save_relations)
 
     if options.handles_from_args:
@@ -330,7 +376,7 @@ def execute_web_spider_mode(options, args, main_logger_obj):
         main_processor_obj.process_handles_from_db_single_thread()
 
 
-def execute_fulltext_search_mode(options, args, logger_obj):
+def execute_fulltext_search_mode(options, logger_obj):
     """
     Execute the program's fulltext search mode. Uses the content of
     options.fulltext_pos_query as its search terms. If options.fulltext_neg_query is
@@ -338,19 +384,15 @@ def execute_fulltext_search_mode(options, args, logger_obj):
     rows that match the expression in options.fulltext_pos_query but do *not* match
     the expression in options.fulltext_neg_query.
 
-    :param options:    The options object that is the first return value of
-                       optparse.OptionParser.parse_args().
-    :type options:     optparse.Values
-    :param args:       The commandline arguments to the program, which are used
-                       as query terms to the fulltext search. If there's more than
-                       one, query terms are joined with OR booleans.
-    :type args:        tuple
+    :param options:    The argparse.Namespace object that is the return value of
+                       argparse.OptionParser.parse_args().
+    :type options:     argparse.Namespace
     :param logger_obj: The Logger object to log events to.
     :type logger_obj:  logging.Logger
     :return:           False if no results were found, True otherwise.
     :rtype:            bool
     """
-    main_processor_obj = MainProcessor(options, args, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
+    main_processor_obj = MainProcessor(options, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
 
     # Fetching the current columns of the terminal to use as a maximum width for
     # the output table to be constrained to.
@@ -418,7 +460,7 @@ def execute_fulltext_search_mode(options, args, logger_obj):
     return True
 
 
-def execute_mark_handles_considered_or_not_mode(options, args, logger_obj):
+def execute_mark_handles_considered_or_not_mode(options, logger_obj):
     """
     Executes either the mark-handles-considered or the mark-handles-not-considered
     mode. Draws a list of handles in @ form from stdin, and calls a method that
@@ -427,13 +469,9 @@ def execute_mark_handles_considered_or_not_mode(options, args, logger_obj):
     the mark-handles-not-considered mode with the same handles will restore the
     profiles table to its original state.)
 
-    :param options:    The options object that is the first return value of
-                       optparse.OptionParser.parse_args().
-    :type options:     optparse.Values
-    :param args:       The commandline arguments to the program, which are used
-                       as query terms to the fulltext search. If there's more than
-                       one, query terms are joined with OR booleans.
-    :type args:        tuple
+    :param options:    The argparse.Namespace object that is the return value of
+                       argparse.OptionParser.parse_args().
+    :type options:     argparse.Namespace
     :param logger_obj: The Logger object to log events to.
     :type logger_obj:  logging.Logger
     :return:           False if no results were found, True otherwise.
@@ -463,7 +501,7 @@ def execute_mark_handles_considered_or_not_mode(options, args, logger_obj):
         exit(1)
 
     # Instancing a Main_Processor object, and calling the update method.
-    main_processor_obj = MainProcessor(options, args, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
+    main_processor_obj = MainProcessor(options, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
 
     rows_affected = main_processor_obj.update_profiles_set_considered(handles, considered)
 

@@ -2,6 +2,8 @@
 
 import re
 
+from arachnea.succeedfail import InternalException
+
 
 class Handle:
     """
@@ -9,7 +11,9 @@ class Handle:
     """
     __slots__ = 'handle_id', 'username', 'instance'
 
-    handle_re = re.compile(r"^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z0-9]+$")
+    handle_re = re.compile(r"^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]+$")
+    username_re = re.compile("^[A-Za-z0-9_.-]+$")
+    instance_re = re.compile("^[A-Za-z0-9_.-]+\.[A-Za-z]+$")
 
     @property
     def handle_in_at_form(self):
@@ -25,7 +29,7 @@ class Handle:
         """
         return f"https://{self.instance}/@{self.username}"
 
-    def __init__(self, handle_id=None, username='', instance=''):
+    def __init__(self, handle_in_at_form='', handle_id=None, username='', instance=''):
         """
         Instances the Handle object.
 
@@ -40,10 +44,33 @@ class Handle:
                           instance.
         :type instance:   str
         """
-        assert isinstance(handle_id, int) or handle_id is None
-        self.handle_id = handle_id
-        self.username = username
-        self.instance = instance
+        if handle_in_at_form:
+            if username or instance:
+                match (bool(username), bool(instance)):
+                    case (True, True):
+                        raise InternalException("Handle object cannot be initialized from both a handle in @ form and "
+                                                "also values for username and instance kwargs.")
+                    case (True, False):
+                        raise InternalException("Handle object cannot be initialized from both a handle in @ form and "
+                                                "also a value for the username kwarg.")
+                    case (False, True):
+                        raise InternalException("Handle object cannot be initialized from both a handle in @ form and "
+                                                "also a value for the instance kwarg.")
+            self.username, self.instance = handle_in_at_form.strip('@').rsplit('@')
+            self.handle_id = handle_id
+        else:
+            if handle_id is not None and not isinstance(handle_id, int):
+                raise InternalException("handle_id argument must be an int")
+            elif not isinstance(username, str) or not self.username_re.match(username):
+                raise InternalException("username argument not a valid username: must be a str consisting of letters, "
+                                        "numbers, periods, underscores, and dashes")
+            elif not isinstance(instance, str) or not self.instance_re.match(instance):
+                raise InternalException("instance argument not a valid instance: must be a str consisting of letters, "
+                                        "numbers, periods, underscores, and dashes ending in a period followed by "
+                                        "letters")
+            self.handle_id = handle_id
+            self.username = username
+            self.instance = instance
 
     @classmethod
     def validate_handle(cls, handle):

@@ -891,7 +891,7 @@ class Page:
                     # profiles table, but its profile_bio_markdown is null, and the
                     # bio text the program is going to save here is *not* null,
                     # then use an UPDATE statement to set the profile bio.
-                    update_sql = f"""UPDATE profiles SET profile_bio_markdown = {profile_bio_text}
+                    update_sql = f"""UPDATE profiles SET profile_bio_markdown = '{profile_bio_text}'
                                      WHERE profile_handle_id = {handle_obj.handle_id};"""
                     data_store_obj.execute(update_sql)
                     return 1
@@ -942,7 +942,7 @@ class Page:
                                                   %s;""" % ', '.join(value_sql_list)
             try:
                 data_store_obj.execute(insert_sql)
-            except MySQLdb._exceptions.IntegrityError:
+            except MySQLdb.IntegrityError:
                 # If inserting the whole page at once raises an IntegrityError,
                 # then fall back on inserting each row individually and failing
                 # on the specific row that creates the IntegrityError while
@@ -961,13 +961,15 @@ class Page:
                                                             '{relation_handle_obj.instance}')"""
                     try:
                         data_store_obj.execute(insert_sql)
-                    except MySQLdb._exceptions.IntegrityError:
+                    except MySQLdb.IntegrityError:
                         # Whatever is causing this error, at least the other
                         # rows got saved.
-                        self.logger_obj.info(f"got an SQL IntegrityError when inserting "
-                                                f"{relation_handle_obj.handle_in_at_form} %s "
-                                                f"{profile_handle_obj.handle_in_at_form} into table relations" % (
-                                                'follower of' if relation == 'followers' else relation))
+                        self.logger_obj.info((f"got an SQL IntegrityError when inserting "
+                                              f"{relation_handle_in_at_form} {relation_type} "
+                                              f"{profile_handle_in_at_form} into table relations").format(
+                                                  relation_handle_in_at_form=relation_handle_obj.handle_in_at_form,
+                                                  relation_type=('follower of' if relation == 'followers' else relation),
+                                                  profile_handle_in_at_form=profile_handle_obj.handle_in_at_form))
                     else:
                         insertion_count += 1
             else:
@@ -1345,7 +1347,7 @@ class RobotsTxt:
         # Retrieve the robots.txt file, extract the content and return it.
         try:
             self.logger_obj.info(f"retrieving robots.txt for {self.instance}")
-            response = requests.get(robots_txt_url)
+            response = requests.get(robots_txt_url, timeout=5.0)
         except requests.exceptions.SSLError:
             self.logger_obj.info(f"retrieving https://{self.instance}/robots.txt failed: SSL error ")
             return ''
