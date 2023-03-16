@@ -146,7 +146,7 @@ class DeletedUser(Handle):
         :rtype:  DeletedUser
         """
         return DeletedUser(handle_id=handle_obj.handle_id, username=handle_obj.username,
-                           instance=handle_obj.instance_obj)
+                           instance=handle_obj.instance)
 
     def save_deleted_user(self, data_store_obj):
         """

@@ -126,7 +126,7 @@ class PageFetcher:
 
         # There exists a record of this user-instance_obj combination in the
         # deleted_users_dict. Handling it.
-        elif (handle_obj.username, handle_obj.instance_obj) in self.deleted_users_dict:
+        elif (handle_obj.username, handle_obj.instance) in self.deleted_users_dict:
             # FIXME: this step can be skipped if a JOIN against deleted_users is
             # added to the handles loading step
             self.logger_obj.info(f"user {handle_obj.handle_in_at_form} known to be deleted; didn't load {url}; "
@@ -134,7 +134,7 @@ class PageFetcher:
             page = Page(handle_obj, url, self.logger_obj, instance_obj, save_profiles=self.save_profiles,
                         save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
             page.save_page(self.data_store_obj)
-            return page, FailedRequest(handle_obj.instance_obj, user_deleted=True)
+            return page, FailedRequest(handle_obj.instance, user_deleted=True)
 
         # Possibilities for aborting transfer don't apply; proceeding with a
         # normal attempt to load the page.
@@ -212,7 +212,7 @@ class PageFetcher:
                 # to the data store.
                 deleted_user = DeletedUser.from_handle_obj(handle_obj)
                 deleted_user.logger_obj = self.logger_obj
-                self.deleted_users_dict[handle_obj.username, handle_obj.instance_obj] = deleted_user
+                self.deleted_users_dict[handle_obj.username, handle_obj.instance] = deleted_user
                 deleted_user.save_deleted_user(self.data_store_obj)
                 self.logger_obj.info(f"failed to load {url}: user deleted")
 
@@ -932,7 +932,7 @@ class Page:
                 relation_handle_obj.fetch_or_set_handle_id(data_store_obj)
                 value_sql_list.append(f"""({profile_handle_obj.handle_id}, '{self.username}', '{self.instance}',
                                            {relation_handle_obj.handle_id}, '{relation}', {self.page_number},
-                                           '{relation_handle_obj.username}', '{relation_handle_obj.instance_obj}')""")
+                                           '{relation_handle_obj.username}', '{relation_handle_obj.instance}')""")
 
             # Building the complete INSERT INTO ... VALUES statement.
             insert_sql = """INSERT INTO relations (profile_handle_id, profile_username, profile_instance,
@@ -958,7 +958,7 @@ class Page:
                                                             '{self.instance}', {relation_handle_obj.handle_id},
                                                             '{relation}', {self.page_number},
                                                             '{relation_handle_obj.username}',
-                                                            '{relation_handle_obj.instance_obj}')"""
+                                                            '{relation_handle_obj.instance}')"""
                     try:
                         data_store_obj.execute(insert_sql)
                     except MySQLdb._exceptions.IntegrityError:
