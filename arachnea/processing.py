@@ -592,43 +592,59 @@ class DataStore(object):
                                             WHERE profiles.profile_handle_id IS NULL ORDER BY RAND();"""
         return self._handle_select_generator(handles_left_join_profiles_sql)
 
-    def fulltext_profiles_search(self, pos_query_str, neg_query_str=''):
+    def fulltext_profiles_search(self, pos_query_strs, neg_query_strs=[]):
         """
-        Execute a fulltext search on the profile_bio_markdown column of the profiles
-        table. The pos_query_str arg is used as the argument to MATCH ... AGAINST(). If
-        neg_query_str is non-empty, a 2nd MATCH term NOT MATCH ... AGAINST() is added
-        and neg_query_str is used as the arg to that.
+        Executes a fulltext search on the profile_bio_markdown column of the profiles
+        table.
+
+        The results are those where the profile bio matches all terms in the
+        pos_query_strs argument, and does not match any of the terms in the
+        neg_query_strs argument (if present). pos_query_strs must not be 0-length;
+        neg_query_strs may be.
 
         Returns a list of 2-tuples where the 1st elem is a Handle object and the 2nd
         elem is a str which is the value of the profile_bio_markdown column for that
         handle in the profiles table.
 
-        :param pos_query_str: A boolean expression of terms to match against the
-                              profile_bio_markdown column. A positive match includes
-                              that handle and its bio in the results.
-        :type pos_query_str:  str
-        :param neg_query_str: A boolean expression of terms to match against the
-                              profile_bio_markdown column. A positive match excludes
-                              that handle and its bio in the results even if it matched
-                              the pos_query_str boolean expression.
-        :type neg_query_str:  str
-        :return:              List of 0 or more 2-tuples, where each tuple is a Handle
-                              object and the profile_bio_markdown value string.
-        :rtype:               list
+        :param pos_query_strs: A tuple, list or set of one or more boolean expression
+                               terms to match against the profile_bio_markdown column.
+                               A positive match against *all* the expressions includes
+                               that profile from the results.
+        :type pos_query_str:   tuple, list or set
+        :param pos_query_strs: A tuple, list or set of zero or more boolean expression
+                               terms to match against the profile_bio_markdown column. A
+                               negative match against *any* of the expressions exlcludes
+                               that profile from the results.
+        :type pos_query_str:   tuple, list or set
+        :return:               List of 0 or more 2-tuples, where each tuple is a Handle
+                               object and the profile_bio_markdown value string.
+        :rtype:                list
         """
         escape_quotes_tr_d = {ord('"'): '\\"', ord("'"): "\\'"}
-        pos_query_str = pos_query_str.translate(escape_quotes_tr_d)
-        pos_query_str = f"'{pos_query_str}'"
-        match_boolean_sql = f"AND MATCH(profile_bio_markdown) AGAINST({pos_query_str})\n"
-        if neg_query_str:
-            neg_query_str = neg_query_str.translate(escape_quotes_tr_d)
-            neg_query_str = f"'{neg_query_str}'"
-            match_boolean_sql += f"AND NOT MATCH(profile_bio_markdown) AGAINST({neg_query_str})\n"
+
+        def _format_query_str(query_str):
+            query_str = query_str.translate(escape_quotes_tr_d)
+            query_str = f"'{query_str}'"
+            return f"MATCH(profile_bio_markdown) AGAINST({query_str})"
+
+        if len(pos_query_strs) == 0:
+            raise InternalException("DataStore.fulltext_profiles_search() called with a zero-length pos_query_strs "
+                                    "argument.")
+
+        # If the sequence is 0-length str.join() returns the null string.
+        pos_bool_sql = " AND ".join(map(_format_query_str, pos_query_strs))
+        neg_bool_sql = " OR ".join(map(_format_query_str, neg_query_strs)) 
+
+        if neg_bool_sql:
+            match_boolean_sql = f"{pos_bool_sql} AND NOT ({neg_bool_sql})"
+        else:
+            match_boolean_sql = pos_bool_sql
+
         search_sql = f"""SELECT profile_handle_id, username, instance, profile_bio_markdown FROM profiles
                          WHERE profile_bio_markdown <> ''
-                               {match_boolean_sql}
+                               AND {match_boolean_sql}
                                AND considered = 0;"""
-        return [(Handle(handle_id, username, instance), profile_bio_markdown)
+        return [(Handle(handle_id=handle_id, username=username, instance=instance), profile_bio_markdown)
                 for handle_id, username, instance, profile_bio_markdown in self.execute(search_sql)]
 
     def update_profiles_set_considered(self, handles_in_at_form, considered):
@@ -695,7 +711,7 @@ class DataStore(object):
         self.db_cursor.execute(select_sql)
         row = self.db_cursor.fetchone()
         while row is not None:
-            yield Handle(*row)
+            yield Handle(handle_id=row[0], username=row[1], instance=row[2])
             row = self.db_cursor.fetchone()
 
     def execute(self, sql):

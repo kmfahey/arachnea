@@ -102,7 +102,8 @@ parser.add_argument("-Q", "--fulltext-query", action="store", default='', type=s
                          "profiles in the results; required if -f is used. Accepts 1 or more expressions: if 2 or more "
                          "expressions are used, all expressions must match for the bio to be included in the "
                          "results.")
-parser.add_argument("-N", "--fulltext-negative-query", action="store", default='', type=str, dest="fulltext_neg_query",
+parser.add_argument("-N", "--fulltext-negative-query", action="store", default='', type=str, nargs="+",
+                    dest="fulltext_neg_query",
                     help="In fulltext search mode, match bios against this boolean expression to exclude them from the "
                          "results when they've matched the -Q expression(s). Accepts 1 or more expressions: if 2 or "
                          "more expressions are used, a bio matching any one of the expressions is excluded from the "
@@ -414,10 +415,12 @@ def execute_fulltext_search_mode(options, logger_obj):
         exit(0)
 
     # Reporting results.
+    pos_query_expr = ' and '.join(f"'{term}'" for term in options.fulltext_pos_query)
     if options.fulltext_neg_query:
-        matching_expr = f"'{options.fulltext_pos_query}' and not matching '{options.fulltext_neg_query}'"
+        neg_query_expr = ' or '.join(f"'{term}'" for term in options.fulltext_neg_query)
+        matching_expr = f"{pos_query_expr} and not matching {neg_query_expr}"
     else:
-        matching_expr = f"'{options.fulltext_pos_query}'"
+        matching_expr = pos_query_expr
 
     match len(results):
         case 0:
