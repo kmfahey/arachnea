@@ -17,8 +17,7 @@ DB_DATABASE = 'arachnea'
 
 
 # Setting up the options accepted by the program on the commandline
-parser = argparse.ArgumentParser("recursively retrieve profiles from the Mastodon network, store them in a database, "
-                                 "and make that data available via commandline queries")
+parser = argparse.ArgumentParser("arachnea")
 
 main_mode_args_group = parser.add_mutually_exclusive_group()
 
@@ -78,8 +77,9 @@ spider_to_fetch_group.add_argument("-r", "--fetch-profiles-and-relations", actio
 parser.add_argument("handles", action="store", default=(), type=Handle, nargs="*",
                     help="Zero or more handles, in @username@instance form.")
 
-parser.add_argument("-t", "--use-threads", action="store", default=0, type=int, dest="use_threads",
-                    help="In web spider mode, use the specified number of threads.")
+parser.add_argument("-t", "--threads-count", action="store", default=0, type=int, dest="threads_count",
+                    help="In web spider mode, use the specified number of threads. (If the argument is 0 or 1, "
+                         "threading is not used.")
 parser.add_argument("-w", "--dont-discard-bc-wifi", action="store_true", default=False, dest="dont_discard_bc_wifi",
                     help="In web spider mode, when loading a page leads to a connection error, assume it's the wifi "
                          "and don't store a null bio, rather save it for later and try again.")
@@ -134,9 +134,9 @@ def main():
 
     # Instance the main Logger. This is the only Logger needed unless threaded mode is used.
     if options.web_spider:
-        main_logger_obj = MainProcessor.instance_logger_obj("main", options.use_threads)
+        main_logger_obj = MainProcessor.instance_logger_obj("main", use_threads=bool(options.threads_count))
     else:
-        main_logger_obj = MainProcessor.instance_logger_obj("main", options.use_threads, no_output=True)
+        main_logger_obj = MainProcessor.instance_logger_obj("main", use_threads=bool(options.threads_count), no_output=True)
 
     validate_cmdline_flags(options)
 
@@ -228,7 +228,11 @@ def validate_cmdline_flags(options):
         elif not options.handles_from_args and len(options.handles) != 0:
             print("with -s flag used, -C was not used, but handles supplied on the commandline")
             exit(1)
-        elif options.use_threads and options.dry_run:
+        elif options.threads_count < 0:
+            print("with -s flag used, the argument to -t was less than 0: please only use a value for --threads-count "
+                  "that is greater than or equal to 0")
+            exit(1)
+        elif options.threads_count > 1 and options.dry_run:
             print("with -s flag used, and both -t and -x used; cannot run in these two modes simultaneously")
             exit(1)
         elif options.conn_err_wait_time and not options.dont_discard_bc_wifi:
@@ -244,7 +248,7 @@ def validate_cmdline_flags(options):
                                 {"-C": options.handles_from_args, "-H": options.handles_join_profiles,
                                  "-R": options.relations_join_profiles, "-p": options.fetch_profiles_only,
                                  "-q": options.fetch_relations_only, "-r": options.fetch_profiles_and_relations,
-                                 "-t": options.use_threads, "-w": options.dont_discard_bc_wifi,
+                                 "-t": options.threads_count, "-w": options.dont_discard_bc_wifi,
                                  "-W": options.conn_err_wait_time, "-x": options.dry_run})
 
         if options.width_cols < 0:
@@ -272,7 +276,7 @@ def validate_cmdline_flags(options):
                            "-i": options.output_handles, "-u": options.output_urls, "-C": options.handles_from_args,
                            "-H": options.handles_join_profiles, "-R": options.relations_join_profiles,
                            "-p": options.fetch_profiles_only, "-q": options.fetch_relations_only,
-                           "-r": options.fetch_profiles_and_relations, "-t": options.use_threads,
+                           "-r": options.fetch_profiles_and_relations, "-t": options.threads_count,
                            "-w": options.dont_discard_bc_wifi, "-W": options.conn_err_wait_time, "-x": options.dry_run}
 
         if options.mark_handles_considered_eq_0:
@@ -371,7 +375,7 @@ def execute_web_spider_mode(options, main_logger_obj):
 
     if options.handles_from_args:
         main_processor_obj.process_handles_from_args()
-    elif options.use_threads:
+    elif options.threads_count > 1:
         main_processor_obj.process_handles_from_db_w_threads()
     else:
         main_processor_obj.process_handles_from_db_single_thread()

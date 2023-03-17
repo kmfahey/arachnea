@@ -137,7 +137,7 @@ class MainProcessor:
         thread_objs = list()
 
         # Instancing & saving the thread objects.
-        for index in range(0, self.options.use_threads):
+        for index in range(0, self.options.threads_count):
             thread_obj = threading.Thread(target=handle_processor_objs[index].process_handle_iterable,
                                           args=(iter(handles_lists[index]), data_store_objs[index]),
                                           daemon=True)
@@ -145,12 +145,12 @@ class MainProcessor:
             self.logger_obj.info(f"instantiated thread #{index}")
 
         # Starting the threads.
-        for index in range(0, self.options.use_threads):
+        for index in range(0, self.options.threads_count):
             thread_objs[index].start()
             self.logger_obj.info(f"started thread #{index}")
 
         # Waiting for the threads to exit.
-        for index in range(0, self.options.use_threads):
+        for index in range(0, self.options.threads_count):
             thread_objs[index].join()
             self.logger_obj.info(f"closed thread #{index}")
 
@@ -179,7 +179,7 @@ class MainProcessor:
         handle_processor_objs = list()
         handles_lists = list()
 
-        for index in range(0, self.options.use_threads):
+        for index in range(0, self.options.threads_count):
             threads_logger_obj = self.instance_logger_obj(f"thread#{index}", True)
             logger_objs.append(threads_logger_obj)
             data_store_objs.append(DataStore(self.db_host, self.db_user, self.db_password,
@@ -197,7 +197,7 @@ class MainProcessor:
         # have access to that information.
         instances_dict = Instance.fetch_all_instances(self.data_store_obj, self.logger_obj)
 
-        for index in range(0, self.options.use_threads):
+        for index in range(0, self.options.threads_count):
             handle_processor_obj = HandleProcessor(data_store_objs[index], logger_objs[index], instances_dict,
                                                    save_profiles=self.save_profiles,
                                                    save_relations=self.save_relations,
@@ -226,8 +226,8 @@ class MainProcessor:
         # lists with equal or nearly equal numbers of handles.
         try:
             while True:
-                for index in range(0, self.options.use_threads):
-                    this_threads_handles_list = handles_lists[((index + 1) % self.options.use_threads) - 1]
+                for index in range(0, self.options.threads_count):
+                    this_threads_handles_list = handles_lists[((index + 1) % self.options.threads_count) - 1]
                     this_threads_handles_list.append(next(handles_generator))
         except StopIteration:
             pass

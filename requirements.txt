@@ -1,6 +1,7 @@
 bs4
-selenium
-python-decouple
-mysqlclient
 html2text
+mysqlclient
+python-decouple
 requests
+selenium
+validators

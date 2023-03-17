@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import re
+import validators
 
 from arachnea.succeedfail import InternalException
 
@@ -11,9 +12,9 @@ class Handle:
     """
     __slots__ = 'handle_id', 'username', 'instance'
 
-    handle_re = re.compile(r"^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]+$")
-    username_re = re.compile("^[A-Za-z0-9_.-]+$")
-    instance_re = re.compile("^[A-Za-z0-9_.-]+\.[A-Za-z]+$")
+    handle_re = re.compile(r"^@[A-Za-zÀ-ÿ0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]+$")
+    username_re = re.compile("^[A-Za-zÀ-ÿ0-9_.-]+$")
+    instance_re = re.compile("^[A-Za-zÀ-ÿ0-9_.-]+\.[A-Za-z]+$")
 
     @property
     def handle_in_at_form(self):
@@ -60,14 +61,17 @@ class Handle:
             self.handle_id = handle_id
         else:
             if handle_id is not None and not isinstance(handle_id, int):
-                raise InternalException("handle_id argument must be an int")
+                raise InternalException(f"handle_id argument must be an int (got '{handle_id}'")
             elif not isinstance(username, str) or not self.username_re.match(username):
-                raise InternalException("username argument not a valid username: must be a str consisting of letters, "
-                                        "numbers, periods, underscores, and dashes")
-            elif not isinstance(instance, str) or not self.instance_re.match(instance):
-                raise InternalException("instance argument not a valid instance: must be a str consisting of letters, "
-                                        "numbers, periods, underscores, and dashes ending in a period followed by "
-                                        "letters")
+                raise InternalException(f"username argument '{username}' not a valid username: must be a str "
+                                         "consisting of letters, numbers, periods, underscores, and dashes")
+            else:
+                try:
+                    validators.domain(instance)
+                except validators.ValidationFailure:
+                    raise InternalException(f"instance argument '{instance}' not a valid instance: must be a str "
+                                             "consisting of letters, numbers, periods, underscores, and dashes ending in a "
+                                             "period followed by letters")
             self.handle_id = handle_id
             self.username = username
             self.instance = instance
