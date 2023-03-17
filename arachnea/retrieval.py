@@ -3,6 +3,7 @@
 import bs4
 import datetime
 import html2text
+import logger
 import MySQLdb
 import re
 import requests
@@ -14,19 +15,19 @@ import selenium.webdriver.firefox.options
 import socket
 import time
 import urllib
+import validators
 
 from arachnea.handles import Handle, DeletedUser
 from arachnea.succeedfail import FailedRequest, InternalException
 
 
-# One of two places that a timeout of 5 seconds is set. The other place is at
-# the top of the Page.requests_fetch() method where the actual requests.get()
-# call is made.
-socket.setdefaulttimeout(5)
-
 # Used to set how long selenium.webdriver waits between directing the puppet
 # firefox instance to scroll the page.
 SCROLL_PAUSE_TIME = 1.0
+
+# The connection timeout used by requests.get() when retrieving pages from a
+# mastodon instance.
+REQ_TIMEOUT = 5.0
 
 
 class PageFetcher:
@@ -229,7 +230,6 @@ class PageFetcher:
                 self.logger_obj.info(f"loading {url}: site's robots.txt does not allow it")
 
             # The profile gave the program a forwarding address.
-            # FIXME should save these to the handles table.
             elif result.forwarding_address:
                 if result.forwarding_address is True:
                     self.logger_obj.info(f"loaded {url}: forwarding page (could not recover handle)")
@@ -424,7 +424,7 @@ class Page:
         # A big try/except statement to handle a variety of different Exceptions
         # differently.
         try:
-            http_response = requests.get(self.url, timeout=5.0)
+            http_response = requests.get(self.url, timeout=REQ_TIMEOUT)
         except requests.exceptions.SSLError:
             # An error in the SSL handshake, or an expired cert.
             self.loaded = False
@@ -633,7 +633,6 @@ class Page:
             if forwarding_match is not None:
                 handle_at, handle_rest = forwarding_match.groups()
                 forwarding_handle = handle_at + handle_rest
-                # FIXME forwarding handles should be loaded into the data store.
                 return FailedRequest(self.instance, forwarding_address=forwarding_handle)
             else:
                 return FailedRequest(self.instance, forwarding_address=True)
@@ -707,8 +706,6 @@ class Page:
                 self.logger_obj.info(f"using selenium.webdriver to page over dynamic {self.relation_type} page forcing "
                             f"<article> tags to load; found {len(article_tag_text_by_data_id)} <article> tags")
                 pass_counter = 1
-                # FIXME why doesn't this loop just scroll by sending <pgup>?
-                #
                 # So long as there's any article data-ids in the
                 # article_tag_text_by_data_id dict, keep scrolling around the
                 # document trying to find them all.
@@ -870,8 +867,6 @@ class Page:
             # Handle.fetch_or_set_handle_id() to get one. The auto-incrementing
             # primary key of the handles table is used to identify rows with the
             # same username and instance in other tables.
-            #
-            # FIXME should use an existing MySQLdb escape method for this
             profile_bio_text = self.profile_bio_text.replace("'", "\\'")
             handle_obj = self.handle_obj
             if not handle_obj.handle_id:
@@ -997,7 +992,6 @@ class Instance:
                 else 'unparseable' if self.unparseable \
                 else 'ingoodstanding'
 
-    # FIXME implement a 4th failure mode, 'blocked'
     def __init__(self, instance_host, logger_obj, malfunctioning=False, suspended=False, unparseable=False,
                  rate_limited=False, x_ratelimit_limit=None, dont_discard_bc_wifi=False, attempts=0):
         """
@@ -1028,7 +1022,12 @@ class Instance:
                                   the instance.
         :type x_ratelimit_limit:  int or float, optional
         """
-        # FIXME should do input checking on args
+        if not isinstance(logger_obj, logger.Logger):
+            raise InternalException(f"logger_obj argument is not an instance of logger.Logger")
+        elif not validators.domain(instance_host):
+            raise InternalException(f"instance_host argument '{instance_host}' not a valid instance_host: must be a str "
+                                     "consisting of letters, numbers, periods, underscores, and dashes ending in a "
+                                     "period followed by letters")
         self.instance_host = instance_host
         self.logger_obj = logger_obj
         self.attempts = attempts
@@ -1108,7 +1107,6 @@ class Instance:
         :return:               None
         :rtype:                types.NoneType
         """
-        # FIXME should detect changed instance_obj state between database and memory
         existing_instances_dict = cls.fetch_all_instances(data_store_obj, logger_obj)
         instances_to_insert = dict()
         # instances_to_insert dict is built by (effectively) subtracting
@@ -1148,7 +1146,6 @@ class Instance:
                                otherwise.
         :rtype:                bool
         """
-        # FIXME should detect changed instance state between database and memory
         # The bad_instances table only holds data on instances with one of these
         # states. An instance that is in good standing can't be saved to it.
         if not self.malfunctioning and not self.suspended and not self.unparseable:
@@ -1214,7 +1211,6 @@ class RobotsTxt:
     def instance(self):
         return urllib.parse.urlparse(self.url).netloc
 
-    #FIXME add crawl-delay support, somehow
     def __init__(self, user_agent, url, logger_obj, dont_discard_bc_wifi=False):
         """
         Instances a Robots_Txt_File object.
@@ -1347,7 +1343,7 @@ class RobotsTxt:
         # Retrieve the robots.txt file, extract the content and return it.
         try:
             self.logger_obj.info(f"retrieving robots.txt for {self.instance}")
-            response = requests.get(robots_txt_url, timeout=5.0)
+            response = requests.get(robots_txt_url, timeout=REQ_TIMEOUT)
         except requests.exceptions.SSLError:
             self.logger_obj.info(f"retrieving https://{self.instance}/robots.txt failed: SSL error ")
             return ''

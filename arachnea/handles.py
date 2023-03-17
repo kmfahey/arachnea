@@ -65,13 +65,10 @@ class Handle:
             elif not isinstance(username, str) or not self.username_re.match(username):
                 raise InternalException(f"username argument '{username}' not a valid username: must be a str "
                                          "consisting of letters, numbers, periods, underscores, and dashes")
-            else:
-                try:
-                    validators.domain(instance)
-                except validators.ValidationFailure:
-                    raise InternalException(f"instance argument '{instance}' not a valid instance: must be a str "
-                                             "consisting of letters, numbers, periods, underscores, and dashes ending in a "
-                                             "period followed by letters")
+            elif instance is '' or not validators.domain(instance):
+                raise InternalException(f"instance argument '{instance}' not a valid instance: must be a str "
+                                         "consisting of letters, numbers, periods, underscores, and dashes ending in a "
+                                         "period followed by letters")
             self.handle_id = handle_id
             self.username = username
             self.instance = instance
