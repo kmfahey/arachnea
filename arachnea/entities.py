@@ -234,7 +234,7 @@ class Page:
                     # In a relations-saving mode, parse it as a relations page.
                     return self.parse_relations_page()
                 else:
-                    return NoOpRequest(self.instance)
+                    return NoOpRequest(self.instance, page_obj=self)
 
     def webdriver_fetch(self):
         """
@@ -319,7 +319,7 @@ class Page:
                 # browser object.
                 return self.parse_relations_page(browser)
             else:
-                return NoOpRequest(self.instance)
+                return NoOpRequest(self.instance, page_obj=self)
         except (selenium.common.exceptions.NoSuchElementException, selenium.common.exceptions.WebDriverException):
             # selenium.webdriver failed fsr. There's no diagnosing this sort of
             # thing, so a Failed_Request is returned.

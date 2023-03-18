@@ -130,3 +130,5 @@ dmypy.json
 
 .sw[a-z]
 .*.sw[a-z]
+
+.idea/

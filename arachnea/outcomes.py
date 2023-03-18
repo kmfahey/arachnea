@@ -34,14 +34,15 @@ class RequestOutcome(object, metaclass=abc.ABCMeta):
 
 
 class NoOpRequest(RequestOutcome):
-    __slots__ = 'instance',
+    __slots__ = 'instance', 'page_obj'
 
-    def __init__(self, instance):
+    def __init__(self, instance, page_obj):
         if not validators.domain(instance):
             raise InternalException(f"instance argument '{instance}' not a valid instance_host: must be a str "
                                     "consisting of letters, numbers, periods, underscores, and dashes ending in a "
                                     "period followed by letters")
         self.instance = instance
+        self.page_obj = page_obj
 
 
 class SuccessfulRequest(RequestOutcome):

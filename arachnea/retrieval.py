@@ -62,6 +62,7 @@ class PageFetcher:
         self.dont_discard_bc_wifi = dont_discard_bc_wifi
         self.conn_err_wait_time = conn_err_wait_time
 
+
     def instantiate_and_fetch_page(self, handle_obj, url):
         instance = handle_obj.instance
         if instance in self.instances_dict:
@@ -70,53 +71,7 @@ class PageFetcher:
             self.instances_dict[instance] = instance_obj = Instance(instance, self.logger_obj,
                                                                     dont_discard_bc_wifi=self.dont_discard_bc_wifi)
 
-        # There exists a record of this instance_obj in the instances_dict. It is
-        # almost certainly not contactable. Figuring out *how* and handle it.
-        if instance_obj is not None:
-            if instance_obj.malfunctioning or instance_obj.unparseable or instance_obj.suspended:
-                if self.save_profiles:
-                    # If in a profile-saving mode, a handle that turns out to
-                    # have a bad instance_obj gets a null profile bio saved to the
-                    # data store. The empty Page for that profile is returned.
-                    self.logger_obj.info(f"instance_obj {instance} on record as {instance_obj.status}; "
-                                     f"didn't load {url}; saving null bio to database")
-                    page_obj = Page(handle_obj, url, self.logger_obj, instance_obj, save_profiles=self.save_profiles,
-                                    save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
-                    page_obj.save_page(self.data_store_obj)
-                    return FailedRequest(instance,
-                                         malfunctioning=instance_obj.malfunctioning,
-                                         unparseable=instance_obj.unparseable,
-                                         suspended=instance_obj.suspended,
-                                         page_obj=page_obj)
-                else:
-                    # If in a relations-saving mode, no Page is generated or
-                    # saved.
-                    self.logger_obj.info(f"instance_obj {instance} on record as {instance_obj.status}; "
-                                         f"didn't load {url}")
-                    return FailedRequest(instance,
-                                         malfunctioning=instance_obj.malfunctioning,
-                                         unparseable=instance_obj.unparseable,
-                                         suspended=instance_obj.suspended,
-                                         page_obj=None)
-            elif instance_obj.still_rate_limited():
-
-                # The other case for an unreachable instance_obj is if the program
-                # is rate-limited from it.
-                self.logger_obj.info(f"instance_obj {instance} still rate limited, expires at "
-                                 f"{instance_obj.rate_limit_expires_isoformat}, didn't load {url}")
-                return FailedRequest(instance, ratelimited=True, page_obj=None)
-
-        # There exists a record of this user-instance_obj combination in the
-        # deleted_users_dict. Handling it.
-        elif (handle_obj.username, handle_obj.instance) in self.deleted_users_dict:
-            # FIXME: this step can be skipped if a JOIN against deleted_users is
-            # added to the handles loading step
-            self.logger_obj.info(f"user {handle_obj.handle_in_at_form} known to be deleted; didn't load {url}; "
-                                 "saving null bio to database")
-            page_obj = Page(handle_obj, url, self.logger_obj, instance_obj, save_profiles=self.save_profiles,
-                            save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
-            page_obj.save_page(self.data_store_obj)
-            return FailedRequest(handle_obj.instance, user_deleted=True, page_obj=None)
+        self._handle_reasons_not_to_connect(handle_obj, instance_obj)
 
         # Possibilities for aborting transfer don't apply; proceeding with a
         # normal attempt to load the page.
@@ -132,134 +87,12 @@ class PageFetcher:
 
         # If the request failed because the page is dynamic (ie. has a
         # <noscript> tag), trying again using webdriver.
-        if isinstance(outcome_obj, FailedRequest) and outcome_obj.is_dynamic:
+        if outcome_obj.is_dynamic:
             self.logger_obj.info(f"loaded {url}: page has <noscript>; loading with webdriver")
             outcome_obj = page_obj.webdriver_fetch()
 
-        outcome_obj.page_obj = page_obj
-
-        # BEGIN *outer* big conditional
         if isinstance(outcome_obj, FailedRequest):
-
-            # Beginning the elaborate process of testing for and handling every
-            # possible error case. There's quite a few.
-
-            # BEGIN *inner* big conditional
-            if outcome_obj.ratelimited:
-
-                # The program is rate-limited. Saving that fact to
-                # self.instances_dict.
-                if instance not in self.instances_dict:
-                    instance_obj = Instance(instance, self.logger_obj, rate_limited=True,
-                                            x_ratelimit_limit=outcome_obj.x_ratelimit_limit,
-                                            dont_discard_bc_wifi=self.dont_discard_bc_wifi)
-                    self.instances_dict[instance] = instance_obj
-                else:
-                    instance_obj = self.instances_dict[instance]
-                    instance_obj.set_rate_limit(x_ratelimit_limit=outcome_obj.x_ratelimit_limit)
-                self.logger_obj.info(f"failed to load {url}: rate limited: expires at " +
-                                 instance_obj.rate_limit_expires_isoformat)
-
-            # The instance_obj malfunctioned.
-            elif outcome_obj.malfunctioning:
-
-                # Saving that fact to the instances_dict.
-                if instance in self.instances_dict:
-                    instance_obj = self.instances_dict[instance]
-                    instance_obj.attempts += 1
-                else:
-                    instance_obj = Instance(instance, self.logger_obj, attempts=1,
-                                            dont_discard_bc_wifi=self.dont_discard_bc_wifi)
-                    self.instances_dict[instance] = instance_obj
-
-                # Logging the precise type malfunction it was.
-                if outcome_obj.ssl_error:
-                    self.logger_obj.info(f"failed to load {url}, instance malfunctioning: ssl error "
-                                     f"(error #{instance_obj.attempts} for this instance)")
-                elif outcome_obj.too_many_redirects:
-                    self.logger_obj.info(f"failed to load {url}, instance malfunctioning: too many redirects "
-                                     f"(error #{instance_obj.attempts} for this instance)")
-                elif outcome_obj.timeout:
-                    self.logger_obj.info(f"failed to load {url}, instance malfunctioning: connection timeout "
-                                     f"(error #{instance_obj.attempts} for this instance)")
-                elif outcome_obj.connection_error:
-                    self.logger_obj.info(f"failed to load {url}, instance malfunctioning: connection error "
-                                     f"(error #{instance_obj.attempts} for this instance)")
-                else:
-                    self.logger_obj.info(f"failed to load {url}, instance malfunctioning: "
-                                         f"got status code {outcome_obj.status_code} "
-                                     f"(error #{instance_obj.attempts} for this instance)")
-
-            elif outcome_obj.user_deleted:
-
-                # The user has been deleted from the instance_obj. Saving that fact
-                # to the data store.
-                deleted_user = DeletedUser.from_handle_obj(handle_obj)
-                deleted_user.logger_obj = self.logger_obj
-                self.deleted_users_dict[handle_obj.username, handle_obj.instance] = deleted_user
-                deleted_user.save_deleted_user(self.data_store_obj)
-                self.logger_obj.info(f"failed to load {url}: user deleted")
-
-            # Several other kinds of error that only need to be logged.
-            elif outcome_obj.webdriver_error:
-                self.logger_obj.info(f"loading {url}: webdriver loading failed with internal error")
-            elif outcome_obj.no_public_posts:
-                self.logger_obj.info(f"loaded {url}: no public posts")
-            elif outcome_obj.posts_too_old:
-                self.logger_obj.info(f"loaded {url}: posts too old")
-            elif outcome_obj.unparseable:
-                self.logger_obj.info(f"loaded {url}: parsing failed")
-            elif outcome_obj.robots_txt_disallowed:
-                self.logger_obj.info(f"loading {url}: site's robots.txt does not allow it")
-
-            # The profile gave the program a forwarding address.
-            elif outcome_obj.forwarding_address:
-                if outcome_obj.forwarding_address is True:
-                    self.logger_obj.info(f"loaded {url}: forwarding page (could not recover handle)")
-                else:
-                    handle_obj = outcome_obj.forwarding_address
-                    username, instance = handle_obj.lstrip('@').split('@')
-                    handle_obj = Handle(username=username, instance=instance)
-                    handle_obj.save_handle(self.data_store_obj)
-                    self.logger_obj.info(f"loaded {url}: forwarding page; saved to handles table")
-            elif outcome_obj.unfulfillable_request:
-                self.logger_obj.info(f"loading {url}: unfulfillable request")
-            else:
-                self.logger_obj.info(f"loading {url}: unanticipated error {repr(outcome_obj)}")
-            # END *first* big conditional
-
-            # A connection failure when retrieving a profile normally leads to
-            # saving a null profile bio to the data store. The only exception is
-            # if --dont-discard-bc-wifi was specified on the commandline.
-            if outcome_obj.connection_error and self.dont_discard_bc_wifi:
-                # Handling the case of when the --dont-discard-bc-wifi flag
-                # is in effect and a connection error has happened.
-
-                what_fetched = ('profile' if page_obj.is_profile
-                                else 'following' if page_obj.is_following
-                                else 'followers' if page_obj.is_followers else '???')
-
-                self.logger_obj.info(f"handle {handle_obj.handle_in_at_form}: fetching {what_fetched} returned "
-                                     "connection error; but the wifi might've gone out, saving for later")
-
-                # If the wifi goes out, it's possible for this program to chew
-                # through hundreds of passes of the main loop before it's
-                # restored. That expends lot of queued handles that can't be
-                # recovered until the program is restarted.
-                #
-                # The --conn-err-wifi-sleep-period flag is used to specify a
-                # wait time to sleep for when the (self.dont_discard_bc_wifi and
-                # outcome_obj.connection_error) condition is True.
-                if self.conn_err_wait_time:
-                    time.sleep(self.conn_err_wait_time)
-
-            else:
-                page_obj.save_page(self.data_store_obj)
-
-            return outcome_obj
-
-        # END *outer* big conditional
-        # type(outcome_obj) is not Failed_Request
+            self._handle_failed_request(outcome_obj)
 
         # Logging what kind of page was loaded
         if self.save_profiles and page_obj.is_profile:
@@ -270,6 +103,164 @@ class PageFetcher:
             self.logger_obj.info(f"loaded {url}: found {outcome_obj.retrieved_len} followers handles")
 
         return outcome_obj
+
+    def _handle_reasons_not_to_connect(self, handle_obj, instance_obj):
+        # There exists a record of this instance_obj in the instances_dict.
+        # This might just be to save a RobotsTxt object, or it might show the
+        # instance is malfunctioning/suspended/unparseable or is ratelimited.
+        if instance_obj is not None and instance_obj.status != 'ingoodstanding':
+            if self.save_profiles:
+                # If in a profile-saving mode, a handle that turns out to
+                # have a bad instance_obj gets a null profile bio saved to the
+                # data store. The empty Page for that profile is returned.
+                self.logger_obj.info(f"instance_obj {instance_obj.instance_host} on record as {instance_obj.status}; "
+                                 f"didn't load {url}; saving null bio to database")
+                page_obj = Page(handle_obj, url, self.logger_obj, instance_obj, save_profiles=self.save_profiles,
+                                save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
+                page_obj.save_page(self.data_store_obj)
+            else:
+                # If in a relations-saving mode, no Page is generated or
+                # saved.
+                self.logger_obj.info(f"instance_obj {instance_obj.instance_host} on record as {instance_obj.status}; "
+                                     f"didn't load {url}")
+                page_obj = None
+            return FailedRequest(instance_obj.instance_host,
+                                 malfunctioning=instance_obj.malfunctioning,
+                                 unparseable=instance_obj.unparseable,
+                                 suspended=instance_obj.suspended,
+                                 page_obj=page_obj)
+        elif instance_obj is not None and instance_obj.still_rate_limited():
+            # The other case for an unreachable instance_obj is if the program
+            # is rate-limited from it.
+            self.logger_obj.info(f"instance_obj {instance_obj.instance_host} still rate limited, expires at "
+                             f"{instance_obj.rate_limit_expires_isoformat}, didn't load {url}")
+            return FailedRequest(instance_obj.instance_host, ratelimited=True, page_obj=None)
+
+        # There exists a record of this user-instance_obj combination in the
+        # deleted_users_dict. Handling it.
+        elif (handle_obj.username, handle_obj.instance) in self.deleted_users_dict:
+            self.logger_obj.info(f"user {handle_obj.handle_in_at_form} known to be deleted; didn't load {url}; "
+                                 "saving null bio to database")
+            page_obj = Page(handle_obj, url, self.logger_obj, instance_obj, save_profiles=self.save_profiles,
+                            save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
+            page_obj.save_page(self.data_store_obj)
+            return FailedRequest(handle_obj.instance, user_deleted=True, page_obj=None)
+
+
+    def _handle_failed_request(self, failed_req_obj):
+        # Beginning the elaborate process of testing for and handling every
+        # possible error case. There's quite a few.
+
+        # BEGIN *inner* big conditional
+        if failed_req_obj.ratelimited:
+
+            # The program is rate-limited. Saving that fact to
+            # self.instances_dict.
+            if instance not in self.instances_dict:
+                instance_obj = Instance(instance, self.logger_obj, rate_limited=True,
+                                        x_ratelimit_limit=failed_req_obj.x_ratelimit_limit,
+                                        dont_discard_bc_wifi=self.dont_discard_bc_wifi)
+                self.instances_dict[instance] = instance_obj
+            else:
+                instance_obj = self.instances_dict[instance]
+                instance_obj.set_rate_limit(x_ratelimit_limit=failed_req_obj.x_ratelimit_limit)
+            self.logger_obj.info(f"failed to load {url}: rate limited: expires at " +
+                             instance_obj.rate_limit_expires_isoformat)
+
+        # The instance_obj malfunctioned.
+        elif failed_req_obj.malfunctioning:
+
+            # Saving that fact to the instances_dict.
+            if instance in self.instances_dict:
+                instance_obj = self.instances_dict[instance]
+                instance_obj.attempts += 1
+            else:
+                instance_obj = Instance(instance, self.logger_obj, attempts=1,
+                                        dont_discard_bc_wifi=self.dont_discard_bc_wifi)
+                self.instances_dict[instance] = instance_obj
+
+            # Logging the precise type malfunction it was.
+            if failed_req_obj.ssl_error:
+                self.logger_obj.info(f"failed to load {url}, instance malfunctioning: ssl error "
+                                     f"(error #{instance_obj.attempts} for this instance)")
+            elif failed_req_obj.too_many_redirects:
+                self.logger_obj.info(f"failed to load {url}, instance malfunctioning: too many redirects "
+                                     f"(error #{instance_obj.attempts} for this instance)")
+            elif failed_req_obj.timeout:
+                self.logger_obj.info(f"failed to load {url}, instance malfunctioning: connection timeout "
+                                     f"(error #{instance_obj.attempts} for this instance)")
+            elif failed_req_obj.connection_error:
+                self.logger_obj.info(f"failed to load {url}, instance malfunctioning: connection error "
+                                     f"(error #{instance_obj.attempts} for this instance)")
+            else:
+                self.logger_obj.info(f"failed to load {url}, instance malfunctioning: "
+                                     f"got status code {failed_req_obj.status_code} "
+                                     f"(error #{instance_obj.attempts} for this instance)")
+
+        elif failed_req_obj.user_deleted:
+
+            # The user has been deleted from the instance_obj. Saving that fact
+            # to the data store.
+            deleted_user = DeletedUser.from_handle_obj(handle_obj)
+            deleted_user.logger_obj = self.logger_obj
+            self.deleted_users_dict[handle_obj.username, handle_obj.instance] = deleted_user
+            deleted_user.save_deleted_user(self.data_store_obj)
+            self.logger_obj.info(f"failed to load {url}: user deleted")
+
+        # Several other kinds of error that only need to be logged.
+        elif failed_req_obj.webdriver_error:
+            self.logger_obj.info(f"loading {url}: webdriver loading failed with internal error")
+        elif failed_req_obj.no_public_posts:
+            self.logger_obj.info(f"loaded {url}: no public posts")
+        elif failed_req_obj.posts_too_old:
+            self.logger_obj.info(f"loaded {url}: posts too old")
+        elif failed_req_obj.unparseable:
+            self.logger_obj.info(f"loaded {url}: parsing failed")
+        elif failed_req_obj.robots_txt_disallowed:
+            self.logger_obj.info(f"loading {url}: site's robots.txt does not allow it")
+
+        # The profile gave the program a forwarding address.
+        elif failed_req_obj.forwarding_address:
+            if failed_req_obj.forwarding_address is True:
+                self.logger_obj.info(f"loaded {url}: forwarding page (could not recover handle)")
+            else:
+                handle_obj = failed_req_obj.forwarding_address
+                username, instance = handle_obj.lstrip('@').split('@')
+                handle_obj = Handle(username=username, instance=instance)
+                handle_obj.save_handle(self.data_store_obj)
+                self.logger_obj.info(f"loaded {url}: forwarding page; saved to handles table")
+        elif failed_req_obj.unfulfillable_request:
+            self.logger_obj.info(f"loading {url}: unfulfillable request")
+        else:
+            self.logger_obj.info(f"loading {url}: unanticipated error {repr(failed_req_obj)}")
+        # END *first* big conditional
+
+        # A connection failure when retrieving a profile normally leads to
+        # saving a null profile bio to the data store. The only exception is
+        # if --dont-discard-bc-wifi was specified on the commandline.
+        if failed_req_obj.connection_error and self.dont_discard_bc_wifi:
+            # Handling the case of when the --dont-discard-bc-wifi flag
+            # is in effect and a connection error has happened.
+
+            what_fetched = ('profile' if page_obj.is_profile
+                            else 'following' if page_obj.is_following
+                            else 'followers' if page_obj.is_followers else '???')
+
+            self.logger_obj.info(f"handle {handle_obj.handle_in_at_form}: fetching {what_fetched} returned "
+                                 "connection error; but the wifi might've gone out, saving for later")
+
+            # If the wifi goes out, it's possible for this program to chew
+            # through hundreds of passes of the main loop before it's
+            # restored. That expends lot of queued handles that can't be
+            # recovered until the program is restarted.
+            #
+            # The --conn-err-wifi-sleep-period flag is used to specify a
+            # wait time to sleep for when the (self.dont_discard_bc_wifi and
+            # failed_req_obj.connection_error) condition is True.
+            if self.conn_err_wait_time:
+                time.sleep(self.conn_err_wait_time)
+        else:
+            page_obj.save_page(self.data_store_obj)
 
 
 # This class adapted from robotstxt_to_df.py at
