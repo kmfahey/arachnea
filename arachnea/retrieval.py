@@ -71,7 +71,7 @@ class PageFetcher:
             self.instances_dict[instance] = instance_obj = Instance(instance, self.logger_obj,
                                                                     dont_discard_bc_wifi=self.dont_discard_bc_wifi)
 
-        self._handle_reasons_not_to_connect(handle_obj, instance_obj)
+        self._handle_reasons_not_to_connect(url, handle_obj, instance_obj)
 
         # Possibilities for aborting transfer don't apply; proceeding with a
         # normal attempt to load the page.
@@ -87,12 +87,13 @@ class PageFetcher:
 
         # If the request failed because the page is dynamic (ie. has a
         # <noscript> tag), trying again using webdriver.
-        if outcome_obj.is_dynamic:
+        if isinstance(outcome_obj, FailedRequest) and outcome_obj.is_dynamic:
             self.logger_obj.info(f"loaded {url}: page has <noscript>; loading with webdriver")
             outcome_obj = page_obj.webdriver_fetch()
 
         if isinstance(outcome_obj, FailedRequest):
-            self._handle_failed_request(outcome_obj)
+            self._handle_failed_request(url, instance, handle_obj, page_obj, outcome_obj)
+            return outcome_obj
 
         # Logging what kind of page was loaded
         if self.save_profiles and page_obj.is_profile:
@@ -104,7 +105,7 @@ class PageFetcher:
 
         return outcome_obj
 
-    def _handle_reasons_not_to_connect(self, handle_obj, instance_obj):
+    def _handle_reasons_not_to_connect(self, url, handle_obj, instance_obj):
         # There exists a record of this instance_obj in the instances_dict.
         # This might just be to save a RobotsTxt object, or it might show the
         # instance is malfunctioning/suspended/unparseable or is ratelimited.
@@ -147,7 +148,7 @@ class PageFetcher:
             return FailedRequest(handle_obj.instance, user_deleted=True, page_obj=None)
 
 
-    def _handle_failed_request(self, failed_req_obj):
+    def _handle_failed_request(self, url, instance, handle_obj, page_obj, failed_req_obj):
         # Beginning the elaborate process of testing for and handling every
         # possible error case. There's quite a few.
 

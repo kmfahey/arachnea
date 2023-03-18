@@ -181,60 +181,65 @@ class Page:
             self.loaded = False
             return FailedRequest(self.instance, malfunctioning=True, connection_error=True, page_obj=self)
 
+        return self._handle_status_code(http_response)
+
+    def _handle_status_code(self, http_response):
         # There's a requests.models.Response object, but now the program needs
         # to handle all the non-200 status codes.
-        if http_response.status_code == 429:
-            # The program has been rate-limited.
-            if http_response.headers['x-ratelimit-limit']:
-                # If there's an X-Ratelimit-Limit header, the program captures
-                # its int value and saves that in the Failed_Request object
-                # bc that's how many seconds the program needs to wait before
-                # trying again.
-                self.loaded = False
-                return FailedRequest(self.instance, status_code=http_response.status_code, ratelimited=True,
-                                     x_ratelimit_limit=float(http_response.headers['x-ratelimit-limit']),
-                                     page_obj=self)
-            else:
-                self.loaded = False
-                return FailedRequest(self.instance, status_code=http_response.status_code, ratelimited=True,
-                                     page_obj=self)
-        elif http_response.status_code in (401, 400, 403, 406) or http_response.status_code >= 500:
-            # The instance emitted a status code that indicates it's not
-            # handling requests correctly. The program classes it as malfunctioning.
-            self.loaded = False
-            return FailedRequest(self.instance, status_code=http_response.status_code, malfunctioning=True,
-                                 page_obj=self)
-        elif http_response.status_code == 404 or http_response.status_code == 410:
-            # The status code is 404 Not Found or 410 Gone. The user has been deleted.
-            self.loaded = False
-            return FailedRequest(self.instance, status_code=http_response.status_code, user_deleted=True,
-                                 page_obj=self)
-        elif http_response.status_code != 200:
-            # Any other status code than 200; one the program wasn't expecting.
-            # Saving it to the Failed_Request object for the caller to handle.
-            self.loaded = False
-            return FailedRequest(self.instance, status_code=http_response.status_code, page_obj=self)
-        else:
-            # An ostensibly valid page was returned. Parse it with BS and see if
-            # it contains the data the program's looking for.
-            self.document = bs4.BeautifulSoup(markup=http_response.text, features='lxml')
-            if self.document.find_all('noscript'):
-                # The page has a noscript tag, which means it's dynamic. The
-                # caller will need to try again with webdriver.
-                self.loaded = False
-                self.is_dynamic = True
-                return FailedRequest(self.instance, is_dynamic=True, page_obj=self)
-            else:
-                # The page is static and parseable with static tools.
-                self.loaded = True
-                if self.is_profile and self.save_profiles:
-                    # In a profile-saving mode, parse it as a profile page.
-                    return self.parse_profile_page()
-                elif (self.is_following or self.is_followers) and self.save_relations:
-                    # In a relations-saving mode, parse it as a relations page.
-                    return self.parse_relations_page()
+        match http_response.status_code:
+            case 429:
+                # The program has been rate-limited.
+                if http_response.headers['x-ratelimit-limit']:
+                    # If there's an X-Ratelimit-Limit header, the program captures
+                    # its int value and saves that in the Failed_Request object
+                    # bc that's how many seconds the program needs to wait before
+                    # trying again.
+                    self.loaded = False
+                    return FailedRequest(self.instance, status_code=http_response.status_code, ratelimited=True,
+                                         x_ratelimit_limit=float(http_response.headers['x-ratelimit-limit']),
+                                         page_obj=self)
                 else:
-                    return NoOpRequest(self.instance, page_obj=self)
+                    self.loaded = False
+                    return FailedRequest(self.instance, status_code=http_response.status_code, ratelimited=True,
+                                         page_obj=self)
+            case 401 | 400 | 403 | 406 | 500 | 501 | 502 | 503 | 504 | 529:
+                # The instance emitted a status code that indicates it's not
+                # handling requests correctly. The program classes it as malfunctioning.
+                self.loaded = False
+                return FailedRequest(self.instance, status_code=http_response.status_code, malfunctioning=True,
+                                     page_obj=self)
+            case 404 | 410:
+                # The status code is 404 Not Found or 410 Gone. The user has been deleted.
+                self.loaded = False
+                return FailedRequest(self.instance, status_code=http_response.status_code, user_deleted=True,
+                                     page_obj=self)
+            case 200:
+                # An ostensibly valid page was returned. Parse it with BS and see if
+                # it contains the data the program's looking for.
+                self.document = bs4.BeautifulSoup(markup=http_response.text, features='lxml')
+                if self.document.find_all('noscript'):
+                    # The page has a noscript tag, which means it's dynamic. The
+                    # caller will need to try again with webdriver.
+                    self.loaded = False
+                    self.is_dynamic = True
+                    return FailedRequest(self.instance, is_dynamic=True, page_obj=self)
+                else:
+                    # The page is static and parseable with static tools.
+                    self.loaded = True
+                    if self.is_profile and self.save_profiles:
+                        # In a profile-saving mode, parse it as a profile page.
+                        return self.parse_profile_page()
+                    elif (self.is_following or self.is_followers) and self.save_relations:
+                        # In a relations-saving mode, parse it as a relations page.
+                        return self.parse_relations_page()
+                    else:
+                        return NoOpRequest(self.instance, page_obj=self, is_dynamic=False)
+            case status_code:
+                # Any other status code, one the program wasn't expecting.
+                # Saving it to the Failed_Request object for the caller to
+                # handle.
+                self.loaded = False
+                return FailedRequest(self.instance, status_code=status_code, page_obj=self)
 
     def webdriver_fetch(self):
         """
@@ -319,7 +324,7 @@ class Page:
                 # browser object.
                 return self.parse_relations_page(browser)
             else:
-                return NoOpRequest(self.instance, page_obj=self)
+                return NoOpRequest(self.instance, page_obj=self, is_dynamic=True)
         except (selenium.common.exceptions.NoSuchElementException, selenium.common.exceptions.WebDriverException):
             # selenium.webdriver failed fsr. There's no diagnosing this sort of
             # thing, so a Failed_Request is returned.
@@ -421,114 +426,124 @@ class Page:
         # This is a dynamic page, so the program parses the dynamic form of the
         # following/followers page, which takes quite a lot of work.
         if self.is_dynamic:
-            try:
-                html_tag = browser.find_element(selenium.webdriver.common.by.By.XPATH, '/html')
-
-                # Scrolls to HOME and then END, just to sort out any remaining
-                # javascript that can be prompted to execute by doing this.
-                html_tag.send_keys(selenium.webdriver.common.keys.Keys.HOME)
-                time.sleep(SCROLL_PAUSE_TIME)
-                html_tag.send_keys(selenium.webdriver.common.keys.Keys.END)
-                time.sleep(SCROLL_PAUSE_TIME)
-
-                html_tag.send_keys(selenium.webdriver.common.keys.Keys.ARROW_UP)
-                # Initially priming the article_tag_text_by_data_id dict with
-                # all the article tag data-id attributes that can currently be
-                # seen.
-                data_ids = [tag.get_attribute('data-id') for tag in browser.find_elements(
-                                                                                selenium.webdriver.common.by.By.XPATH,
-                                                                                "//article")]
-                article_tag_text_by_data_id = dict.fromkeys(data_ids)
-                total_article_tags_count = len(article_tag_text_by_data_id)
-
-                # Beginning the process of scrolling around the document.
-                self.logger_obj.info(f"using selenium.webdriver to page over dynamic {self.relation_type} page forcing "
-                            f"<article> tags to load; found {len(article_tag_text_by_data_id)} <article> tags")
-                pass_counter = 1
-                # So long as there's any article data-ids in the
-                # article_tag_text_by_data_id dict, keep scrolling around the
-                # document trying to find them all.
-                while any(not bool(text) for text in article_tag_text_by_data_id.values()):
-                    # Pull all the article tags the browser can currently see.
-                    article_tags = browser.find_elements(selenium.webdriver.common.by.By.XPATH, "//article")
-
-                    for article_tag in article_tags:
-                        article_tag_text = article_tag.text
-                        data_id = article_tag.get_attribute('data-id')
-                        # If the article tag is novel, add its data_id and text
-                        # to article_tag_text_by_data_id.
-                        if data_id not in article_tag_text_by_data_id:
-                            article_tag_text_by_data_id[data_id] = article_tag.text if article_tag_text else ''
-                        # If the program knows that data-id and has text for it already, continue.
-                        elif article_tag_text_by_data_id[data_id]:
-                            continue
-                        # If the program has that data-id but didn't have the
-                        # text for it, save the text.
-                        elif article_tag_text:
-                            article_tag_text_by_data_id[data_id] = article_tag.text
-
-                    # This loop scrolls the page into a region where there's
-                    # article tags the program knows about but doesn't have text
-                    # for yet.
-                    for article_tag in article_tags:
-                        data_id = article_tag.get_attribute('data-id')
-                        if article_tag_text_by_data_id.get(data_id, False):
-                            continue
-                        browser.execute_script("arguments[0].scrollIntoView();", article_tag)
-                        break
-
-                    # Discerning how many tags the program found text for in
-                    # this pass, for logging purposes.
-                    # FIXME this shouldn't ever report a negative value
-                    loaded_article_tag_count = len(tuple(filter(lambda tag_text: not tag_text,
-                                                                article_tag_text_by_data_id.values())))
-                    empty_article_tags_count_diff = total_article_tags_count - loaded_article_tag_count
-                    self.logger_obj.info(f"pass #{pass_counter}: {empty_article_tags_count_diff} "
-                                         "<article> tags text found")
-                    pass_counter += 1
-
-            except (selenium.common.exceptions.NoSuchElementException, selenium.common.exceptions.WebDriverException):
-                # selenium.webdriver failed fsr. There's no diagnosing this sort of
-                # thing, so a Failed_Request is returned.
-                return FailedRequest(self.instance, webdriver_error=True, page_obj=self)
-
-            # Converting the dict of article tags' texts to a list of
-            # following/followers handles.
-            for handle_str in article_tag_text_by_data_id.values():
-                if "\n" in handle_str:
-                    handle_str = handle_str.split("\n")[1]
-                if handle_str.count('@') == 1:
-                    username = handle_str.strip('@')
-                    instance = self.instance
-                elif handle_str.count('@') == 2:
-                    _, username, instance = handle_str.split('@')
-                else:
-                    continue
-                handle_obj = Handle(username=username, instance=instance)
-                self.relations_list.append(handle_obj)
-
+            self.relations_list.extend(self._parse_relations_from_dynamic_page(browser))
         # This is a static page, so the program does the static parsing, which
         # is straightforward.
         else:
-            # Sweeps the document for <a> tags whose href attribute matches the
-            # profile URL regex.
-            found_relations_a_tags = self.document.find_all('a', {'href': self.profile_url_re})
-            relations_hrefs = [tag.attrs['href'] for tag in found_relations_a_tags]
-            for relation_href in relations_hrefs:
-                # Uses a separate, capturing regex to grab instance and username
-                # from each URL if possible. Any nonmatching href values are
-                # discarded.
-                handle_match = self.handle_url_href_re.match(relation_href)
-                if not handle_match:
-                    continue
-                relation_instance, relation_username = handle_match.groups()
-                # Don't add the instance and username of the owner of this page.
-                if relation_username == self.username and relation_instance == self.instance:
-                    continue
-                self.relations_list.append(Handle(username=relation_username, instance=relation_instance))
+            self.relations_list.extend(self._parse_relations_from_static_page())
 
         return SuccessfulRequest(self.instance, retrieved_len=len(self.relations_list), retrieved_type=RELATIONS,
                                  page_obj=self)
+
+
+    def _parse_relations_from_static_page(self, browser):
+        # Sweeps the document for <a> tags whose href attribute matches the
+        # profile URL regex.
+        found_relations_a_tags = self.document.find_all('a', {'href': self.profile_url_re})
+        relations_hrefs = [tag.attrs['href'] for tag in found_relations_a_tags]
+        for relation_href in relations_hrefs:
+            # Uses a separate, capturing regex to grab instance and username
+            # from each URL if possible. Any nonmatching href values are
+            # discarded.
+            handle_match = self.handle_url_href_re.match(relation_href)
+            if not handle_match:
+                continue
+            relation_instance, relation_username = handle_match.groups()
+            # Don't add the instance and username of the owner of this page.
+            if relation_username == self.username and relation_instance == self.instance:
+                continue
+            self.relations_list.append(Handle(username=relation_username, instance=relation_instance))
+
+    def _parse_relations_from_dynamic_page(self, browser):
+        try:
+            html_tag = browser.find_element(selenium.webdriver.common.by.By.XPATH, '/html')
+
+            # Scrolls to HOME and then END, just to sort out any remaining
+            # javascript that can be prompted to execute by doing this.
+            html_tag.send_keys(selenium.webdriver.common.keys.Keys.HOME)
+            time.sleep(SCROLL_PAUSE_TIME)
+            html_tag.send_keys(selenium.webdriver.common.keys.Keys.END)
+            time.sleep(SCROLL_PAUSE_TIME)
+
+            html_tag.send_keys(selenium.webdriver.common.keys.Keys.ARROW_UP)
+            # Initially priming the article_tag_text_by_data_id dict with
+            # all the article tag data-id attributes that can currently be
+            # seen.
+            data_ids = [tag.get_attribute('data-id') for tag in browser.find_elements(
+                                                                            selenium.webdriver.common.by.By.XPATH,
+                                                                            "//article")]
+            article_tag_text_by_data_id = dict.fromkeys(data_ids)
+            total_article_tags_count = len(article_tag_text_by_data_id)
+
+            # Beginning the process of scrolling around the document.
+            self.logger_obj.info(f"using selenium.webdriver to page over dynamic {self.relation_type} page forcing "
+                        f"<article> tags to load; found {len(article_tag_text_by_data_id)} <article> tags")
+            pass_counter = 1
+
+            # So long as there's any article data-ids in the
+            # article_tag_text_by_data_id dict that don't have text set, keep
+            # scrolling around the document trying to find them all.
+            while any(not bool(text) for text in article_tag_text_by_data_id.values()):
+                # Pull all the article tags the browser can currently see.
+                article_tags = browser.find_elements(selenium.webdriver.common.by.By.XPATH, "//article")
+
+                for article_tag in article_tags:
+                    article_tag_text = article_tag.text
+                    data_id = article_tag.get_attribute('data-id')
+                    # If the article tag is novel, add its data_id and text
+                    # to article_tag_text_by_data_id.
+                    if data_id not in article_tag_text_by_data_id:
+                        article_tag_text_by_data_id[data_id] = article_tag.text if article_tag_text else ''
+                    # If the program knows that data-id and has text for it already, continue.
+                    elif article_tag_text_by_data_id[data_id]:
+                        continue
+                    # If the program has that data-id but didn't have the
+                    # text for it, save the text.
+                    elif article_tag_text:
+                        article_tag_text_by_data_id[data_id] = article_tag.text
+
+                # This loop scrolls the page into a region where there's
+                # article tags the program knows about but doesn't have text
+                # for yet.
+                for article_tag in article_tags:
+                    data_id = article_tag.get_attribute('data-id')
+                    if article_tag_text_by_data_id.get(data_id, False):
+                        continue
+                    browser.execute_script("arguments[0].scrollIntoView();", article_tag)
+                    break
+
+                # Discerning how many tags the program found text for in
+                # this pass, for logging purposes.
+                # FIXME this shouldn't ever report a negative value
+                loaded_article_tag_count = len(tuple(filter(lambda tag_text: not tag_text,
+                                                            article_tag_text_by_data_id.values())))
+                empty_article_tags_count_diff = total_article_tags_count - loaded_article_tag_count
+                self.logger_obj.info(f"pass #{pass_counter}: {empty_article_tags_count_diff} "
+                                     "<article> tags text found")
+                pass_counter += 1
+
+        except (selenium.common.exceptions.NoSuchElementException, selenium.common.exceptions.WebDriverException):
+            # selenium.webdriver failed fsr. There's no diagnosing this sort of
+            # thing, so a Failed_Request is returned.
+            return FailedRequest(self.instance, webdriver_error=True, page_obj=self)
+
+        # Converting the dict of article tags' texts to a list of
+        # following/followers handles.
+        relations_list = list()
+        for handle_str in article_tag_text_by_data_id.values():
+            if "\n" in handle_str:
+                handle_str = handle_str.split("\n")[1]
+            if handle_str.count('@') == 1:
+                username = handle_str.strip('@')
+                instance = self.instance
+            elif handle_str.count('@') == 2:
+                _, username, instance = handle_str.split('@')
+            else:
+                continue
+            handle_obj = Handle(username=username, instance=instance)
+            relations_list.append(handle_obj)
+
+        return relations_list
 
     def generate_initial_relation_page_urls(self):
         """
@@ -600,119 +615,122 @@ class Page:
         :rtype:                int
         """
         if self.is_profile:
+            return self._save_profile_page(data_store_obj)
+        else:
+            return self._save_relations_page(data_store_obj)
 
-            # Saving a profile to the profiles table.
-            #
-            # If there isn't a handle_id on the object, use
-            # Handle.fetch_or_set_handle_id() to get one. The auto-incrementing
-            # primary key of the handles table is used to identify rows with the
-            # same username and instance in other tables.
-            profile_bio_text = self.profile_bio_text.replace("'", "\\'")
-            handle_obj = self.handle_obj
-            if not handle_obj.handle_id:
-                handle_obj.fetch_or_set_handle_id(data_store_obj)
+    def _save_profile_page(self, data_store_obj):
+        # Saving a profile to the profiles table.
+        #
+        # If there isn't a handle_id on the object, use
+        # Handle.fetch_or_set_handle_id() to get one. The auto-incrementing
+        # primary key of the handles table is used to identify rows with the
+        # same username and instance in other tables.
+        profile_bio_text = self.profile_bio_text.replace("'", "\\'")
+        handle_obj = self.handle_obj
+        if not handle_obj.handle_id:
+            handle_obj.fetch_or_set_handle_id(data_store_obj)
 
-            # Checking if this profile already exists in the profiles table and
-            # already has its profile saved.
-            select_sql = f"""SELECT profile_handle_id, profile_bio_markdown FROM profiles
-                             WHERE profile_handle_id = {handle_obj.handle_id};"""
-            rows = data_store_obj.execute(select_sql)
-            if rows:
-                ((handle_id, profile_bio_markdown),) = rows
-                if profile_bio_markdown:
-                    return 0
-                elif profile_bio_text:
-                    # If by some chance this handle_id already has a row in the
-                    # profiles table, but its profile_bio_markdown is null, and the
-                    # bio text the program is going to save here is *not* null,
-                    # then use an UPDATE statement to set the profile bio.
-                    update_sql = f"""UPDATE profiles SET profile_bio_markdown = '{profile_bio_text}'
-                                     WHERE profile_handle_id = {handle_obj.handle_id};"""
-                    data_store_obj.execute(update_sql)
-                    return 1
-            else:
-                # Otherwise use an INSERT statement like usual.
-                insert_sql = f"""INSERT INTO profiles (profile_handle_id, username, instance,
-                                                       considered, profile_bio_markdown)
-                                                  VALUES
-                                                      ({handle_obj.handle_id}, '{handle_obj.username}',
-                                                      '{handle_obj.instance}', 0, '{profile_bio_text}');"""
-                data_store_obj.execute(insert_sql)
+        # Checking if this profile already exists in the profiles table and
+        # already has its profile saved.
+        select_sql = f"""SELECT profile_handle_id, profile_bio_markdown FROM profiles
+                         WHERE profile_handle_id = {handle_obj.handle_id};"""
+        rows = data_store_obj.execute(select_sql)
+        if rows:
+            ((handle_id, profile_bio_markdown),) = rows
+            if profile_bio_markdown:
+                return 0
+            elif profile_bio_text:
+                # If by some chance this handle_id already has a row in the
+                # profiles table, but its profile_bio_markdown is null, and the
+                # bio text the program is going to save here is *not* null,
+                # then use an UPDATE statement to set the profile bio.
+                update_sql = f"""UPDATE profiles SET profile_bio_markdown = '{profile_bio_text}'
+                                 WHERE profile_handle_id = {handle_obj.handle_id};"""
+                data_store_obj.execute(update_sql)
                 return 1
         else:
+            # Otherwise use an INSERT statement like usual.
+            insert_sql = f"""INSERT INTO profiles (profile_handle_id, username, instance,
+                                                   considered, profile_bio_markdown)
+                                              VALUES
+                                                  ({handle_obj.handle_id}, '{handle_obj.username}',
+                                                  '{handle_obj.instance}', 0, '{profile_bio_text}');"""
+            data_store_obj.execute(insert_sql)
+            return 1
 
-            # Saving following/followers to the relations table.
-            if not len(self.relations_list):
-                return 0
-            relation = 'following' if self.is_following else 'followers'
-            profile_handle_obj = self.handle_obj
-            # Setting the handle_id attribute if it's missing.
-            profile_handle_obj.fetch_or_set_handle_id(data_store_obj)
+    def _save_relations_page(self, data_store_obj):
+        # Saving following/followers to the relations table.
+        if not len(self.relations_list):
+            return 0
+        relation = 'following' if self.is_following else 'followers'
+        profile_handle_obj = self.handle_obj
+        # Setting the handle_id attribute if it's missing.
+        profile_handle_obj.fetch_or_set_handle_id(data_store_obj)
 
-            # Checking if this page has already been saved to the relations table.
-            select_sql = f"""SELECT DISTINCT profile_handle_id FROM relations
-                             WHERE profile_handle_id = {profile_handle_obj.handle_id} AND relation_type = '{relation}'
-                                   AND relation_page_number = {self.page_number};"""
-            rows = data_store_obj.execute(select_sql)
-            if rows:
-                # If so, return 0.
-                self.logger_obj.info(f"page {self.page_number} of {relation} for "
-                                 f"@{self.username}@{self.instance} already in database")
-                return 0
+        # Checking if this page has already been saved to the relations table.
+        select_sql = f"""SELECT DISTINCT profile_handle_id FROM relations
+                         WHERE profile_handle_id = {profile_handle_obj.handle_id} AND relation_type = '{relation}'
+                               AND relation_page_number = {self.page_number};"""
+        rows = data_store_obj.execute(select_sql)
+        if rows:
+            # If so, return 0.
+            self.logger_obj.info(f"page {self.page_number} of {relation} for "
+                             f"@{self.username}@{self.instance} already in database")
+            return 0
 
-            # Building the INSERT INTO ... VALUES statement's sequence of
-            # parenthesized rows to insert.
-            value_sql_list = list()
+        # Building the INSERT INTO ... VALUES statement's sequence of
+        # parenthesized rows to insert.
+        value_sql_list = list()
+        for relation_handle_obj in self.relations_list:
+            relation_handle_obj.fetch_or_set_handle_id(data_store_obj)
+            value_sql_list.append(f"""({profile_handle_obj.handle_id}, '{self.username}', '{self.instance}',
+                                       {relation_handle_obj.handle_id}, '{relation}', {self.page_number},
+                                       '{relation_handle_obj.username}', '{relation_handle_obj.instance}')""")
+
+        # Building the complete INSERT INTO ... VALUES statement.
+        insert_sql = """INSERT INTO relations (profile_handle_id, profile_username, profile_instance,
+                                               relation_handle_id, relation_type, relation_page_number,
+                                               relation_username, relation_instance)
+                                          VALUES
+                                              %s;""" % ', '.join(value_sql_list)
+        try:
+            data_store_obj.execute(insert_sql)
+        except MySQLdb.IntegrityError:
+            # If inserting the whole page at once raises an IntegrityError,
+            # then fall back on inserting each row individually and failing
+            # on the specific row that creates the IntegrityError while
+            # still saving all other rows.
+            insertion_count = 0
             for relation_handle_obj in self.relations_list:
                 relation_handle_obj.fetch_or_set_handle_id(data_store_obj)
-                value_sql_list.append(f"""({profile_handle_obj.handle_id}, '{self.username}', '{self.instance}',
-                                           {relation_handle_obj.handle_id}, '{relation}', {self.page_number},
-                                           '{relation_handle_obj.username}', '{relation_handle_obj.instance}')""")
-
-            # Building the complete INSERT INTO ... VALUES statement.
-            insert_sql = """INSERT INTO relations (profile_handle_id, profile_username, profile_instance,
-                                                   relation_handle_id, relation_type, relation_page_number,
-                                                   relation_username, relation_instance)
-                                              VALUES
-                                                  %s;""" % ', '.join(value_sql_list)
-            try:
-                data_store_obj.execute(insert_sql)
-            except MySQLdb.IntegrityError:
-                # If inserting the whole page at once raises an IntegrityError,
-                # then fall back on inserting each row individually and failing
-                # on the specific row that creates the IntegrityError while
-                # still saving all other rows.
-                insertion_count = 0
-                for relation_handle_obj in self.relations_list:
-                    relation_handle_obj.fetch_or_set_handle_id(data_store_obj)
-                    insert_sql = f"""INSERT INTO relations (profile_handle_id, profile_username, profile_instance,
-                                                            relation_handle_id, relation_type, relation_page_number,
-                                                            relation_username, relation_instance)
-                                                        VALUES
-                                                            ({profile_handle_obj.handle_id}, '{self.username}',
-                                                            '{self.instance}', {relation_handle_obj.handle_id},
-                                                            '{relation}', {self.page_number},
-                                                            '{relation_handle_obj.username}',
-                                                            '{relation_handle_obj.instance}')"""
-                    try:
-                        data_store_obj.execute(insert_sql)
-                    except MySQLdb.IntegrityError:
-                        # Whatever is causing this error, at least the other
-                        # rows got saved.
-                        self.logger_obj.info(("got an SQL IntegrityError when inserting "
-                                              "{relation_handle_in_at_form} {relation_type} "
-                                              "{profile_handle_in_at_form} into table relations").format(
-                                                relation_handle_in_at_form=relation_handle_obj.handle_in_at_form,
-                                                relation_type=('follower of' if relation == 'followers' else relation),
-                                                profile_handle_in_at_form=profile_handle_obj.handle_in_at_form))
-                    else:
-                        insertion_count += 1
-            else:
-                insertion_count = len(value_sql_list)
-            relation_expr = 'followings' if relation == 'following' else relation
-            self.logger_obj.info(f"saved {insertion_count} {relation_expr} to the database")
-            return insertion_count
-
+                insert_sql = f"""INSERT INTO relations (profile_handle_id, profile_username, profile_instance,
+                                                        relation_handle_id, relation_type, relation_page_number,
+                                                        relation_username, relation_instance)
+                                                    VALUES
+                                                        ({profile_handle_obj.handle_id}, '{self.username}',
+                                                        '{self.instance}', {relation_handle_obj.handle_id},
+                                                        '{relation}', {self.page_number},
+                                                        '{relation_handle_obj.username}',
+                                                        '{relation_handle_obj.instance}')"""
+                try:
+                    data_store_obj.execute(insert_sql)
+                except MySQLdb.IntegrityError:
+                    # Whatever is causing this error, at least the other
+                    # rows got saved.
+                    self.logger_obj.info(("got an SQL IntegrityError when inserting "
+                                          "{relation_handle_in_at_form} {relation_type} "
+                                          "{profile_handle_in_at_form} into table relations").format(
+                                            relation_handle_in_at_form=relation_handle_obj.handle_in_at_form,
+                                            relation_type=('follower of' if relation == 'followers' else relation),
+                                            profile_handle_in_at_form=profile_handle_obj.handle_in_at_form))
+                else:
+                    insertion_count += 1
+        else:
+            insertion_count = len(value_sql_list)
+        relation_expr = 'followings' if relation == 'following' else relation
+        self.logger_obj.info(f"saved {insertion_count} {relation_expr} to the database")
+        return insertion_count
 
 class Instance:
     """

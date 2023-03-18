@@ -34,15 +34,16 @@ class RequestOutcome(object, metaclass=abc.ABCMeta):
 
 
 class NoOpRequest(RequestOutcome):
-    __slots__ = 'instance', 'page_obj'
+    __slots__ = 'instance', 'page_obj', 'is_dynamic'
 
-    def __init__(self, instance, page_obj):
+    def __init__(self, instance, page_obj, is_dynamic=False):
         if not validators.domain(instance):
             raise InternalException(f"instance argument '{instance}' not a valid instance_host: must be a str "
                                     "consisting of letters, numbers, periods, underscores, and dashes ending in a "
                                     "period followed by letters")
         self.instance = instance
         self.page_obj = page_obj
+        self.is_dynamic = is_dynamic
 
 
 class SuccessfulRequest(RequestOutcome):
