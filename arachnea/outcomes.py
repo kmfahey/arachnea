@@ -1,9 +1,17 @@
 #!/usr/bin/python3
 
+import validators
+import abc
+
+
 # FIXME add a Successful_Request class, re-architect
 # Page_Fetcher.instantiate_and_fetch_page, Page.parse_profile_page,
 # Page.parse_relations_page, Page.requests_fetch, and Page.webdriver_fetch to
 # use Successful_Request complementarily to Failed_Request
+
+
+PROFILE = 0
+RELATIONS = 1
 
 
 class InternalException(Exception):
@@ -13,20 +21,59 @@ class InternalException(Exception):
     pass
 
 
-class FailedRequest:
+class RequestOutcome(object, metaclass=abc.ABCMeta):
+
+    @abc.abstractmethod
+    def __init__(self):
+        pass
+
+    def __repr__(self):
+        cls_name = type(self).__name__
+        init_args = ', '.join("=".join((attr, repr(getattr(self, attr)))) for attr in self.__slots__)
+        return f"{cls_name}({init_args})"
+
+
+class NoOpRequest(RequestOutcome):
+    __slots__ = 'instance',
+
+    def __init__(self, instance):
+        if not validators.domain(instance):
+            raise InternalException(f"instance argument '{instance}' not a valid instance_host: must be a str "
+                                    "consisting of letters, numbers, periods, underscores, and dashes ending in a "
+                                    "period followed by letters")
+        self.instance = instance
+
+
+class SuccessfulRequest(RequestOutcome):
+    __slots__ = ('instance', 'retrieved_len', 'retrieved_type', 'page_obj')
+
+    def __init__(self, instance, retrieved_len=0, retrieved_type=-1, page_obj=None):
+        if not validators.domain(instance):
+            raise InternalException(f"instance argument '{instance}' not a valid instance_host: must be a str "
+                                    "consisting of letters, numbers, periods, underscores, and dashes ending in a "
+                                    "period followed by letters")
+        self.instance = instance
+        self.retrieved_len = retrieved_len
+        self.retrieved_type = retrieved_type
+        self.page_obj = page_obj
+
+
+class FailedRequest(RequestOutcome):
     """
     Represents the outcome of a failed HTTP request. Encapsulates details on
     exactly how the request failed and for what reason. Used by Page_Fetcher's
     various methods as a failure signal value.
     """
-    __slots__ = ('instance', 'status_code', 'ratelimited', 'user_deleted', 'malfunctioning', 'unparseable', 'suspended',
-                 'ssl_error', 'too_many_redirects', 'timeout', 'connection_error', 'posts_too_old', 'no_public_posts',
-                 'forwarding_address', 'is_dynamic', 'webdriver_error', 'x_ratelimit_limit', 'robots_txt_disallowed')
+    __slots__ = ('instance', 'connection_error', 'forwarding_address', 'is_dynamic', 'malfunctioning',
+                 'no_public_posts', 'posts_too_old', 'ratelimited', 'ssl_error', 'status_code', 'suspended', 'timeout',
+                 'too_many_redirects', 'unparseable', 'user_deleted', 'webdriver_error', 'x_ratelimit_limit',
+                 'robots_txt_disallowed', 'unfulfillable_request', 'page_obj')
 
     def __init__(self, instance, connection_error=False, forwarding_address='', is_dynamic=False, malfunctioning=False,
                  no_public_posts=False, posts_too_old=False, ratelimited=False, ssl_error=False, status_code=0,
                  suspended=False, timeout=False, too_many_redirects=False, unparseable=False, user_deleted=False,
-                 webdriver_error=False, x_ratelimit_limit=0, robots_txt_disallowed=False):
+                 webdriver_error=False, x_ratelimit_limit=0, robots_txt_disallowed=False, unfulfillable_request=False,
+                 page_obj=None):
         """
         Instances a Failed_Request object.
 
@@ -85,13 +132,23 @@ class FailedRequest:
         :param robots_txt_disallowed: If the request couldn't be made because the site's
                                       robots.txt didn't allow it.
         :type robots_txt_disallowed:  bool, optional
+        :param unfulfillable_request: If the request was unfullfilable as specified and
+                                      could not be attempted.
+        :type unfulfillable_request:  bool
+        :param page_obj:              The Page object associated with the failed
+                                      request, if one was generated.
+        :type page_obj:               Page, optional
         """
         # raises an error if *none* of the optional args are specified
         if True not in (connection_error, bool(forwarding_address), is_dynamic, malfunctioning, no_public_posts,
                         posts_too_old, ratelimited, robots_txt_disallowed, ssl_error, suspended, timeout,
                         status_code != 0 and status_code != 200, too_many_redirects, unparseable, user_deleted,
-                        webdriver_error, bool(x_ratelimit_limit)):
+                        webdriver_error, bool(x_ratelimit_limit), unfulfillable_request):
             raise InternalException("Failed_Request instanced with no parameters set")
+        elif not validators.domain(instance):
+            raise InternalException(f"instance argument '{instance}' not a valid instance_host: must be a str "
+                                    "consisting of letters, numbers, periods, underscores, and dashes ending in a "
+                                    "period followed by letters")
         self.instance = instance
         self.status_code = status_code
         self.ratelimited = ratelimited
@@ -110,19 +167,5 @@ class FailedRequest:
         self.webdriver_error = webdriver_error
         self.x_ratelimit_limit = x_ratelimit_limit
         self.robots_txt_disallowed = robots_txt_disallowed
-
-    def __repr__(self):
-        """
-        Returns a string representation of the Failed_Request object.
-
-        :return: A string representation of the object.
-        :rtype:  str
-        """
-        init_argd = dict()
-        # Builds a dict of all the instance vars that have values which don't cast to False.
-        for attr_key in self.__slots__:
-            attr_value = getattr(self, attr_key, False)
-            if bool(attr_value):
-                init_argd[attr_key] = attr_value
-        args_str = ", ".join(f"{key}={repr(value)}" for key, value in init_argd.items())
-        return f"{self.__class__.__name__}({args_str})"
+        self.unfulfillable_request = unfulfillable_request
+        self.page_obj = page_obj

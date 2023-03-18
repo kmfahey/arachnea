@@ -7,7 +7,7 @@ import collections
 import sys
 
 from arachnea.processing import MainProcessor
-from arachnea.handles import Handle
+from arachnea.entities import Handle
 
 
 DB_HOST = 'localhost'
@@ -136,7 +136,8 @@ def main():
     if options.web_spider:
         main_logger_obj = MainProcessor.instance_logger_obj("main", use_threads=bool(options.threads_count))
     else:
-        main_logger_obj = MainProcessor.instance_logger_obj("main", use_threads=bool(options.threads_count), no_output=True)
+        main_logger_obj = MainProcessor.instance_logger_obj("main", use_threads=bool(options.threads_count),
+                                                            no_output=True)
 
     validate_cmdline_flags(options)
 
@@ -528,9 +529,9 @@ def query_output_prereqs(options, results, terminal_width_cols):
     profiles_bio_texts, max_handle_at_len, max_handle_url_len, max_profile_bio_len,
     and output_width_cols.
 
-    :param options:             The options object that is the first return value of
-                                optparse.OptionParser.parse_args().
-    :type options:              optparse.Values
+    :param options:             The argparse.Namespace object that is the return
+                                value of argparse.OptionParser.parse_args().
+    :type options:              argparse.Namespace
     :param results:             The output of the
                                 Handles_Processor.fulltext_profiles_search() method
                                 applied to the commandline arguments.
@@ -538,11 +539,12 @@ def query_output_prereqs(options, results, terminal_width_cols):
     :param terminal_width_cols: The width the output table is allowed to be, in
                                 columns.
     :type terminal_width_cols:  int
-    :return:                    A dict of the values handles_at_form_padded,
+    :return:                    A collections.namedtuple subclass with the
+                                attributes handles_at_form_padded,
                                 handles_urls_padded, profiles_bio_texts,
                                 max_handle_at_len, max_handle_url_len,
                                 max_profile_bio_len, and output_width_cols.
-    :rtype:                     dict
+    :rtype:                     collections.namedtuple
     """
     Prereqs = collections.namedtuple("Prereqs", ('handles_at_form_padded', 'handles_urls_padded', 'profiles_bio_texts',
                                                  'max_handle_at_len', 'max_handle_url_len', 'max_profile_bio_len',
