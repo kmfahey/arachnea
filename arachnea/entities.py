@@ -202,7 +202,7 @@ class Page:
                     self.loaded = False
                     return FailedRequest(self.instance, status_code=http_response.status_code, ratelimited=True,
                                          page_obj=self)
-            case 401 | 400 | 403 | 406 | 500 | 501 | 502 | 503 | 504 | 529:
+            case 401 | 400 | 403 | 406 | 418 | 500 | 501 | 502 | 503 | 504 | 529:
                 # The instance emitted a status code that indicates it's not
                 # handling requests correctly. The program classes it as malfunctioning.
                 self.loaded = False

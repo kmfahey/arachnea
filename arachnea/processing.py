@@ -13,25 +13,70 @@ class MainProcessor:
     """
     Encapsulates the state and methods needed to run the main processing job of the program.
     """
-    __slots__ = ('options', 'logger_obj', 'data_store_obj', 'save_profiles', 'save_relations',
-                 'db_host', 'db_user', 'db_password', 'db_database')
+    __slots__ = ('logger_obj', 'db_host', 'db_user', 'db_password', 'db_database', 'data_store_obj', 'handles_input',
+                 'save_profiles', 'save_relations', 'handles_join_profiles', 'relations_join_profiles',
+                 'fetch_relations_only', 'threads_count', 'dont_discard_bc_wifi', 'conn_err_wait_time', 'dry_run')
 
-    def __init__(self, options, logger_obj, db_host, db_user, db_password, db_database,
-                       save_profiles=False, save_relations=False):
+    def __init__(self, logger_obj, db_host, db_user, db_password, db_database, handles_input=(), save_profiles=False,
+                 save_relations=False, handles_join_profiles=False, relations_join_profiles=False,
+                 fetch_relations_only=False, threads_count=0, dont_discard_bc_wifi=False, conn_err_wait_time=0.0,
+                 dry_run=False):
         """
         Initializes the Main_Processor object.
 
-        :param options:        The argparse.Namespace object that is the return value of
-                               argparse.OptionParser.parse_args().
-        :type options:         argparse.Namespace
-        :param logger_obj:     The Logger object to use to log events.
-        :type logger_obj:      logging.Logger
-        :param save_profiles:  If the program is in a saving-profiles mode.
-        :type save_profiles:   bool
-        :param save_relations: If the program is in a saving-followers/following mode.
-        :type save_relations:  bool
+        :param logger_obj:              The Logger object to use to log events.
+        :type logger_obj:               logging.Logger
+        :param save_profiles:           If the program is in a mode where it saves
+                                        profiles.
+        :type save_profiles:            bool
+        :param save_relations:          If the program is in a mode where it savews
+                                        followers/following accounts.
+        :type save_relations:           bool
+        :param handles_input:           A list of Handle objects used in the
+                                        process_handles_from_args() method.
+        :type handles_input:            Handle
+        :param save_profiles:           True if the program is in a mode where it
+                                        saves profiles, False otherwise.
+        :type save_profiles:            bool
+        :param save_relations:          True if the program is in a mode where it
+                                        saves following/followers accounts, False
+                                        otherwise.
+        :type save_relations:           bool
+        :param handles_join_profiles:   True if the program is sourcing its handles to
+                                        process from handles that are present in the
+                                        handles table but absent from the profiles
+                                        table, False otherwise.
+        :type handles_join_profiles:    bool
+        :param relations_join_profiles: True if the program is sourcing its handles to
+                                        process from handles that are present in the
+                                        relations table but absent from the profiles
+                                        table, False otherwise.
+        :type relations_join_profiles:  bool
+        :param fetch_relations_only:    True if the program is fetching only
+                                        following/followers data and skipping profile
+                                        bios, False otherwise. In this mode it will
+                                        source handles to process from handles that are
+                                        in the profiles table but not in the relations
+                                        table.
+        :type fetch_relations_only:     bool
+        :param threads_count:           The number of threads to use when processing
+                                        handles. If the value is 0 or 1, the threading
+                                        module will not be used.
+        :type threads_count:            int
+        :param dont_discard_bc_wifi:    True if the program should respond to a
+                                        connection error by saving the handle, False if
+                                        it should respond by saving a null bio to the
+                                        profiles table.
+        :type dont_discard_bc_wifi:     bool
+        :param conn_err_wait_time:      If nonzero, and the dont_discard_bc_wifi
+                                        argument is True, then when a connection error
+                                        occurs, the program will sleep this number of
+                                        seconds before continuing the algorithm.
+        :type conn_err_wait_time:       float
+        :param dry_run=False:           True if the program is running a dry run,
+                                        False otherwise.
+        :type dry_run=False:            bool
         """
-        self.options = options
         self.logger_obj = logger_obj
         self.save_profiles = save_profiles
         self.save_relations = save_relations
@@ -41,6 +86,14 @@ class MainProcessor:
         self.db_database = db_database
         self.data_store_obj = DataStore(self.db_host, self.db_user, self.db_password,
                                         self.db_database, self.logger_obj)
+        self.conn_err_wait_time = conn_err_wait_time
+        self.dont_discard_bc_wifi = dont_discard_bc_wifi
+        self.dry_run = dry_run
+        self.fetch_relations_only = fetch_relations_only
+        self.handles_input = handles_input
+        self.handles_join_profiles = handles_join_profiles
+        self.relations_join_profiles = relations_join_profiles
+        self.threads_count = threads_count
 
     @classmethod
     def instance_logger_obj(cls, name, use_threads=False, no_output=False):
@@ -93,18 +146,18 @@ class MainProcessor:
                                                      self.db_database, self.logger_obj),
                                            self.logger_obj, instances_dict, save_profiles=self.save_profiles,
                                            save_relations=self.save_relations,
-                                           dont_discard_bc_wifi=self.options.dont_discard_bc_wifi,
-                                           conn_err_wait_time=self.options.conn_err_wait_time)
+                                           dont_discard_bc_wifi=self.dont_discard_bc_wifi,
+                                           conn_err_wait_time=self.conn_err_wait_time)
 
         # Iterating across the non-flag arguments, treating each one
         # as a handle_obj (in @user@instance form) and prepping the
         # Handle_Processor.process_handle_iterable iterable argument.
-        for handle_obj in self.options.handles:
+        for handle_obj in self.handles_input:
             handle_obj.fetch_or_set_handle_id(self.data_store_obj)
             handle_objs_from_args.append(handle_obj)
 
         # If this is a dry run, stop here.
-        if self.options.dry_run:
+        if self.dry_run:
             return False
 
         handle_processor.process_handle_iterable(handle_objs_from_args, self.data_store_obj)
@@ -122,7 +175,7 @@ class MainProcessor:
 
         parallelism_objs = self.set_up_parallelism()
 
-        if self.options.dry_run and not parallelism_objs:
+        if self.dry_run and not parallelism_objs:
             return False
 
         data_store_objs = parallelism_objs["data_store_objs"]
@@ -135,7 +188,7 @@ class MainProcessor:
         thread_objs = list()
 
         # Instancing & saving the thread objects.
-        for index in range(0, self.options.threads_count):
+        for index in range(0, self.threads_count):
             thread_obj = threading.Thread(target=handle_processor_objs[index].process_handle_iterable,
                                           args=(iter(handles_lists[index]), data_store_objs[index]),
                                           daemon=True)
@@ -143,12 +196,12 @@ class MainProcessor:
             self.logger_obj.info(f"instantiated thread #{index}")
 
         # Starting the threads.
-        for index in range(0, self.options.threads_count):
+        for index in range(0, self.threads_count):
             thread_objs[index].start()
             self.logger_obj.info(f"started thread #{index}")
 
         # Waiting for the threads to exit.
-        for index in range(0, self.options.threads_count):
+        for index in range(0, self.threads_count):
             thread_objs[index].join()
             self.logger_obj.info(f"closed thread #{index}")
 
@@ -177,7 +230,7 @@ class MainProcessor:
         handle_processor_objs = list()
         handles_lists = list()
 
-        for index in range(0, self.options.threads_count):
+        for index in range(0, self.threads_count):
             threads_logger_obj = self.instance_logger_obj(f"thread#{index}", True)
             logger_objs.append(threads_logger_obj)
             data_store_objs.append(DataStore(self.db_host, self.db_user, self.db_password,
@@ -195,24 +248,24 @@ class MainProcessor:
         # have access to that information.
         instances_dict = Instance.fetch_all_instances(self.data_store_obj, self.logger_obj)
 
-        for index in range(0, self.options.threads_count):
+        for index in range(0, self.threads_count):
             handle_processor_obj = HandleProcessor(data_store_objs[index], logger_objs[index], instances_dict,
                                                    save_profiles=self.save_profiles,
                                                    save_relations=self.save_relations,
-                                                   dont_discard_bc_wifi=self.options.dont_discard_bc_wifi,
-                                                   conn_err_wait_time=self.options.conn_err_wait_time)
+                                                   dont_discard_bc_wifi=self.dont_discard_bc_wifi,
+                                                   conn_err_wait_time=self.conn_err_wait_time)
 
             handle_processor_objs.append(handle_processor_obj)
 
         # If this is a dry run, stop here.
-        if self.options.dry_run:
+        if self.dry_run:
             return dict()
 
-        if self.options.fetch_relations_only:
+        if self.fetch_relations_only:
             handles_generator = self.data_store_obj.users_in_profiles_not_in_relations()
-        elif self.options.handles_join_profiles:
+        elif self.handles_join_profiles:
             handles_generator = self.data_store_obj.users_in_handles_not_in_profiles()
-        elif self.options.relations_join_profiles:
+        elif self.relations_join_profiles:
             handles_generator = self.data_store_obj.users_in_relations_not_in_profiles()
         else:
             raise InternalException("none of fetch_relations_only, handles_join_profiles, or relations_join_profiles "
@@ -224,8 +277,8 @@ class MainProcessor:
         # lists with equal or nearly equal numbers of handles.
         try:
             while True:
-                for index in range(0, self.options.threads_count):
-                    this_threads_handles_list = handles_lists[((index + 1) % self.options.threads_count) - 1]
+                for index in range(0, self.threads_count):
+                    this_threads_handles_list = handles_lists[((index + 1) % self.threads_count) - 1]
                     this_threads_handles_list.append(next(handles_generator))
         except StopIteration:
             pass
@@ -249,19 +302,19 @@ class MainProcessor:
                                                      self.db_database, self.logger_obj),
                                            self.logger_obj, instances_dict, save_profiles=self.save_profiles,
                                            save_relations=self.save_relations,
-                                           dont_discard_bc_wifi=self.options.dont_discard_bc_wifi,
-                                           conn_err_wait_time=self.options.conn_err_wait_time)
+                                           dont_discard_bc_wifi=self.dont_discard_bc_wifi,
+                                           conn_err_wait_time=self.conn_err_wait_time)
 
         # If this is a dry run, stop here.
-        if self.options.dry_run:
+        if self.dry_run:
             return False
 
         # Getting the correct handles generator depending on arguments.
-        if self.options.fetch_relations_only:
+        if self.fetch_relations_only:
             handles_generator = self.data_store_obj.users_in_profiles_not_in_relations()
-        elif self.options.handles_join_profiles:
+        elif self.handles_join_profiles:
             handles_generator = self.data_store_obj.users_in_handles_not_in_profiles()
-        elif self.options.relations_join_profiles:
+        elif self.relations_join_profiles:
             handles_generator = self.data_store_obj.users_in_relations_not_in_profiles()
         else:
             raise InternalException("none of fetch_relations_only, handles_join_profiles, or relations_join_profiles "
@@ -282,7 +335,7 @@ class MainProcessor:
         return self.data_store_obj.update_profiles_set_considered(handles, considered)
 
 
-class HandleProcessor(object):
+class HandleProcessor:
     """
     Implements a class for processing a list of handles and fetching the profile,
     relations, or both for each one depending on configuration.

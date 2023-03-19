@@ -74,7 +74,7 @@ spider_to_fetch_group.add_argument("-r", "--fetch-profiles-and-relations", actio
                                    dest="fetch_profiles_and_relations",
                                    help="In web spider mode, fetch both profiles and following & followers pages.")
 
-parser.add_argument("handles", action="store", default=(), type=Handle, nargs="*",
+parser.add_argument("handles_input", action="store", default=(), type=Handle, nargs="*",
                     help="Zero or more handles, in @username@instance form.")
 
 parser.add_argument("-t", "--threads-count", action="store", default=0, type=int, dest="threads_count",
@@ -223,10 +223,10 @@ def validate_cmdline_flags(options):
             print("with -s and -q flags used, please don't specify -H or -R; relations-only fetching sources its "
                   "handles from those present in the profiles table which aren't in the relations table")
             exit(1)
-        elif options.handles_from_args and len(options.handles) == 0:
+        elif options.handles_from_args and len(options.handles_input) == 0:
             print("when -s and -C flags are used, please supply one or more handles on the commandline")
             exit(1)
-        elif not options.handles_from_args and len(options.handles) != 0:
+        elif not options.handles_from_args and len(options.handles_input) != 0:
             print("with -s flag used, -C was not used, but handles supplied on the commandline")
             exit(1)
         elif options.threads_count < 0:
@@ -267,7 +267,7 @@ def validate_cmdline_flags(options):
             print("with -f flag used, using -c flag with either -i or -u flags is nonsensical, can't control "
                   "the width of the output table while also not printing it")
             exit(1)
-        elif len(options.handles) != 0:
+        elif len(options.handles_input) != 0:
             print("with -f flag used, handles supplied on the commandline")
             exit(1)
     # Argument parsing for either handle marking mode (-m flag or -M flag).
@@ -282,12 +282,12 @@ def validate_cmdline_flags(options):
 
         if options.mark_handles_considered_eq_0:
             _exclude_non_mode_flags("-m", "mark handles considered", illegal_flags_d)
-            if len(options.handles) != 0:
+            if len(options.handles_input) != 0:
                 print("with -m flag used, handles supplied on the commandline")
                 exit(1)
         else:
             _exclude_non_mode_flags("-M", "mark handles not considered", illegal_flags_d)
-            if len(options.handles) != 0:
+            if len(options.handles_input) != 0:
                 print("with -M flag used, handles supplied on the commandline")
                 exit(1)
     # None of the mode flags were used, which is itself an error; the program
@@ -371,8 +371,14 @@ def execute_web_spider_mode(options, main_logger_obj):
     # processing handles from the database in a threaded fashion,
     # and processing handles from the database in a single-tasking fashion.
 
-    main_processor_obj = MainProcessor(options, main_logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE,
-                                       save_profiles, save_relations)
+    main_processor_obj = MainProcessor(main_logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE,
+                                       handles_input=options.handles_input, save_profiles=save_profiles,
+                                       save_relations=save_relations, conn_err_wait_time=options.conn_err_wait_time,
+                                       dont_discard_bc_wifi=options.dont_discard_bc_wifi, dry_run=options.dry_run,
+                                       fetch_relations_only=options.fetch_relations_only,
+                                       handles_join_profiles=options.handles_join_profiles,
+                                       relations_join_profiles=options.relations_join_profiles,
+                                       threads_count=options.threads_count)
 
     if options.handles_from_args:
         main_processor_obj.process_handles_from_args()
@@ -398,7 +404,14 @@ def execute_fulltext_search_mode(options, logger_obj):
     :return:           False if no results were found, True otherwise.
     :rtype:            bool
     """
-    main_processor_obj = MainProcessor(options, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
+    main_processor_obj = MainProcessor(logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE,
+                                       handles_input=options.handles_input,
+                                       conn_err_wait_time=options.conn_err_wait_time,
+                                       dont_discard_bc_wifi=options.dont_discard_bc_wifi, dry_run=options.dry_run,
+                                       fetch_relations_only=options.fetch_relations_only,
+                                       handles_join_profiles=options.handles_join_profiles,
+                                       relations_join_profiles=options.relations_join_profiles,
+                                       threads_count=options.threads_count)
 
     # Fetching the current columns of the terminal to use as a maximum width for
     # the output table to be constrained to.
@@ -509,7 +522,14 @@ def execute_mark_handles_considered_or_not_mode(options, logger_obj):
         exit(1)
 
     # Instancing a Main_Processor object, and calling the update method.
-    main_processor_obj = MainProcessor(options, logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE)
+    main_processor_obj = MainProcessor(logger_obj, DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE,
+                                       handles_input=options.handles_input,
+                                       conn_err_wait_time=options.conn_err_wait_time,
+                                       dont_discard_bc_wifi=options.dont_discard_bc_wifi, dry_run=options.dry_run,
+                                       fetch_relations_only=options.fetch_relations_only,
+                                       handles_join_profiles=options.handles_join_profiles,
+                                       relations_join_profiles=options.relations_join_profiles,
+                                       threads_count=options.threads_count)
 
     rows_affected = main_processor_obj.update_profiles_set_considered(handles, considered)
 
