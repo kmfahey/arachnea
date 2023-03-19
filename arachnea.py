@@ -16,6 +16,12 @@ DB_PASSWORD = decouple.config('DB_PASSWORD')
 DB_DATABASE = 'arachnea'
 
 
+SearchOutputPrereqs = collections.namedtuple("SearchOutputPrereqs", ('handles_at_form_padded', 'handles_urls_padded',
+                                                                     'profiles_bio_texts', 'max_handle_at_len',
+                                                                     'max_handle_url_len', 'max_profile_bio_len',
+                                                                     'output_width_cols'))
+
+
 # Setting up the options accepted by the program on the commandline
 parser = argparse.ArgumentParser("arachnea")
 
@@ -566,10 +572,6 @@ def query_output_prereqs(options, results, terminal_width_cols):
                                 max_profile_bio_len, and output_width_cols.
     :rtype:                     collections.namedtuple
     """
-    Prereqs = collections.namedtuple("Prereqs", ('handles_at_form_padded', 'handles_urls_padded', 'profiles_bio_texts',
-                                                 'max_handle_at_len', 'max_handle_url_len', 'max_profile_bio_len',
-                                                 'output_width_cols'))
-
     # Preparing the lists of handles in @ form, profile URLs, and profile bio
     # texts. The bios have their newlines replaced with \n and their tabs
     # replaced with 4 spaces.
@@ -615,8 +617,8 @@ def query_output_prereqs(options, results, terminal_width_cols):
 
     # Returning all the derived values as a dictionary. 7 is just too many to
     # return as a tuple.
-    return Prereqs(handles_at_form_padded, handles_urls_padded, profiles_bio_texts,
-                   max_handle_at_len, max_handle_url_len, max_profile_bio_len, output_width_cols)
+    return SearchOutputPrereqs(handles_at_form_padded, handles_urls_padded, profiles_bio_texts,
+                               max_handle_at_len, max_handle_url_len, max_profile_bio_len, output_width_cols)
 
 
 def print_query_output_3_col(handles_at_form_padded, handles_urls_padded, bio_texts_trim_padded,

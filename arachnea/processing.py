@@ -3,9 +3,13 @@
 import logging
 import sys
 import threading
+import collections
 
 from arachnea.retrieval import Instance, PageFetcher, DataStore
 from arachnea.outcomes import InternalException, SuccessfulRequest, FailedRequest, RELATIONS
+
+
+ParallelismPrereqs = collections.namedtuple("ParallelismPrereqs", ("data_store_objs", "handle_processor_objs", "handles_lists"))
 
 
 class MainProcessor:
@@ -171,24 +175,20 @@ class MainProcessor:
         :rtype:  bool
         """
 
-        parallelism_objs = self.set_up_parallelism()
+        prq = self.set_up_parallelism()
 
-        if self.dry_run and not parallelism_objs:
+        if self.dry_run:
             return False
 
-        data_store_objs = parallelism_objs["data_store_objs"]
-        handle_processor_objs = parallelism_objs["handle_processor_objs"]
-        handles_lists = parallelism_objs["handles_lists"]
-
-        handles_lists_lens_expr = ", ".join(map(str, map(len, handles_lists)))
+        handles_lists_lens_expr = ", ".join(map(str, map(len, prq.handles_lists)))
         self.logger_obj.info(f"populated handles lists, lengths {handles_lists_lens_expr}")
 
         thread_objs = list()
 
         # Instancing & saving the thread objects.
         for index in range(0, self.threads_count):
-            thread_obj = threading.Thread(target=handle_processor_objs[index].process_handle_iterable,
-                                          args=(iter(handles_lists[index]), data_store_objs[index]),
+            thread_obj = threading.Thread(target=prq.handle_processor_objs[index].process_handle_iterable,
+                                          args=(iter(prq.handles_lists[index]), prq.data_store_objs[index]),
                                           daemon=True)
             thread_objs.append(thread_obj)
             self.logger_obj.info(f"instantiated thread #{index}")
@@ -257,7 +257,7 @@ class MainProcessor:
 
         # If this is a dry run, stop here.
         if self.dry_run:
-            return dict()
+            return ParallelismPrereqs([], [], [])
 
         if self.fetch_relations_only:
             handles_generator = self.data_store_obj.users_in_profiles_not_in_relations()
@@ -281,9 +281,7 @@ class MainProcessor:
         except StopIteration:
             pass
 
-        return {"data_store_objs": data_store_objs,
-                "handle_processor_objs": handle_processor_objs,
-                "handles_lists": handles_lists}
+        return ParallelismPrereqs(data_store_objs, handle_processor_objs, handles_lists)
 
     def process_handles_from_db_single_thread(self):
         """
