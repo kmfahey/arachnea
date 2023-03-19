@@ -164,7 +164,7 @@ def validate_cmdline_flags(options):
     :rtype:            types.NoneType
     """
     # Shorthand private function that automatically iterates through a dict
-    # of all the flags that don't apply in this mode, and errors out wiht an
+    # of all the flags that don't apply in this mode, and errors out with an
     # appropriate message if any one of them was used.
     def _exclude_non_mode_flags(mode_flag, mode_name, illeg_args):
         # Private function that iterates over dict of illegal arguments.
@@ -175,7 +175,7 @@ def validate_cmdline_flags(options):
 
     # Compact way of testing whether more than one of these four booleans is
     # True. Better than constructing a big boolean expression that checks each
-    # permuation round-robin.
+    # permutation round-robin.
     if ((options.web_spider, options.fulltext_search, options.mark_handles_considered_eq_1,
              options.mark_handles_considered_eq_0).count(True) > 1):
         print("please specify only one of -s, -f, -m or -M; these flags are mutually exclusive")
@@ -505,7 +505,7 @@ def execute_mark_handles_considered_or_not_mode(options, logger_obj):
     # Validating data from stdin; errors out if a line doesn't validate
     # according to Handle.validate_handle() (which is applying
     # re.compile("^@[A-Za-z0-9_.-]+@[A-Za-z0-9.-]+\.[A-Za-z0-9]+$")). Keeps a
-    # count of lines so it can detect if stdin was zero-length, and error out in
+    # count of lines, so it can detect if stdin was zero-length, and error out in
     # that case as well.
 
     line_count = 0
@@ -583,7 +583,7 @@ def query_output_prereqs(options, results, terminal_width_cols):
     max_handle_url_len = max(map(len, handles_urls))
     max_profile_bio_len = max(map(len, profiles_bio_texts))
 
-    # Calculating what the minimum cols are needed to display a ASCII art table
+    # Calculating what the minimum cols are needed to display an ASCII art table
     # with just the handles_at_form and handles_urls lists.
     min_table_display_width = 2 + max_handle_at_len + 3 + max_handle_url_len + 2
 

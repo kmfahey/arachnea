@@ -371,7 +371,7 @@ class Page:
         forwarding_tag = self.document.find('div', {'class': self.moved_handle_class_re})
         if forwarding_tag:
             forwarding_match = self.forwarding_handle_re.match(html2text.html2text(forwarding_tag.prettify()))
-            # Tries to detect and save the forwarding handle but it doesn't
+            # Tries to detect and save the forwarding handle, but it doesn't
             # always parse.
             if forwarding_match is not None:
                 handle_at, handle_rest = forwarding_match.groups()
@@ -407,7 +407,7 @@ class Page:
     def parse_relations_page(self, browser=None):
         """
         Parses the loaded page in the self.document attribute, treating it as a
-        relations (ie. following or followers) page. Rules it out if it's not a usable
+        relations (i.e. following or followers) page. Rules it out if it's not a usable
         page, otherwise extracts the following or followers profile links and saves
         them. Expects a webdriver browser instance as an argument if self.is_dynamic is
         True.
@@ -435,12 +435,12 @@ class Page:
         return SuccessfulRequest(self.instance, retrieved_len=len(self.relations_list), retrieved_type=RELATIONS,
                                  page_obj=self)
 
-
-    def _parse_relations_from_static_page(self, browser):
+    def _parse_relations_from_static_page(self):
         # Sweeps the document for <a> tags whose href attribute matches the
         # profile URL regex.
         found_relations_a_tags = self.document.find_all('a', {'href': self.profile_url_re})
         relations_hrefs = [tag.attrs['href'] for tag in found_relations_a_tags]
+        relations_list = list()
         for relation_href in relations_hrefs:
             # Uses a separate, capturing regex to grab instance and username
             # from each URL if possible. Any nonmatching href values are
@@ -452,7 +452,8 @@ class Page:
             # Don't add the instance and username of the owner of this page.
             if relation_username == self.username and relation_instance == self.instance:
                 continue
-            self.relations_list.append(Handle(username=relation_username, instance=relation_instance))
+            relations_list.append(Handle(username=relation_username, instance=relation_instance))
+        return relations_list
 
     def _parse_relations_from_dynamic_page(self, browser):
         try:
@@ -732,6 +733,7 @@ class Page:
         self.logger_obj.info(f"saved {insertion_count} {relation_expr} to the database")
         return insertion_count
 
+
 class Instance:
     """
     Represents a mastodon instance.
@@ -753,7 +755,7 @@ class Instance:
     def __init__(self, instance_host, logger_obj, malfunctioning=False, suspended=False, unparseable=False,
                  rate_limited=False, x_ratelimit_limit=None, dont_discard_bc_wifi=False, attempts=0):
         """
-        Instances a Instance object.
+        Instances an Instance object.
 
         :param attempts:          The number of unsuccessful attempts the program has
                                   made to contact this instance.
@@ -762,17 +764,17 @@ class Instance:
         :type instance_host:      str
         :param logger_obj:        The Logger object to log events to.
         :type logger_obj:         logging.Logger
-        :param malfunctioning:    Whether the instance is malfunctioning; ie.  returning
+        :param malfunctioning:    Whether the instance is malfunctioning; i.e.  returning
                                   a 500-class error when contacted.
         :type malfunctioning:     bool, optional
         :param rate_limited:      Whether the program has been rate-limited from
                                   requests with the instance.
         :type rate_limited:       bool, optional
-        :param suspended:         Whether the instance is malfunctioning; ie. has been
+        :param suspended:         Whether the instance is malfunctioning; i.e. has been
                                   excluded from contact due to bad behavior of its
                                   admins, mods or users.
         :type suspended:          bool, optional
-        :param unparseable:       Whether the instance is unparseable; ie. if the HTML
+        :param unparseable:       Whether the instance is unparseable; i.e. if the HTML
                                   documents returned by the instance can't be parsed by
                                   any means at the program's disposal.
         :type unparseable:        bool, optional
@@ -1251,16 +1253,16 @@ class RobotsTxt:
             # Disallow pattern that does, it's allowed.
             if matching_allow_pats_end_w_wc and not matching_disallow_pats_end_w_wc:
                 return True
-            # Otoh if there's a Disllow pattern that ends with a wildcard but no
+            # Otoh if there's a Disallow pattern that ends with a wildcard but no
             # Allow pattern that does, it's disallowed.
             elif not matching_allow_pats_end_w_wc and matching_disallow_pats_end_w_wc:
                 return False
             # If there's both Allow and Disallow patterns ending in wildcards
             # that match, the longest one of *those* wins. (This is ad hoc, also
-            # this is a tiny corner case but it needs to be handled.
+            # this is a tiny corner case, but it needs to be handled.
             elif matching_allow_pats_end_w_wc and matching_disallow_pats_end_w_wc:
                 return max(map(len, matching_allow_pats_end_w_wc)) >= max(map(len, matching_disallow_pats_end_w_wc))
-            # No matching patterns end in wildcards so it's allowed if the
+            # No matching patterns end in wildcards, so it's allowed if the
             # longest matching pattern is an Allow one.
             else:
                 return max(map(len, matching_allow_pats)) >= max(map(len, matching_disallow_pats))
@@ -1356,7 +1358,7 @@ class RobotsTxt:
                 elif disallow_match := self.disallow_re.match(robots_lines[index]):
                     block_dict["Disallow"].append(disallow_match.group(1))
                 index += 1
-            # index var now points to the 1st UA line (ie. it points to the
+            # index var now points to the 1st UA line (i.e. it points to the
             # beginning of the next UA statement), or its equal to the length of
             # the lines list.
 

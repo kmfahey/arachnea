@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 import logging
-import re
 import sys
 import threading
 
@@ -29,12 +28,12 @@ class MainProcessor:
         :param save_profiles:           If the program is in a mode where it saves
                                         profiles.
         :type save_profiles:            bool
-        :param save_relations:          If the program is in a mode where it savews
+        :param save_relations:          If the program is in a mode where it saves
                                         followers/following accounts.
         :type save_relations:           bool
         :param handles_input:           A list of Handle objects used in the
                                         process_handles_from_args() method.
-        :type handles_input:            Handle
+        :type handles_input:            collections.abc.Sequence
         :param save_profiles:           True if the program is in a mode where it
                                         saves profiles, False otherwise.
         :type save_profiles:            bool
@@ -135,7 +134,6 @@ class MainProcessor:
         """
         # Intializing the needed objects.
         handle_objs_from_args = list()
-        handle_re = re.compile("^@([A-Za-z0-9_.-]+)@([A-Za-z0-9_.-]+)$")
         instances_dict = Instance.fetch_all_instances(self.data_store_obj, self.logger_obj)
 
         # The save_profiles, save_relations, dont_discard_bc_wifi, and
@@ -243,7 +241,7 @@ class MainProcessor:
         # that has loaded a robots.txt file.
         #
         # The program should only need to get a status 429 response once, after
-        # which all threads need to respect that ratelimit. Likewise robots.txt
+        # which all threads need to respect that ratelimit. Likewise, robots.txt
         # should only need to be loaded once, after which all threads should
         # have access to that information.
         instances_dict = Instance.fetch_all_instances(self.data_store_obj, self.logger_obj)
@@ -574,4 +572,3 @@ class HandleProcessor:
 
         return SuccessfulRequest(last_page_obj.instance, retrieved_len=relations_count, retrieved_type=RELATIONS,
                                  page_obj=last_page_obj)
-

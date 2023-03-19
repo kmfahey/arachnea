@@ -62,7 +62,6 @@ class PageFetcher:
         self.dont_discard_bc_wifi = dont_discard_bc_wifi
         self.conn_err_wait_time = conn_err_wait_time
 
-
     def instantiate_and_fetch_page(self, handle_obj, url):
         instance = handle_obj.instance
         if instance in self.instances_dict:
@@ -85,7 +84,7 @@ class PageFetcher:
                         save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
         outcome_obj = page_obj.requests_fetch()
 
-        # If the request failed because the page is dynamic (ie. has a
+        # If the request failed because the page is dynamic (i.e. has a
         # <noscript> tag), trying again using webdriver.
         if isinstance(outcome_obj, FailedRequest) and outcome_obj.is_dynamic:
             self.logger_obj.info(f"loaded {url}: page has <noscript>; loading with webdriver")
@@ -146,7 +145,6 @@ class PageFetcher:
                             save_relations=self.save_relations, dont_discard_bc_wifi=self.dont_discard_bc_wifi)
             page_obj.save_page(self.data_store_obj)
             return FailedRequest(handle_obj.instance, user_deleted=True, page_obj=None)
-
 
     def _handle_failed_request(self, url, instance, handle_obj, page_obj, failed_req_obj):
         # Beginning the elaborate process of testing for and handling every
@@ -250,7 +248,7 @@ class PageFetcher:
             self.logger_obj.info(f"handle {handle_obj.handle_in_at_form}: fetching {what_fetched} returned "
                                  "connection error; but the wifi might've gone out, saving for later")
 
-            # If the wifi goes out, it's possible for this program to chew
+            # If the WiFi goes out, it's possible for this program to chew
             # through hundreds of passes of the main loop before it's
             # restored. That expends lot of queued handles that can't be
             # recovered until the program is restarted.
