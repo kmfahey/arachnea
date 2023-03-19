@@ -18,14 +18,8 @@
     
 <tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
 <td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="MySQLdb.html">MySQLdb</a><br>
-<a href="bs4.html">bs4</a><br>
-<a href="datetime.html">datetime</a><br>
-</td><td width="25%" valign=top><a href="html2text.html">html2text</a><br>
-<a href="re.html">re</a><br>
-<a href="requests.html">requests</a><br>
-</td><td width="25%" valign=top><a href="selenium.html">selenium</a><br>
-<a href="socket.html">socket</a><br>
-<a href="time.html">time</a><br>
+</td><td width="25%" valign=top><a href="logging.html">logging</a><br>
+</td><td width="25%" valign=top><a href="time.html">time</a><br>
 </td><td width="25%" valign=top><a href="urllib.html">urllib</a><br>
 </td></tr></table></td></tr></table><p>
 <table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
@@ -38,10 +32,8 @@
 <dt><font face="helvetica, arial"><a href="builtins.html#object">builtins.object</a>
 </font></dt><dd>
 <dl>
-<dt><font face="helvetica, arial"><a href="retrieval.html#Instance">Instance</a>
-</font></dt><dt><font face="helvetica, arial"><a href="retrieval.html#Page">Page</a>
-</font></dt><dt><font face="helvetica, arial"><a href="retrieval.html#Page_Fetcher">Page_Fetcher</a>
-</font></dt><dt><font face="helvetica, arial"><a href="retrieval.html#Robots_Txt_File">Robots_Txt_File</a>
+<dt><font face="helvetica, arial"><a href="retrieval.html#DataStore">DataStore</a>
+</font></dt><dt><font face="helvetica, arial"><a href="retrieval.html#PageFetcher">PageFetcher</a>
 </font></dt></dl>
 </dd>
 </dl>
@@ -49,311 +41,140 @@
 <table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
 <tr bgcolor="#ffc8d8">
 <td colspan=3 valign=bottom>&nbsp;<br>
-<font color="#000000" face="helvetica, arial"><a name="Instance">class <strong>Instance</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+<font color="#000000" face="helvetica, arial"><a name="DataStore">class <strong>DataStore</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
     
 <tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
-<td colspan=2><tt><a href="#Instance">Instance</a>(instance_host,&nbsp;logger_obj,&nbsp;malfunctioning=False,&nbsp;suspended=False,&nbsp;unparseable=False,&nbsp;rate_limited=False,&nbsp;x_ratelimit_limit=None,&nbsp;dont_discard_bc_wifi=False,&nbsp;attempts=0)<br>
+<td colspan=2><tt><a href="#DataStore">DataStore</a>(db_host,&nbsp;db_user,&nbsp;db_password,&nbsp;db_database,&nbsp;logger_obj)<br>
 &nbsp;<br>
-Represents&nbsp;a&nbsp;mastodon&nbsp;instance.<br>&nbsp;</tt></td></tr>
+Intermediates&nbsp;a&nbsp;connection&nbsp;to&nbsp;the&nbsp;MySQL&nbsp;database.<br>&nbsp;</tt></td></tr>
 <tr><td>&nbsp;</td>
 <td width="100%">Methods defined here:<br>
-<dl><dt><a name="Instance-__init__"><strong>__init__</strong></a>(self, instance_host, logger_obj, malfunctioning=False, suspended=False, unparseable=False, rate_limited=False, x_ratelimit_limit=None, dont_discard_bc_wifi=False, attempts=0)</dt><dd><tt>Instances&nbsp;a&nbsp;<a href="#Instance">Instance</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
-&nbsp;<br>
-:param&nbsp;attempts:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;number&nbsp;of&nbsp;unsuccessful&nbsp;attempts&nbsp;the&nbsp;program&nbsp;has<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;made&nbsp;to&nbsp;contact&nbsp;this&nbsp;instance.<br>
-:type&nbsp;attempts:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int,&nbsp;optional<br>
-:param&nbsp;instance_host:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;hostname&nbsp;of&nbsp;the&nbsp;instance&nbsp;(str).<br>
-:type&nbsp;instance_host:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str<br>
-:param&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
-:type&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
-:param&nbsp;malfunctioning:&nbsp;&nbsp;&nbsp;&nbsp;Whether&nbsp;the&nbsp;instance&nbsp;is&nbsp;malfunctioning;&nbsp;ie.&nbsp;&nbsp;returning<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;500-class&nbsp;error&nbsp;when&nbsp;contacted.<br>
-:type&nbsp;malfunctioning:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool,&nbsp;optional<br>
-:param&nbsp;rate_limited:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Whether&nbsp;the&nbsp;program&nbsp;has&nbsp;been&nbsp;rate-limited&nbsp;from<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;requests&nbsp;with&nbsp;the&nbsp;instance.<br>
-:type&nbsp;rate_limited:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool,&nbsp;optional<br>
-:param&nbsp;suspended:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Whether&nbsp;the&nbsp;instance&nbsp;is&nbsp;malfunctioning;&nbsp;ie.&nbsp;has&nbsp;been<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;excluded&nbsp;from&nbsp;contact&nbsp;due&nbsp;to&nbsp;bad&nbsp;behavior&nbsp;of&nbsp;its<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;admins,&nbsp;mods&nbsp;or&nbsp;users.<br>
-:type&nbsp;suspended:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool,&nbsp;optional<br>
-:param&nbsp;unparseable:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Whether&nbsp;the&nbsp;instance&nbsp;is&nbsp;unparseable;&nbsp;ie.&nbsp;if&nbsp;the&nbsp;HTML<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;documents&nbsp;returned&nbsp;by&nbsp;the&nbsp;instance&nbsp;can't&nbsp;be&nbsp;parsed&nbsp;by<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;any&nbsp;means&nbsp;at&nbsp;the&nbsp;program's&nbsp;disposal.<br>
-:type&nbsp;unparseable:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool,&nbsp;optional<br>
-:param&nbsp;x_ratelimit_limit:&nbsp;The&nbsp;number&nbsp;of&nbsp;seconds&nbsp;remaining&nbsp;on&nbsp;the&nbsp;rate&nbsp;limit&nbsp;with<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;instance.<br>
-:type&nbsp;x_ratelimit_limit:&nbsp;&nbsp;int&nbsp;or&nbsp;float,&nbsp;optional</tt></dd></dl>
+<dl><dt><a name="DataStore-__del__"><strong>__del__</strong></a>(self)</dt></dl>
 
-<dl><dt><a name="Instance-can_fetch"><strong>can_fetch</strong></a>(self, query_url)</dt><dd><tt>Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;given&nbsp;URL&nbsp;is&nbsp;fetchable&nbsp;from&nbsp;the&nbsp;instance&nbsp;according&nbsp;to&nbsp;its<br>
-robots.txt,&nbsp;False&nbsp;if&nbsp;it's&nbsp;not.<br>
+<dl><dt><a name="DataStore-__init__"><strong>__init__</strong></a>(self, db_host, db_user, db_password, db_database, logger_obj)</dt><dd><tt>Instances&nbsp;the&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>.<br>
 &nbsp;<br>
-:param&nbsp;query_url:&nbsp;An&nbsp;absolute&nbsp;URL&nbsp;including&nbsp;the&nbsp;instance,&nbsp;or&nbsp;a&nbsp;relative&nbsp;URL<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;based&nbsp;at&nbsp;its&nbsp;document&nbsp;root.<br>
-:type&nbsp;query_url:&nbsp;&nbsp;str<br>
-:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;True&nbsp;if&nbsp;the&nbsp;URL&nbsp;may&nbsp;be&nbsp;fetched,&nbsp;False&nbsp;if&nbsp;not.<br>
-:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool</tt></dd></dl>
+:param&nbsp;logger_obj:&nbsp;A&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
+:type&nbsp;logger_obj:&nbsp;&nbsp;logging.Logger</tt></dd></dl>
 
-<dl><dt><a name="Instance-save_instance"><strong>save_instance</strong></a>(self, data_store_obj)</dt><dd><tt>Saves&nbsp;this&nbsp;instance&nbsp;to&nbsp;the&nbsp;database.<br>
+<dl><dt><a name="DataStore-close"><strong>close</strong></a>(self)</dt><dd><tt>Closes&nbsp;the&nbsp;database&nbsp;cursor&nbsp;and&nbsp;the&nbsp;database&nbsp;connection.<br>
 &nbsp;<br>
-:param&nbsp;data_store_obj:&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;connect&nbsp;to&nbsp;the&nbsp;database.<br>
-:type&nbsp;data_store_obj:&nbsp;&nbsp;Data_Store<br>
-:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;False&nbsp;if&nbsp;the&nbsp;instance's&nbsp;malfunctioning,&nbsp;suspended,&nbsp;and<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unparseable&nbsp;instance&nbsp;vars&nbsp;are&nbsp;all&nbsp;False,&nbsp;or&nbsp;if&nbsp;there&nbsp;was<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;already&nbsp;a&nbsp;row&nbsp;in&nbsp;the&nbsp;bad_instances&nbsp;table&nbsp;with&nbsp;a&nbsp;value&nbsp;for<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;the&nbsp;instance&nbsp;column&nbsp;matching&nbsp;the&nbsp;instance&nbsp;attribute,&nbsp;True<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;otherwise.<br>
-:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool</tt></dd></dl>
+:return:&nbsp;None</tt></dd></dl>
 
-<dl><dt><a name="Instance-set_rate_limit"><strong>set_rate_limit</strong></a>(self, x_ratelimit_limit=None)</dt><dd><tt>Sets&nbsp;the&nbsp;rate_limit_expires&nbsp;instance&nbsp;variable&nbsp;to&nbsp;the&nbsp;x_ratelimit_limit&nbsp;argument,<br>
-if&nbsp;supplied,&nbsp;otherwise&nbsp;to&nbsp;300.0.<br>
+<dl><dt><a name="DataStore-execute"><strong>execute</strong></a>(self, sql)</dt><dd><tt>Executes&nbsp;a&nbsp;query&nbsp;on&nbsp;the&nbsp;database&nbsp;and&nbsp;returns&nbsp;all&nbsp;the&nbsp;matching&nbsp;rows.<br>
 &nbsp;<br>
-:param&nbsp;x_ratelimit_limit:&nbsp;int&nbsp;or&nbsp;float,&nbsp;optional<br>
-:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;None<br>
-:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;types.NoneType</tt></dd></dl>
+:return:&nbsp;If&nbsp;a&nbsp;SELECT&nbsp;statement&nbsp;was&nbsp;executed,&nbsp;returns&nbsp;a&nbsp;tuple-of-tuples&nbsp;where<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;each&nbsp;inner&nbsp;tuple&nbsp;is&nbsp;one&nbsp;matching&nbsp;row&nbsp;from&nbsp;the&nbsp;query&nbsp;that&nbsp;was&nbsp;executed.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;length&nbsp;of&nbsp;the&nbsp;inner&nbsp;tuples&nbsp;and&nbsp;the&nbsp;data&nbsp;contained&nbsp;depends&nbsp;on&nbsp;the<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;columns&nbsp;selected.&nbsp;Otherwise,&nbsp;returns&nbsp;a&nbsp;zero-length&nbsp;tuple.</tt></dd></dl>
 
-<dl><dt><a name="Instance-still_rate_limited"><strong>still_rate_limited</strong></a>(self)</dt><dd><tt>Returns&nbsp;True&nbsp;if&nbsp;the&nbsp;rate&nbsp;limit&nbsp;on&nbsp;this&nbsp;instance&nbsp;hasn't&nbsp;expired&nbsp;yet,&nbsp;False&nbsp;if&nbsp;it&nbsp;has.<br>
+<dl><dt><a name="DataStore-fulltext_profiles_search"><strong>fulltext_profiles_search</strong></a>(self, pos_query_strs, neg_query_strs=())</dt><dd><tt>Executes&nbsp;a&nbsp;fulltext&nbsp;search&nbsp;on&nbsp;the&nbsp;profile_bio_markdown&nbsp;column&nbsp;of&nbsp;the&nbsp;profiles<br>
+table.<br>
 &nbsp;<br>
-:return:&nbsp;True&nbsp;or&nbsp;False<br>
-:rtype:&nbsp;&nbsp;bool</tt></dd></dl>
-
-<hr>
-Class methods defined here:<br>
-<dl><dt><a name="Instance-fetch_all_instances"><strong>fetch_all_instances</strong></a>(data_store_obj, logger_obj)<font color="#909090"><font face="helvetica, arial"> from <a href="builtins.html#type">builtins.type</a></font></font></dt><dd><tt>Loads&nbsp;all&nbsp;lines&nbsp;from&nbsp;the&nbsp;bad_instances&nbsp;table,&nbsp;converts&nbsp;them&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects,<br>
-and&nbsp;returns&nbsp;a&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects.<br>
+The&nbsp;results&nbsp;are&nbsp;those&nbsp;where&nbsp;the&nbsp;profile&nbsp;bio&nbsp;matches&nbsp;all&nbsp;terms&nbsp;in&nbsp;the<br>
+pos_query_strs&nbsp;argument,&nbsp;and&nbsp;does&nbsp;not&nbsp;match&nbsp;any&nbsp;of&nbsp;the&nbsp;terms&nbsp;in&nbsp;the<br>
+neg_query_strs&nbsp;argument&nbsp;(if&nbsp;present).&nbsp;pos_query_strs&nbsp;must&nbsp;not&nbsp;be&nbsp;0-length;<br>
+neg_query_strs&nbsp;may&nbsp;be.<br>
 &nbsp;<br>
-:param&nbsp;data_store_obj:&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;connect&nbsp;to&nbsp;the&nbsp;database.<br>
-:type&nbsp;data_store_obj:&nbsp;&nbsp;Data_Store<br>
-:param&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
-:type&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
-:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;(strs)&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects.<br>
-:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dict</tt></dd></dl>
-
-<dl><dt><a name="Instance-save_instances"><strong>save_instances</strong></a>(instances_dict, data_store_obj, logger_obj)<font color="#909090"><font face="helvetica, arial"> from <a href="builtins.html#type">builtins.type</a></font></font></dt><dd><tt>Accepts&nbsp;a&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects,&nbsp;and&nbsp;commits&nbsp;every&nbsp;novel<br>
-one&nbsp;to&nbsp;the&nbsp;database.&nbsp;(Class&nbsp;method.)<br>
+Returns&nbsp;a&nbsp;list&nbsp;of&nbsp;2-tuples&nbsp;where&nbsp;the&nbsp;1st&nbsp;elem&nbsp;is&nbsp;a&nbsp;Handle&nbsp;<a href="builtins.html#object">object</a>&nbsp;and&nbsp;the&nbsp;2nd<br>
+elem&nbsp;is&nbsp;a&nbsp;str&nbsp;which&nbsp;is&nbsp;the&nbsp;value&nbsp;of&nbsp;the&nbsp;profile_bio_markdown&nbsp;column&nbsp;for&nbsp;that<br>
+handle&nbsp;in&nbsp;the&nbsp;profiles&nbsp;table.<br>
 &nbsp;<br>
-:param&nbsp;instances_dict:&nbsp;A&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;(strs)&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects.<br>
-:type&nbsp;instances_dict:&nbsp;&nbsp;dict<br>
-:param&nbsp;data_store_obj:&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;connect&nbsp;to&nbsp;the&nbsp;database.<br>
-:type&nbsp;data_store_obj:&nbsp;&nbsp;Data_Store<br>
-:param&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
-:type&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
-:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;None<br>
-:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;types.NoneType</tt></dd></dl>
+:param&nbsp;pos_query_strs:&nbsp;A&nbsp;tuple,&nbsp;list&nbsp;or&nbsp;set&nbsp;of&nbsp;one&nbsp;or&nbsp;more&nbsp;boolean&nbsp;expression<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;terms&nbsp;to&nbsp;match&nbsp;against&nbsp;the&nbsp;profile_bio_markdown&nbsp;column.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;positive&nbsp;match&nbsp;against&nbsp;*all*&nbsp;the&nbsp;expressions&nbsp;includes<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;that&nbsp;profile&nbsp;from&nbsp;the&nbsp;results.<br>
+:type&nbsp;pos_query_strs:&nbsp;&nbsp;tuple,&nbsp;list&nbsp;or&nbsp;set<br>
+:param&nbsp;neg_query_strs:&nbsp;A&nbsp;tuple,&nbsp;list&nbsp;or&nbsp;set&nbsp;of&nbsp;zero&nbsp;or&nbsp;more&nbsp;boolean&nbsp;expression<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;terms&nbsp;to&nbsp;match&nbsp;against&nbsp;the&nbsp;profile_bio_markdown&nbsp;column.&nbsp;A<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;negative&nbsp;match&nbsp;against&nbsp;*any*&nbsp;of&nbsp;the&nbsp;expressions&nbsp;excludes<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;that&nbsp;profile&nbsp;from&nbsp;the&nbsp;results.<br>
+:type&nbsp;neg_query_strs:&nbsp;&nbsp;tuple,&nbsp;list&nbsp;or&nbsp;set<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;List&nbsp;of&nbsp;0&nbsp;or&nbsp;more&nbsp;2-tuples,&nbsp;where&nbsp;each&nbsp;tuple&nbsp;is&nbsp;a&nbsp;Handle<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="builtins.html#object">object</a>&nbsp;and&nbsp;the&nbsp;profile_bio_markdown&nbsp;value&nbsp;string.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;list</tt></dd></dl>
 
-<hr>
-Readonly properties defined here:<br>
-<dl><dt><strong>rate_limit_expires_isoformat</strong></dt>
-</dl>
-<dl><dt><strong>status</strong></dt>
-</dl>
+<dl><dt><a name="DataStore-update_profiles_set_considered"><strong>update_profiles_set_considered</strong></a>(self, handles_in_at_form, considered)</dt><dd><tt>Updates&nbsp;the&nbsp;profiles&nbsp;table,&nbsp;setting&nbsp;considered&nbsp;=&nbsp;{considered&nbsp;argument}&nbsp;where&nbsp;the<br>
+handle_in_at_form&nbsp;is&nbsp;one&nbsp;of&nbsp;the&nbsp;handles&nbsp;in&nbsp;the&nbsp;handles&nbsp;argument.<br>
+&nbsp;<br>
+:param&nbsp;handles_in_at_form:&nbsp;A&nbsp;sequence&nbsp;of&nbsp;strs,&nbsp;each&nbsp;of&nbsp;which&nbsp;is&nbsp;a&nbsp;mastodon<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;handle&nbsp;in&nbsp;@&nbsp;form.<br>
+:type&nbsp;handles_in_at_form:&nbsp;&nbsp;tuple,&nbsp;list,&nbsp;set,&nbsp;map,&nbsp;filter,&nbsp;or&nbsp;types.GeneratorType<br>
+:param&nbsp;considered:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;new&nbsp;value&nbsp;to&nbsp;set&nbsp;the&nbsp;`considered`&nbsp;BOOLEAN&nbsp;column<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to;&nbsp;either&nbsp;0,&nbsp;1,&nbsp;False,&nbsp;or&nbsp;True.<br>
+:type&nbsp;considered:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;or&nbsp;bool<br>
+:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;number&nbsp;of&nbsp;rows&nbsp;affected&nbsp;by&nbsp;the&nbsp;UPDATE&nbsp;statement.<br>
+:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int</tt></dd></dl>
+
+<dl><dt><a name="DataStore-users_in_handles_not_in_profiles"><strong>users_in_handles_not_in_profiles</strong></a>(self)</dt><dd><tt>Executes&nbsp;a&nbsp;statement&nbsp;of&nbsp;the&nbsp;form&nbsp;SELECT&nbsp;...&nbsp;FROM&nbsp;handles&nbsp;LEFT&nbsp;JOIN&nbsp;profiles<br>
+...&nbsp;WHERE&nbsp;....&nbsp;IS&nbsp;NULL&nbsp;on&nbsp;the&nbsp;database,&nbsp;selecting&nbsp;records&nbsp;from&nbsp;the&nbsp;handles<br>
+table&nbsp;that&nbsp;don't&nbsp;have&nbsp;a&nbsp;corresponding&nbsp;row&nbsp;in&nbsp;the&nbsp;profiles&nbsp;table.&nbsp;Such&nbsp;a&nbsp;record<br>
+represents&nbsp;a&nbsp;handle&nbsp;that&nbsp;was&nbsp;saved&nbsp;from&nbsp;one&nbsp;of&nbsp;a&nbsp;number&nbsp;of&nbsp;sources,&nbsp;but&nbsp;whose<br>
+profile&nbsp;hasn't&nbsp;been&nbsp;loaded&nbsp;yet.<br>
+&nbsp;<br>
+:return:&nbsp;A&nbsp;generator&nbsp;that&nbsp;yields&nbsp;3-tuples&nbsp;of&nbsp;(handle_id,&nbsp;username,&nbsp;instance)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;values.</tt></dd></dl>
+
+<dl><dt><a name="DataStore-users_in_profiles_not_in_relations"><strong>users_in_profiles_not_in_relations</strong></a>(self)</dt><dd><tt>Executes&nbsp;a&nbsp;statement&nbsp;of&nbsp;the&nbsp;form&nbsp;SELECT&nbsp;...&nbsp;FROM&nbsp;profiles&nbsp;LEFT&nbsp;JOIN&nbsp;relations<br>
+...&nbsp;WHERE&nbsp;....&nbsp;IS&nbsp;NULL&nbsp;on&nbsp;the&nbsp;database,&nbsp;selecting&nbsp;records&nbsp;from&nbsp;the&nbsp;profiles<br>
+table&nbsp;that&nbsp;don't&nbsp;have&nbsp;a&nbsp;corresponding&nbsp;row&nbsp;in&nbsp;the&nbsp;relations&nbsp;table.&nbsp;Such&nbsp;a&nbsp;record<br>
+represents&nbsp;a&nbsp;user&nbsp;whose&nbsp;profile&nbsp;has&nbsp;been&nbsp;loaded&nbsp;but&nbsp;who&nbsp;doesn't&nbsp;appear&nbsp;in&nbsp;any&nbsp;of<br>
+the&nbsp;followers&nbsp;or&nbsp;following&nbsp;lists&nbsp;that&nbsp;have&nbsp;been&nbsp;downloaded&nbsp;so&nbsp;far.<br>
+&nbsp;<br>
+:return:&nbsp;A&nbsp;generator&nbsp;that&nbsp;yields&nbsp;3-tuples&nbsp;of&nbsp;(handle_id,&nbsp;username,&nbsp;instance)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;values.</tt></dd></dl>
+
+<dl><dt><a name="DataStore-users_in_relations_not_in_profiles"><strong>users_in_relations_not_in_profiles</strong></a>(self)</dt><dd><tt>Executes&nbsp;a&nbsp;statement&nbsp;of&nbsp;the&nbsp;form&nbsp;SELECT&nbsp;...&nbsp;FROM&nbsp;relations&nbsp;LEFT&nbsp;JOIN&nbsp;profiles<br>
+...&nbsp;WHERE&nbsp;....&nbsp;IS&nbsp;NULL&nbsp;on&nbsp;the&nbsp;database,&nbsp;selecting&nbsp;records&nbsp;from&nbsp;the&nbsp;relations<br>
+table&nbsp;that&nbsp;don't&nbsp;have&nbsp;a&nbsp;corresponding&nbsp;row&nbsp;in&nbsp;the&nbsp;profiles&nbsp;table.&nbsp;Such&nbsp;a&nbsp;record<br>
+represents&nbsp;a&nbsp;user&nbsp;who&nbsp;has&nbsp;been&nbsp;found&nbsp;in&nbsp;someone's&nbsp;following&nbsp;or&nbsp;followers&nbsp;list<br>
+but&nbsp;hasn't&nbsp;had&nbsp;their&nbsp;profile&nbsp;loaded&nbsp;yet.<br>
+&nbsp;<br>
+:return:&nbsp;A&nbsp;generator&nbsp;that&nbsp;yields&nbsp;tuples&nbsp;of&nbsp;(handle_id,&nbsp;username,&nbsp;instance)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;values.</tt></dd></dl>
+
 <hr>
 Data descriptors defined here:<br>
-<dl><dt><strong>attempts</strong></dt>
+<dl><dt><strong>db_connection</strong></dt>
 </dl>
-<dl><dt><strong>dont_discard_bc_wifi</strong></dt>
+<dl><dt><strong>db_cursor</strong></dt>
 </dl>
-<dl><dt><strong>instance_host</strong></dt>
+<dl><dt><strong>db_database</strong></dt>
+</dl>
+<dl><dt><strong>db_host</strong></dt>
+</dl>
+<dl><dt><strong>db_password</strong></dt>
+</dl>
+<dl><dt><strong>db_user</strong></dt>
 </dl>
 <dl><dt><strong>logger_obj</strong></dt>
-</dl>
-<dl><dt><strong>malfunctioning</strong></dt>
-</dl>
-<dl><dt><strong>rate_limit_expires</strong></dt>
-</dl>
-<dl><dt><strong>robots_txt_file_obj</strong></dt>
-</dl>
-<dl><dt><strong>suspended</strong></dt>
-</dl>
-<dl><dt><strong>unparseable</strong></dt>
 </dl>
 </td></tr></table> <p>
 <table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
 <tr bgcolor="#ffc8d8">
 <td colspan=3 valign=bottom>&nbsp;<br>
-<font color="#000000" face="helvetica, arial"><a name="Page">class <strong>Page</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+<font color="#000000" face="helvetica, arial"><a name="PageFetcher">class <strong>PageFetcher</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
     
 <tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
-<td colspan=2><tt><a href="#Page">Page</a>(handle_obj,&nbsp;url,&nbsp;logger_obj,&nbsp;instance_obj,&nbsp;save_profiles=False,&nbsp;save_relations=False,&nbsp;dont_discard_bc_wifi=False)<br>
+<td colspan=2><tt><a href="#PageFetcher">PageFetcher</a>(data_store_obj,&nbsp;logger_obj,&nbsp;instances_dict,&nbsp;save_profiles=False,&nbsp;save_relations=False,&nbsp;dont_discard_bc_wifi=False,&nbsp;conn_err_wait_time=0.0)<br>
 &nbsp;<br>
-Represents&nbsp;a&nbsp;single&nbsp;page;&nbsp;handles&nbsp;retrieving&nbsp;the&nbsp;page&nbsp;and&nbsp;the&nbsp;ensuing&nbsp;errors<br>
-itself.<br>&nbsp;</tt></td></tr>
-<tr><td>&nbsp;</td>
-<td width="100%">Methods defined here:<br>
-<dl><dt><a name="Page-__init__"><strong>__init__</strong></a>(self, handle_obj, url, logger_obj, instance_obj, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False)</dt><dd><tt>Instances&nbsp;the&nbsp;<a href="#Page">Page</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
-&nbsp;<br>
-:param&nbsp;handle_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;handle&nbsp;<a href="builtins.html#object">object</a>&nbsp;of&nbsp;the&nbsp;profile&nbsp;the&nbsp;page&nbsp;belongs&nbsp;to.<br>
-:type&nbsp;handle_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Handle<br>
-:param&nbsp;url:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;URL&nbsp;of&nbsp;the&nbsp;page.<br>
-:type&nbsp;url:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str<br>
-:param&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;log&nbsp;events&nbsp;to.<br>
-:type&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
-:param&nbsp;instance_obj:&nbsp;&nbsp;&nbsp;The&nbsp;<a href="#Instance">Instance</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;associated&nbsp;with&nbsp;the&nbsp;instance&nbsp;this&nbsp;<a href="#Page">Page</a>'s<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;url&nbsp;is&nbsp;located&nbsp;at.<br>
-:type&nbsp;instance_obj:&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Instance">Instance</a><br>
-:param&nbsp;save_profiles:&nbsp;&nbsp;If&nbsp;the&nbsp;program&nbsp;is&nbsp;in&nbsp;a&nbsp;profiles-saving&nbsp;mode.<br>
-:type&nbsp;save_profiles:&nbsp;&nbsp;&nbsp;bool<br>
-:param&nbsp;save_relations:&nbsp;If&nbsp;the&nbsp;program&nbsp;is&nbsp;in&nbsp;a&nbsp;relations-saving&nbsp;mode.<br>
-:type&nbsp;save_relations:&nbsp;&nbsp;bool</tt></dd></dl>
-
-<dl><dt><a name="Page-generate_all_relation_page_urls"><strong>generate_all_relation_page_urls</strong></a>(self)</dt><dd><tt>If&nbsp;this&nbsp;is&nbsp;a&nbsp;static&nbsp;relations&nbsp;page,&nbsp;generate&nbsp;the&nbsp;full&nbsp;list&nbsp;of&nbsp;relations&nbsp;urls<br>
-that&nbsp;should&nbsp;be&nbsp;valid&nbsp;to&nbsp;the&nbsp;server.<br>
-&nbsp;<br>
-:return:&nbsp;If&nbsp;this&nbsp;is&nbsp;a&nbsp;static&nbsp;relations&nbsp;page&nbsp;and&nbsp;the&nbsp;page&nbsp;displays&nbsp;a&nbsp;link&nbsp;to&nbsp;the<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;last&nbsp;relations&nbsp;page,&nbsp;returns&nbsp;a&nbsp;list&nbsp;of&nbsp;all&nbsp;urls&nbsp;between&nbsp;page=1&nbsp;and&nbsp;that<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;page,&nbsp;otherwise&nbsp;returns&nbsp;an&nbsp;empty&nbsp;list.<br>
-:rtype:&nbsp;&nbsp;list</tt></dd></dl>
-
-<dl><dt><a name="Page-generate_initial_relation_page_urls"><strong>generate_initial_relation_page_urls</strong></a>(self)</dt><dd><tt>If&nbsp;this&nbsp;is&nbsp;a&nbsp;profile&nbsp;page,&nbsp;generates&nbsp;what&nbsp;its&nbsp;following/followers&nbsp;pages&nbsp;links<br>
-should&nbsp;be&nbsp;based&nbsp;on&nbsp;whether&nbsp;it's&nbsp;dynamic&nbsp;or&nbsp;static.<br>
-&nbsp;<br>
-:return:&nbsp;A&nbsp;2-element&nbsp;list&nbsp;of&nbsp;urls&nbsp;if&nbsp;this&nbsp;is&nbsp;a&nbsp;profile&nbsp;page,&nbsp;or&nbsp;an&nbsp;empty&nbsp;list<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;otherwise.<br>
-:rtype:&nbsp;&nbsp;list</tt></dd></dl>
-
-<dl><dt><a name="Page-parse_profile_page"><strong>parse_profile_page</strong></a>(self)</dt><dd><tt>Parses&nbsp;the&nbsp;loaded&nbsp;page&nbsp;in&nbsp;the&nbsp;self.<strong>document</strong>&nbsp;attribute,&nbsp;treating&nbsp;it&nbsp;as&nbsp;a<br>
-profile&nbsp;page.&nbsp;Rules&nbsp;it&nbsp;out&nbsp;if&nbsp;it's&nbsp;not&nbsp;a&nbsp;usable&nbsp;page,&nbsp;otherwise&nbsp;extracts<br>
-the&nbsp;profile&nbsp;bio&nbsp;and&nbsp;save&nbsp;it.<br>
-&nbsp;<br>
-:return:&nbsp;If&nbsp;the&nbsp;page&nbsp;is&nbsp;ruled&nbsp;out&nbsp;for&nbsp;some&nbsp;reason&nbsp;or&nbsp;the&nbsp;parsing&nbsp;failed,&nbsp;returns<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;Failed_Request&nbsp;<a href="builtins.html#object">object</a>.&nbsp;Otherwise&nbsp;returns&nbsp;the&nbsp;length&nbsp;of&nbsp;the&nbsp;bio&nbsp;in<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;acharacters&nbsp;fter&nbsp;the&nbsp;HTML&nbsp;has&nbsp;been&nbsp;converted&nbsp;to&nbsp;markdown.<br>
-:rtype:&nbsp;&nbsp;Failed_Request&nbsp;or&nbsp;int</tt></dd></dl>
-
-<dl><dt><a name="Page-parse_relations_page"><strong>parse_relations_page</strong></a>(self, browser=None)</dt><dd><tt>Parses&nbsp;the&nbsp;loaded&nbsp;page&nbsp;in&nbsp;the&nbsp;self.<strong>document</strong>&nbsp;attribute,&nbsp;treating&nbsp;it&nbsp;as&nbsp;a<br>
-relations&nbsp;(ie.&nbsp;following&nbsp;or&nbsp;followers)&nbsp;page.&nbsp;Rules&nbsp;it&nbsp;out&nbsp;if&nbsp;it's&nbsp;not&nbsp;a&nbsp;usable<br>
-page,&nbsp;otherwise&nbsp;extracts&nbsp;the&nbsp;following&nbsp;or&nbsp;followers&nbsp;profile&nbsp;links&nbsp;and&nbsp;saves<br>
-them.&nbsp;Expects&nbsp;a&nbsp;webdriver&nbsp;browser&nbsp;instance&nbsp;as&nbsp;an&nbsp;argument&nbsp;if&nbsp;self.<strong>is_dynamic</strong>&nbsp;is<br>
-True.<br>
-&nbsp;<br>
-:param&nbsp;browser:&nbsp;The&nbsp;webdriver&nbsp;browser&nbsp;<a href="builtins.html#object">object</a>&nbsp;of&nbsp;the&nbsp;headless&nbsp;puppet<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Firefox&nbsp;instance&nbsp;that&nbsp;has&nbsp;loaded&nbsp;the&nbsp;relations&nbsp;page&nbsp;fully&nbsp;and&nbsp;is<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ready&nbsp;to&nbsp;be&nbsp;scrolled&nbsp;across&nbsp;scaping&nbsp;data.<br>
-:type&nbsp;browser:&nbsp;&nbsp;selenium.webdriver.firefox.webdriver.WebDriver,&nbsp;optional<br>
-:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If&nbsp;the&nbsp;parsing&nbsp;process&nbsp;failed&nbsp;for&nbsp;any&nbsp;reason,&nbsp;a&nbsp;Failed_Request<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="builtins.html#object">object</a>;&nbsp;otherwise&nbsp;the&nbsp;number&nbsp;of&nbsp;following&nbsp;or&nbsp;followers&nbsp;profile<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;links&nbsp;collected.<br>
-:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Failed_Request&nbsp;or&nbsp;int</tt></dd></dl>
-
-<dl><dt><a name="Page-requests_fetch"><strong>requests_fetch</strong></a>(self)</dt><dd><tt>Tries&nbsp;to&nbsp;fetch&nbsp;self.<strong>url</strong>&nbsp;using&nbsp;requests.get().<br>
-&nbsp;<br>
-:return:&nbsp;If&nbsp;the&nbsp;fetch&nbsp;was&nbsp;successful&nbsp;and&nbsp;it's&nbsp;a&nbsp;profile,&nbsp;the&nbsp;lenth&nbsp;of&nbsp;the<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bio;&nbsp;if&nbsp;it's&nbsp;a&nbsp;relations&nbsp;page,&nbsp;the&nbsp;number&nbsp;of&nbsp;relations.&nbsp;If&nbsp;it&nbsp;failed,<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then&nbsp;a&nbsp;Failed_Request&nbsp;<a href="builtins.html#object">object</a>&nbsp;detailing&nbsp;the&nbsp;problem.&nbsp;If&nbsp;the&nbsp;fetch&nbsp;can't<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;be&nbsp;done&nbsp;bc&nbsp;it's&nbsp;a&nbsp;profile&nbsp;when&nbsp;not&nbsp;in&nbsp;a&nbsp;profile-fetching&nbsp;mode,&nbsp;or&nbsp;a<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;relations&nbsp;page&nbsp;when&nbsp;not&nbsp;in&nbsp;relations-fetching&nbsp;mode,&nbsp;False.<br>
-:rtype:&nbsp;&nbsp;int&nbsp;or&nbsp;Failed_Request</tt></dd></dl>
-
-<dl><dt><a name="Page-save_page"><strong>save_page</strong></a>(self, data_store_obj)</dt><dd><tt>Saves&nbsp;the&nbsp;page's&nbsp;content&nbsp;to&nbsp;the&nbsp;data&nbsp;store.&nbsp;If&nbsp;this&nbsp;is&nbsp;a&nbsp;profile&nbsp;page,&nbsp;saves&nbsp;the<br>
-profile.&nbsp;If&nbsp;this&nbsp;is&nbsp;a&nbsp;relations&nbsp;page,&nbsp;save&nbsp;the&nbsp;collected&nbsp;following/followers<br>
-handles.<br>
-&nbsp;<br>
-:param&nbsp;data_store_obj:&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;contact&nbsp;the&nbsp;database.<br>
-:type&nbsp;data_store_obj:&nbsp;&nbsp;Data_Store<br>
-:return:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;number&nbsp;of&nbsp;rows&nbsp;affected&nbsp;by&nbsp;the&nbsp;query.<br>
-:rtype:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int</tt></dd></dl>
-
-<dl><dt><a name="Page-webdriver_fetch"><strong>webdriver_fetch</strong></a>(self)</dt><dd><tt>Tries&nbsp;to&nbsp;fetch&nbsp;self.<strong>url</strong>&nbsp;using&nbsp;selenium.webdriver.firefox.<br>
-&nbsp;<br>
-:return:&nbsp;If&nbsp;the&nbsp;fetch&nbsp;was&nbsp;successful&nbsp;and&nbsp;it's&nbsp;a&nbsp;profile,&nbsp;the&nbsp;lenth&nbsp;of&nbsp;the<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bio;&nbsp;if&nbsp;it's&nbsp;a&nbsp;relations&nbsp;page,&nbsp;the&nbsp;number&nbsp;of&nbsp;relations.&nbsp;If&nbsp;it&nbsp;failed,<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then&nbsp;a&nbsp;Failed_Request&nbsp;<a href="builtins.html#object">object</a>&nbsp;detailing&nbsp;the&nbsp;problem.&nbsp;If&nbsp;the&nbsp;fetch&nbsp;can't<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;be&nbsp;done&nbsp;bc&nbsp;it's&nbsp;a&nbsp;profile&nbsp;when&nbsp;not&nbsp;in&nbsp;a&nbsp;profile-fetching&nbsp;mode,&nbsp;or&nbsp;a<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;relations&nbsp;page&nbsp;when&nbsp;not&nbsp;in&nbsp;relations-fetching&nbsp;mode,&nbsp;False.<br>
-:rtype:&nbsp;&nbsp;bool,&nbsp;int,&nbsp;or&nbsp;Failed_Request</tt></dd></dl>
-
-<hr>
-Readonly properties defined here:<br>
-<dl><dt><strong>relation_type</strong></dt>
-</dl>
-<hr>
-Data descriptors defined here:<br>
-<dl><dt><strong>document</strong></dt>
-</dl>
-<dl><dt><strong>dont_discard_bc_wifi</strong></dt>
-</dl>
-<dl><dt><strong>handle_obj</strong></dt>
-</dl>
-<dl><dt><strong>instance</strong></dt>
-</dl>
-<dl><dt><strong>instance_obj</strong></dt>
-</dl>
-<dl><dt><strong>is_dynamic</strong></dt>
-</dl>
-<dl><dt><strong>is_followers</strong></dt>
-</dl>
-<dl><dt><strong>is_following</strong></dt>
-</dl>
-<dl><dt><strong>is_profile</strong></dt>
-</dl>
-<dl><dt><strong>is_static</strong></dt>
-</dl>
-<dl><dt><strong>loaded</strong></dt>
-</dl>
-<dl><dt><strong>logger_obj</strong></dt>
-</dl>
-<dl><dt><strong>page_number</strong></dt>
-</dl>
-<dl><dt><strong>profile_bio_text</strong></dt>
-</dl>
-<dl><dt><strong>profile_no_public_posts</strong></dt>
-</dl>
-<dl><dt><strong>profile_posts_too_old</strong></dt>
-</dl>
-<dl><dt><strong>relations_list</strong></dt>
-</dl>
-<dl><dt><strong>save_profiles</strong></dt>
-</dl>
-<dl><dt><strong>save_relations</strong></dt>
-</dl>
-<dl><dt><strong>unparseable</strong></dt>
-</dl>
-<dl><dt><strong>url</strong></dt>
-</dl>
-<dl><dt><strong>username</strong></dt>
-</dl>
-<hr>
-Data and other attributes defined here:<br>
-<dl><dt><strong>forwarding_handle_re</strong> = re.compile('^.*(@) ([A-Za-z0-9._]+@[A-Za-z0-9._]+\\.[a-z]+).*$', re.MULTILINE)</dl>
-
-<dl><dt><strong>handle_url_href_re</strong> = re.compile('https://([\\w.]+\\.\\w+)/@(\\w+)')</dl>
-
-<dl><dt><strong>moved_handle_class_re</strong> = re.compile('moved-account-widget__message')</dl>
-
-<dl><dt><strong>profile_url_re</strong> = re.compile('(?:https://[A-Za-z0-9_.-]+\\.[a-z]+)?/@[A-Za-z0-9_.-]+$')</dl>
-
-<dl><dt><strong>relation_url_re</strong> = re.compile('(?:https://[A-Za-z0-9_.-]+\\.[a-z]+)...-9_.-]+/(follow(?:ing|ers))(?:\\?page=[0-9]+)?$')</dl>
-
-<dl><dt><strong>static_pagination_page_split_re</strong> = re.compile('(?&lt;=page=)')</dl>
-
-<dl><dt><strong>static_pagination_re</strong> = re.compile('/users/[A-Za-z0-9_.-]+/follow(?:ing|ers)(?:\\?page=\\d+)?')</dl>
-
-</td></tr></table> <p>
-<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
-<tr bgcolor="#ffc8d8">
-<td colspan=3 valign=bottom>&nbsp;<br>
-<font color="#000000" face="helvetica, arial"><a name="Page_Fetcher">class <strong>Page_Fetcher</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
-    
-<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
-<td colspan=2><tt><a href="#Page_Fetcher">Page_Fetcher</a>(data_store_obj,&nbsp;logger_obj,&nbsp;instances_dict,&nbsp;save_profiles=False,&nbsp;save_relations=False,&nbsp;dont_discard_bc_wifi=False,&nbsp;conn_err_wait_time=0.0)<br>
-&nbsp;<br>
-An&nbsp;originator&nbsp;of&nbsp;<a href="#Page">Page</a>&nbsp;objects&nbsp;that&nbsp;executes&nbsp;this&nbsp;workflow:<br>
+An&nbsp;originator&nbsp;of&nbsp;Page&nbsp;objects&nbsp;that&nbsp;executes&nbsp;this&nbsp;workflow:<br>
 &nbsp;<br>
 *&nbsp;Prepares&nbsp;the&nbsp;request<br>
 *&nbsp;Fails&nbsp;fast&nbsp;if&nbsp;it&nbsp;is&nbsp;unsatisfiable<br>
-*&nbsp;Instances&nbsp;the&nbsp;<a href="#Page">Page</a>&nbsp;<a href="builtins.html#object">object</a><br>
-*&nbsp;Has&nbsp;the&nbsp;<a href="#Page">Page</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;execute&nbsp;the&nbsp;request<br>
+*&nbsp;Instances&nbsp;the&nbsp;Page&nbsp;<a href="builtins.html#object">object</a><br>
+*&nbsp;Has&nbsp;the&nbsp;Page&nbsp;<a href="builtins.html#object">object</a>&nbsp;execute&nbsp;the&nbsp;request<br>
 *&nbsp;If&nbsp;it&nbsp;fails,&nbsp;handles&nbsp;a&nbsp;variety&nbsp;of&nbsp;failed&nbsp;requests&nbsp;in&nbsp;different&nbsp;ways<br>
-*&nbsp;If&nbsp;it&nbsp;succeeds,&nbsp;yields&nbsp;the&nbsp;<a href="#Page">Page</a>&nbsp;<a href="builtins.html#object">object</a>.<br>&nbsp;</tt></td></tr>
+*&nbsp;If&nbsp;it&nbsp;succeeds,&nbsp;yields&nbsp;the&nbsp;Page&nbsp;<a href="builtins.html#object">object</a>.<br>&nbsp;</tt></td></tr>
 <tr><td>&nbsp;</td>
 <td width="100%">Methods defined here:<br>
-<dl><dt><a name="Page_Fetcher-__init__"><strong>__init__</strong></a>(self, data_store_obj, logger_obj, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False, conn_err_wait_time=0.0)</dt><dd><tt>Instances&nbsp;the&nbsp;<a href="#Page_Fetcher">Page_Fetcher</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
+<dl><dt><a name="PageFetcher-__init__"><strong>__init__</strong></a>(self, data_store_obj, logger_obj, instances_dict, save_profiles=False, save_relations=False, dont_discard_bc_wifi=False, conn_err_wait_time=0.0)</dt><dd><tt>Instances&nbsp;the&nbsp;Page_Fetcher&nbsp;<a href="builtins.html#object">object</a>.<br>
 &nbsp;<br>
 :param&nbsp;data_store_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Data_Store&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;when&nbsp;saving&nbsp;a<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Page">Page</a>&nbsp;or&nbsp;Deleted_User&nbsp;<a href="builtins.html#object">object</a>.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Page&nbsp;or&nbsp;Deleted_User&nbsp;<a href="builtins.html#object">object</a>.<br>
 :type&nbsp;data_store_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Data_Store<br>
 :param&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;Logger&nbsp;<a href="builtins.html#object">object</a>&nbsp;to&nbsp;use&nbsp;to&nbsp;log&nbsp;events.<br>
 :type&nbsp;logger_obj:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.Logger<br>
-:param&nbsp;instances_dict:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;to&nbsp;<a href="#Instance">Instance</a>&nbsp;objects<br>
+:param&nbsp;instances_dict:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;dict&nbsp;mapping&nbsp;hostnames&nbsp;to&nbsp;Instance&nbsp;objects<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;that&nbsp;is&nbsp;the&nbsp;store&nbsp;of&nbsp;known&nbsp;instance&nbsp;and&nbsp;their<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;statuses.<br>
 :type&nbsp;instances_dict:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dict<br>
@@ -371,9 +192,9 @@ An&nbsp;originator&nbsp;of&nbsp;<a href="#Page">Page</a>&nbsp;objects&nbsp;that&
 :param&nbsp;conn_err_wait_time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When&nbsp;a&nbsp;connection&nbsp;error&nbsp;is&nbsp;treated&nbsp;as<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nonfatal,&nbsp;sleep&nbsp;this&nbsp;number&nbsp;of&nbsp;seconds<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;before&nbsp;resuming&nbsp;the&nbsp;algorithm.<br>
-:type&nbsp;conn_err_wait_time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool</tt></dd></dl>
+:type&nbsp;conn_err_wait_time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;float</tt></dd></dl>
 
-<dl><dt><a name="Page_Fetcher-instantiate_and_fetch_page"><strong>instantiate_and_fetch_page</strong></a>(self, handle_obj, url)</dt></dl>
+<dl><dt><a name="PageFetcher-instantiate_and_fetch_page"><strong>instantiate_and_fetch_page</strong></a>(self, handle_obj, url)</dt></dl>
 
 <hr>
 Data descriptors defined here:<br>
@@ -393,76 +214,5 @@ Data descriptors defined here:<br>
 </dl>
 <dl><dt><strong>save_relations</strong></dt>
 </dl>
-</td></tr></table> <p>
-<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
-<tr bgcolor="#ffc8d8">
-<td colspan=3 valign=bottom>&nbsp;<br>
-<font color="#000000" face="helvetica, arial"><a name="Robots_Txt_File">class <strong>Robots_Txt_File</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
-    
-<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
-<td colspan=2><tt><a href="#Robots_Txt_File">Robots_Txt_File</a>(user_agent,&nbsp;url,&nbsp;logger_obj,&nbsp;dont_discard_bc_wifi=False)<br>
-&nbsp;<br>
-Represents&nbsp;a&nbsp;robots.txt&nbsp;file,&nbsp;implementing&nbsp;functionality&nbsp;to&nbsp;test&nbsp;whether&nbsp;a<br>
-User-Agent&nbsp;+&nbsp;path&nbsp;combination&nbsp;is&nbsp;allowed&nbsp;or&nbsp;not.<br>&nbsp;</tt></td></tr>
-<tr><td>&nbsp;</td>
-<td width="100%">Methods defined here:<br>
-<dl><dt><a name="Robots_Txt_File-__init__"><strong>__init__</strong></a>(self, user_agent, url, logger_obj, dont_discard_bc_wifi=False)</dt><dd><tt>Instances&nbsp;a&nbsp;<a href="#Robots_Txt_File">Robots_Txt_File</a>&nbsp;<a href="builtins.html#object">object</a>.<br>
-&nbsp;<br>
-:param&nbsp;user_agent:&nbsp;The&nbsp;User-Agent&nbsp;string&nbsp;to&nbsp;test&nbsp;against&nbsp;the&nbsp;robots.txt<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;constraints.&nbsp;Should&nbsp;be&nbsp;cut&nbsp;off&nbsp;at&nbsp;the&nbsp;first&nbsp;space&nbsp;or&nbsp;slash.<br>
-:type&nbsp;user_agent:&nbsp;&nbsp;str<br>
-:param&nbsp;url:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;URL&nbsp;of&nbsp;the&nbsp;site&nbsp;to&nbsp;retrieve&nbsp;the&nbsp;robots.txt&nbsp;file&nbsp;from.<br>
-:type&nbsp;url:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str</tt></dd></dl>
-
-<dl><dt><a name="Robots_Txt_File-can_fetch"><strong>can_fetch</strong></a>(self, query_url)</dt><dd><tt>Check&nbsp;the&nbsp;supplied&nbsp;url&nbsp;against&nbsp;the&nbsp;parsed&nbsp;robots.txt&nbsp;data&nbsp;for&nbsp;the&nbsp;stored<br>
-User-Agent&nbsp;to&nbsp;see&nbsp;if&nbsp;it&nbsp;is&nbsp;allowed&nbsp;or&nbsp;disallowed.&nbsp;Returns&nbsp;True&nbsp;if&nbsp;it's&nbsp;allowed,<br>
-False&nbsp;otherwise.<br>
-&nbsp;<br>
-:return:&nbsp;True&nbsp;or&nbsp;False<br>
-:rtype:&nbsp;&nbsp;bool</tt></dd></dl>
-
-<dl><dt><a name="Robots_Txt_File-has_been_loaded"><strong>has_been_loaded</strong></a>(self)</dt><dd><tt>Predicate&nbsp;that&nbsp;returns&nbsp;True&nbsp;if&nbsp;the&nbsp;robots.txt&nbsp;file&nbsp;has&nbsp;been&nbsp;fetched&nbsp;and&nbsp;parsed,<br>
-False&nbsp;otherwise.<br>
-&nbsp;<br>
-:return:&nbsp;True&nbsp;or&nbsp;False<br>
-:rtype:&nbsp;&nbsp;bool</tt></dd></dl>
-
-<dl><dt><a name="Robots_Txt_File-load_and_parse"><strong>load_and_parse</strong></a>(self)</dt><dd><tt>Loads&nbsp;the&nbsp;indicated&nbsp;robots.txt&nbsp;file&nbsp;and&nbsp;parses&nbsp;it,&nbsp;such&nbsp;that&nbsp;after&nbsp;this&nbsp;call&nbsp;the<br>
-<a href="#Robots_Txt_File-can_fetch">can_fetch</a>()&nbsp;method&nbsp;will&nbsp;be&nbsp;operational.<br>
-&nbsp;<br>
-:return:&nbsp;None<br>
-:rtype:&nbsp;&nbsp;types.NoneType</tt></dd></dl>
-
-<hr>
-Readonly properties defined here:<br>
-<dl><dt><strong>instance</strong></dt>
-</dl>
-<hr>
-Data descriptors defined here:<br>
-<dl><dt><strong>dont_discard_bc_wifi</strong></dt>
-</dl>
-<dl><dt><strong>logger_obj</strong></dt>
-</dl>
-<dl><dt><strong>robots_dict</strong></dt>
-</dl>
-<dl><dt><strong>url</strong></dt>
-</dl>
-<dl><dt><strong>user_agent</strong></dt>
-</dl>
-<hr>
-Data and other attributes defined here:<br>
-<dl><dt><strong>allow_re</strong> = re.compile('^Allow: (.*)$', re.IGNORECASE)</dl>
-
-<dl><dt><strong>disallow_re</strong> = re.compile('^Disallow: (.*)$', re.IGNORECASE)</dl>
-
-<dl><dt><strong>user_agent_re</strong> = re.compile('^User-agent: (.*)$', re.IGNORECASE)</dl>
-
-</td></tr></table></td></tr></table><p>
-<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
-<tr bgcolor="#55aa55">
-<td colspan=3 valign=bottom>&nbsp;<br>
-<font color="#ffffff" face="helvetica, arial"><big><strong>Data</strong></big></font></td></tr>
-    
-<tr><td bgcolor="#55aa55"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
-<td width="100%"><strong>SCROLL_PAUSE_TIME</strong> = 1.0</td></tr></table>
+</td></tr></table></td></tr></table>
 </body></html>
